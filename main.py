@@ -10,7 +10,6 @@ from discord.ext import commands
 logging.basicConfig(level=logging.INFO)
 
 TOKEN = os.getenv('TOKEN')
-STAFF_ROLE_ID = int(os.getenv('STAFF_ROLE_ID', 0))
 PREFIX = commands.when_mentioned
 
 intents = discord.Intents.default()
@@ -18,16 +17,6 @@ intents.members = True
 intents.message_content = True
 
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
-
-def is_staff():
-    async def predicate(ctx):
-        if not ctx.guild:
-            return False
-        return (
-            ctx.author.guild_permissions.administrator or
-            any(r.id == STAFF_ROLE_ID for r in ctx.author.roles)
-        )
-    return commands.check(predicate)
 
 def load_staff_commands():
     staff_commands_path = os.path.join(os.path.dirname(__file__), 'staff', 'commands')
