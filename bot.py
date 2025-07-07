@@ -322,9 +322,18 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"Erreur tâche rappels : {e}")
 
+    @reminder_task.before_loop
+    async def before_reminder_task(self):
+        """Attendre que le bot soit prêt avant de démarrer la tâche"""
+        await self.wait_until_ready()
+
     @tasks.loop(minutes=10)
     async def status_update(self):
         """Met à jour le statut du bot"""
+        # Vérifications de sécurité
+        if not self.is_ready() or not self.ws:
+            return
+
         statuses = [
             ("watching", f"{len(self.guilds)} serveurs"),
             ("playing", "/help"),
@@ -340,19 +349,40 @@ class ModdyBot(commands.Bot):
             type=getattr(discord.ActivityType, activity_type),
             name=name
         )
-        await self.change_presence(activity=activity)
+
+        try:
+            await self.change_presence(activity=activity)
+        except (AttributeError, ConnectionError):
+            # Ignorer si on est en train de fermer
+            pass
+        except Exception as e:
+            logger.error(f"Erreur changement de statut : {e}")
+
+    @status_update.before_loop
+    async def before_status_update(self):
+        """Attendre que le bot soit prêt avant de démarrer la tâche"""
+        await self.wait_until_ready()
 
     async def close(self):
         """Fermeture propre du bot"""
         logger.info("🔄 Fermeture en cours...")
 
-        # Arrête les tâches
-        self.reminder_task.cancel()
-        self.status_update.cancel()
+        # Arrête les tâches AVANT de fermer
+        if self.reminder_task.is_running():
+            self.reminder_task.cancel()
+        if self.status_update.is_running():
+            self.status_update.cancel()
+
+        # Attendre un peu pour que les tâches se terminent
+        await asyncio.sleep(0.1)
 
         # Ferme la connexion BDD
         if self.db_pool:
             await self.db_pool.close()
+
+        # Ferme proprement le client HTTP
+        if hasattr(self, 'http') and self.http and hasattr(self.http, '_HTTPClient__session'):
+            await self.http._HTTPClient__session.close()
 
         # Ferme le bot
         await super().close()
