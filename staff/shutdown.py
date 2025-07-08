@@ -1,15 +1,20 @@
 """
 Commande shutdown pour développeurs
 Permet d'arrêter le bot proprement
+Utilise les composants V2
 """
 
 import discord
 from discord.ext import commands
 import asyncio
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
-from config import COLORS, EMOJIS
+# Import du système d'embeds V2
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.embeds import ModdyEmbed, ModdyResponse
 
 
 class Shutdown(commands.Cog):
@@ -24,58 +29,43 @@ class Shutdown(commands.Cog):
 
     @commands.command(name="shutdown", aliases=["stop", "kill", "exit", "quit"])
     async def shutdown(self, ctx):
-        """Arrête le bot proprement"""
+        """Arrête le bot proprement avec composants V2"""
 
-        # Embed de confirmation
-        embed = discord.Embed(
-            title=f"{EMOJIS['warning']} Confirmation d'arrêt",
-            description="Êtes-vous sûr de vouloir arrêter le bot ?",
-            color=COLORS["warning"]
-        )
-        embed.add_field(
-            name="Informations",
-            value=f"🏢 **Serveurs actifs:** {len(self.bot.guilds)}\n"
-                  f"👥 **Utilisateurs:** {len(self.bot.users)}\n"
-                  f"⏱️ **Uptime:** {self._get_uptime()}",
-            inline=False
-        )
-        embed.set_footer(text="Cette action fermera complètement le bot")
+        # Composants V2 de confirmation
+        components = [
+            ModdyEmbed.heading("Confirmation d'arrêt", 2),
+            ModdyEmbed.text("Êtes-vous sûr de vouloir arrêter le bot ?"),
+            ModdyEmbed.separator(),
+            ModdyEmbed.heading("Informations", 3),
+            ModdyEmbed.text(f"**Serveurs actifs:** `{len(self.bot.guilds)}`"),
+            ModdyEmbed.text(f"**Utilisateurs:** `{len(self.bot.users)}`"),
+            ModdyEmbed.text(f"**Uptime:** `{self._get_uptime()}`"),
+            ModdyEmbed.separator(),
+            ModdyEmbed.text("_Cette action fermera complètement le bot_"),
+            ModdyEmbed.action_row([
+                ModdyEmbed.button("Confirmer l'arrêt", "shutdown_confirm", style=4),
+                ModdyEmbed.button("Annuler", "shutdown_cancel", style=2)
+            ])
+        ]
 
-        # Vue avec boutons de confirmation
+        # Vue avec boutons
         view = ShutdownView(self.bot, ctx.author)
 
-        await ctx.send(embed=embed, view=view)
-
-    @commands.command(name="restart", aliases=["reboot", "reload"])
-    async def restart(self, ctx):
-        """Redémarre le bot (ferme et doit être relancé)"""
-
-        embed = discord.Embed(
-            title=f"{EMOJIS['loading']} Redémarrage...",
-            description="Le bot va redémarrer. Assurez-vous qu'un système de redémarrage automatique est en place.",
-            color=COLORS["info"]
-        )
-
-        await ctx.send(embed=embed)
-
         # Log l'action
-        import logging
-        logger = logging.getLogger('moddy')
-        logger.info(f"🔄 Redémarrage demandé par {ctx.author} ({ctx.author.id})")
+        if log_cog := self.bot.get_cog("LoggingSystem"):
+            await log_cog.log_command(ctx, "shutdown")
 
-        # Attendre un peu pour que le message soit envoyé
-        await asyncio.sleep(1)
-
-        # Fermer le bot avec un code de sortie spécial pour le redémarrage
-        await self.bot.close()
-        sys.exit(42)  # Code 42 = redémarrage demandé
+        await ctx.send(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": components,
+            "view": view
+        })
 
     def _get_uptime(self):
         """Calcule l'uptime du bot"""
         if not hasattr(self.bot, 'launch_time'):
             return "N/A"
 
-        from datetime import timezone
         uptime = datetime.now(timezone.utc) - self.bot.launch_time
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
@@ -96,18 +86,19 @@ class ShutdownView(discord.ui.View):
         self.bot = bot
         self.author = author
         self.confirmed = False
+        self.message = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Seul l'auteur peut utiliser les boutons"""
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "❌ Seul l'auteur de la commande peut confirmer l'arrêt.",
+                "Seul l'auteur de la commande peut confirmer l'arrêt.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Confirmer l'arrêt", style=discord.ButtonStyle.danger, emoji="⛔")
+    @discord.ui.button(custom_id="shutdown_confirm")
     async def confirm_shutdown(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Confirme l'arrêt du bot"""
         self.confirmed = True
@@ -116,25 +107,25 @@ class ShutdownView(discord.ui.View):
         for item in self.children:
             item.disabled = True
 
-        # Embed d'arrêt
-        embed = discord.Embed(
-            title=f"{EMOJIS['error']} Arrêt en cours...",
-            description="Le bot s'arrête proprement.",
-            color=COLORS["error"],
-            timestamp=datetime.utcnow()
-        )
-        embed.add_field(
-            name="Action effectuée par",
-            value=f"{interaction.user.mention} ({interaction.user.id})",
-            inline=False
-        )
+        # Composants V2 d'arrêt
+        components = [
+            ModdyEmbed.heading("Arrêt en cours...", 2),
+            ModdyEmbed.text("Le bot s'arrête proprement."),
+            ModdyEmbed.separator(),
+            ModdyEmbed.text(f"**Action effectuée par:** {interaction.user.mention} (`{interaction.user.id}`)"),
+            ModdyEmbed.text(f"_Timestamp: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}_")
+        ]
 
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": components,
+            "view": self
+        })
 
         # Log l'action
         import logging
         logger = logging.getLogger('moddy')
-        logger.info(f"🛑 Arrêt confirmé par {interaction.user} ({interaction.user.id})")
+        logger.info(f"Arrêt confirmé par {interaction.user} ({interaction.user.id})")
 
         # Attendre un peu pour que le message soit mis à jour
         await asyncio.sleep(1)
@@ -143,36 +134,49 @@ class ShutdownView(discord.ui.View):
         await self.bot.close()
         sys.exit(0)
 
-    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary, emoji="❌")
+    @discord.ui.button(custom_id="shutdown_cancel")
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Annule l'arrêt"""
         # Désactiver tous les boutons
         for item in self.children:
             item.disabled = True
 
-        embed = discord.Embed(
-            title=f"{EMOJIS['success']} Arrêt annulé",
-            description="Le bot continue de fonctionner normalement.",
-            color=COLORS["success"]
-        )
+        # Composants V2 d'annulation
+        components = [
+            ModdyEmbed.heading("Arrêt annulé", 2),
+            ModdyEmbed.text("Le bot continue de fonctionner normalement."),
+            ModdyEmbed.separator(),
+            ModdyEmbed.text(f"_Annulé par {interaction.user}_")
+        ]
 
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": components,
+            "view": self
+        })
         self.stop()
 
     async def on_timeout(self):
         """Appelé après le timeout"""
-        if not self.confirmed:
+        if not self.confirmed and self.message:
             # Désactiver tous les boutons
             for item in self.children:
                 item.disabled = True
 
             try:
-                embed = discord.Embed(
-                    title=f"{EMOJIS['info']} Temps écoulé",
-                    description="La demande d'arrêt a expiré.",
-                    color=COLORS["info"]
-                )
-                await self.message.edit(embed=embed, view=self)
+                # Composants V2 de timeout
+                components = [
+                    ModdyEmbed.heading("Temps écoulé", 2),
+                    ModdyEmbed.text("La demande d'arrêt a expiré."),
+                    ModdyEmbed.separator(),
+                    ModdyEmbed.text("_Timeout après 30 secondes_")
+                ]
+
+                await self.message.edit(**{
+                    "flags": ModdyEmbed.V2_FLAGS,
+                    "components": components,
+                    "view": self
+                })
             except:
                 pass
 

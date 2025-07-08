@@ -1,6 +1,7 @@
 """
 Commande ping pour développeurs
 Affiche des informations détaillées sur le statut du bot
+Utilise les composants V2 sans bordure colorée
 """
 
 import discord
@@ -12,10 +13,15 @@ import psutil
 from datetime import datetime, timezone
 from typing import Optional
 
-from config import COLORS, EMOJIS
+# Import du système d'embeds V2
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.embeds import ModdyEmbed, ModdyResponse
 
 
-class DevPing(commands.Cog):
+class StaffDiagnostic(commands.Cog):
     """Commandes de diagnostic pour développeurs"""
 
     def __init__(self, bot):
@@ -25,16 +31,16 @@ class DevPing(commands.Cog):
         """Vérifie que l'utilisateur est développeur"""
         return self.bot.is_developer(ctx.author.id)
 
-    @commands.command(name="ping", aliases=["p", "status", "diag"])
-    async def ping_detailed(self, ctx):
-        """Affiche le statut détaillé du bot"""
+    @commands.command(name="diag", aliases=["diagnostic", "sysinfo"])
+    async def diagnostic(self, ctx):
+        """Affiche le statut détaillé du bot avec composants V2"""
 
-        # Message de chargement
-        embed_loading = discord.Embed(
-            description=f"{EMOJIS['loading']} Diagnostic en cours...",
-            color=COLORS["info"]
-        )
-        msg = await ctx.send(embed=embed_loading)
+        # Message de chargement V2
+        loading_msg = {
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": ModdyResponse.loading("Diagnostic en cours...")
+        }
+        msg = await ctx.send(**loading_msg)
 
         # Mesure de la latence du message
         start_time = time.perf_counter()
@@ -47,7 +53,7 @@ class DevPing(commands.Cog):
         message_latency = round((end_time - start_time) * 1000, 2)
 
         # Test de la base de données
-        db_status = "❌ Non connectée"
+        db_status = "Non connectée"
         db_latency = "N/A"
 
         if self.bot.db_pool:
@@ -56,10 +62,10 @@ class DevPing(commands.Cog):
                 async with self.bot.db_pool.acquire() as conn:
                     await conn.fetchval("SELECT 1")
                 db_end = time.perf_counter()
-                db_latency = f"{round((db_end - db_start) * 1000, 2)}ms"
-                db_status = "✅ Opérationnelle"
+                db_latency = f"`{round((db_end - db_start) * 1000, 2)}ms`"
+                db_status = "Opérationnelle"
             except Exception as e:
-                db_status = f"❌ Erreur : {type(e).__name__}"
+                db_status = f"Erreur : `{type(e).__name__}`"
 
         # Informations système
         process = psutil.Process()
@@ -70,91 +76,103 @@ class DevPing(commands.Cog):
         uptime = datetime.now(timezone.utc) - self.bot.launch_time
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
-        uptime_str = f"{hours}h {minutes}m {seconds}s"
+        uptime_str = f"`{hours}h {minutes}m {seconds}s`"
 
-        # Création de l'embed principal
-        embed = discord.Embed(
-            title="📊 Diagnostic Système",
-            color=COLORS["developer"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        # Création des composants V2
+        components = [
+            ModdyEmbed.heading("Diagnostic Système", 1),
+            ModdyEmbed.separator(),
 
-        # Statut général avec emojis conditionnels
-        api_emoji = "🟢" if api_latency < 100 else "🟡" if api_latency < 200 else "🔴"
-        msg_emoji = "🟢" if message_latency < 100 else "🟡" if message_latency < 200 else "🔴"
+            # Discord API
+            ModdyEmbed.heading("Discord API", 3),
+            ModdyEmbed.text(f"**Statut**: En ligne"),
+            ModdyEmbed.text(f"**Latence**: `{api_latency}ms`"),
+            ModdyEmbed.text(f"**Gateway**: `v{discord.__version__}`"),
+            ModdyEmbed.separator(),
 
-        embed.add_field(
-            name="🌐 Discord API",
-            value=f"{api_emoji} **Statut**: En ligne\n"
-                  f"⏱️ **Latence**: {api_latency}ms\n"
-                  f"🔗 **Gateway**: v{discord.__version__}",
-            inline=True
-        )
+            # Bot
+            ModdyEmbed.heading("Bot", 3),
+            ModdyEmbed.text(f"**Statut**: Opérationnel"),
+            ModdyEmbed.text(f"**Réponse**: `{message_latency}ms`"),
+            ModdyEmbed.text(f"**Uptime**: {uptime_str}"),
+            ModdyEmbed.separator(),
 
-        embed.add_field(
-            name="🤖 Bot",
-            value=f"{msg_emoji} **Statut**: Opérationnel\n"
-                  f"⏱️ **Réponse**: {message_latency}ms\n"
-                  f"⏳ **Uptime**: {uptime_str}",
-            inline=True
-        )
+            # Base de données
+            ModdyEmbed.heading("Base de données", 3),
+            ModdyEmbed.text(f"**Statut**: {db_status}"),
+            ModdyEmbed.text(f"**Latence**: {db_latency}"),
+            ModdyEmbed.text(f"**Type**: PostgreSQL (Neon)"),
+            ModdyEmbed.separator(),
 
-        embed.add_field(
-            name="🗄️ Base de données",
-            value=f"**Statut**: {db_status}\n"
-                  f"⏱️ **Latence**: {db_latency}\n"
-                  f"💾 **Type**: PostgreSQL (Neon)",
-            inline=True
-        )
+            # Performance
+            ModdyEmbed.heading("Performance", 3),
+            ModdyEmbed.text(f"**CPU**: `{cpu_percent}%`"),
+            ModdyEmbed.text(f"**RAM**: `{memory_usage:.1f} MB`"),
+            ModdyEmbed.text(f"**Threads**: `{len(self.bot.guilds)}` actifs"),
+            ModdyEmbed.separator(),
 
-        # Deuxième ligne
-        embed.add_field(
-            name="📈 Performance",
-            value=f"💻 **CPU**: {cpu_percent}%\n"
-                  f"🧠 **RAM**: {memory_usage:.1f} MB\n"
-                  f"⚙️ **Threads**: {len(self.bot.guilds)} actifs",
-            inline=True
-        )
+            # Statistiques
+            ModdyEmbed.heading("Statistiques", 3),
+            ModdyEmbed.text(f"**Serveurs**: `{len(self.bot.guilds)}`"),
+            ModdyEmbed.text(f"**Utilisateurs**: `{len(self.bot.users)}`"),
+            ModdyEmbed.text(f"**Commandes**: `{len(self.bot.commands)}`"),
+            ModdyEmbed.separator(),
 
-        embed.add_field(
-            name="📊 Statistiques",
-            value=f"🏢 **Serveurs**: {len(self.bot.guilds)}\n"
-                  f"👥 **Utilisateurs**: {len(self.bot.users)}\n"
-                  f"📝 **Commandes**: {len(self.bot.commands)}",
-            inline=True
-        )
+            # Système
+            ModdyEmbed.heading("Système", 3),
+            ModdyEmbed.text(f"**OS**: `{platform.system()} {platform.release()}`"),
+            ModdyEmbed.text(f"**Python**: `{platform.python_version()}`"),
+            ModdyEmbed.text(f"**Node**: `{platform.node()}`"),
+            ModdyEmbed.separator(),
 
-        embed.add_field(
-            name="🖥️ Système",
-            value=f"**OS**: {platform.system()} {platform.release()}\n"
-                  f"**Python**: {platform.python_version()}\n"
-                  f"**Node**: {platform.node()}",
-            inline=True
-        )
-
-        # Footer avec info développeur
-        embed.set_footer(
-            text=f"Demandé par {ctx.author}",
-            icon_url=ctx.author.display_avatar.url
-        )
+            ModdyEmbed.text(f"_Demandé par {ctx.author}_")
+        ]
 
         # Boutons d'action
-        view = DiagnosticView(self.bot, ctx.author)
+        buttons = ModdyEmbed.action_row([
+            ModdyEmbed.button("Rafraîchir", "diag_refresh", style=1),
+            ModdyEmbed.button("Collecter les déchets", "diag_gc", style=2),
+            ModdyEmbed.button("Logs", "diag_logs", style=2),
+            ModdyEmbed.button("Fermer", "diag_close", style=4)
+        ])
 
-        await msg.edit(embed=embed, view=view)
+        components.append(buttons)
 
-    @commands.command(name="fastping", aliases=["fp"])
+        # Mettre à jour le message avec les composants V2
+        await msg.edit(**{
+            "content": None,
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": components,
+            "view": DiagnosticView(self.bot, ctx.author)
+        })
+
+    @commands.command(name="ping", aliases=["p"])
     async def fast_ping(self, ctx):
-        """Ping rapide sans détails"""
+        """Ping rapide sans détails en V2"""
         start = time.perf_counter()
-        msg = await ctx.send("🏓 Pong!")
+
+        # Message initial V2
+        initial_components = [
+            ModdyEmbed.text("Pong!")
+        ]
+
+        msg = await ctx.send(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": initial_components
+        })
+
         end = time.perf_counter()
 
-        await msg.edit(
-            content=f"🏓 Pong! | "
-                    f"API: `{round(self.bot.latency * 1000)}ms` | "
-                    f"Message: `{round((end - start) * 1000)}ms`"
-        )
+        # Mise à jour avec les latences
+        updated_components = [
+            ModdyEmbed.text(
+                f"Pong! | API: `{round(self.bot.latency * 1000)}ms` | Message: `{round((end - start) * 1000)}ms`")
+        ]
+
+        await msg.edit(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": updated_components
+        })
 
 
 class DiagnosticView(discord.ui.View):
@@ -169,33 +187,33 @@ class DiagnosticView(discord.ui.View):
         """Vérifie que seul l'auteur peut utiliser les boutons"""
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "❌ Seul l'auteur de la commande peut utiliser ces boutons.",
+                "Seul l'auteur de la commande peut utiliser ces boutons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Rafraîchir", style=discord.ButtonStyle.primary, emoji="🔄")
+    @discord.ui.button(custom_id="diag_refresh")
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rafraîchit les statistiques"""
-        await interaction.response.send_message("♻️ Rafraîchissement...", ephemeral=True)
+        await interaction.response.send_message("Rafraîchissement...", ephemeral=True)
 
         # Relance la commande
         ctx = await self.bot.get_context(interaction.message)
         ctx.author = self.author
-        await self.bot.get_command("ping").invoke(ctx)
+        await self.bot.get_command("diag").invoke(ctx)
 
-    @discord.ui.button(label="Collecter les déchets", style=discord.ButtonStyle.secondary, emoji="🗑️")
+    @discord.ui.button(custom_id="diag_gc")
     async def garbage_collect(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Force le garbage collector Python"""
         import gc
         collected = gc.collect()
         await interaction.response.send_message(
-            f"🗑️ Garbage collector exécuté : {collected} objets libérés",
+            f"Garbage collector exécuté : `{collected}` objets libérés",
             ephemeral=True
         )
 
-    @discord.ui.button(label="Logs", style=discord.ButtonStyle.secondary, emoji="📋")
+    @discord.ui.button(custom_id="diag_logs")
     async def show_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche les derniers logs"""
         from config import LOG_FILE
@@ -205,17 +223,23 @@ class DiagnosticView(discord.ui.View):
                 lines = f.readlines()
                 last_logs = ''.join(lines[-10:])  # 10 dernières lignes
 
-            await interaction.response.send_message(
-                f"📋 **Derniers logs :**\n```\n{last_logs[-1900:]}\n```",
-                ephemeral=True
-            )
+            components = [
+                ModdyEmbed.heading("Derniers logs", 3),
+                ModdyEmbed.code_block(last_logs[-1900:], "")
+            ]
+
+            await interaction.response.send_message(**{
+                "flags": ModdyEmbed.V2_FLAGS,
+                "components": components,
+                "ephemeral": True
+            })
         else:
             await interaction.response.send_message(
-                "❌ Aucun fichier de log trouvé",
+                "Aucun fichier de log trouvé",
                 ephemeral=True
             )
 
-    @discord.ui.button(label="Fermer", style=discord.ButtonStyle.danger, emoji="❌")
+    @discord.ui.button(custom_id="diag_close")
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ferme le diagnostic"""
         await interaction.response.defer()
@@ -224,4 +248,4 @@ class DiagnosticView(discord.ui.View):
 
 
 async def setup(bot):
-    await bot.add_cog(DevPing(bot))
+    await bot.add_cog(StaffDiagnostic(bot))

@@ -1,6 +1,7 @@
 """
 Commande reboot pour développeurs
 Redémarre le bot et modifie le message original
+Utilise les composants V2
 """
 
 import discord
@@ -13,7 +14,11 @@ import json
 import tempfile
 from datetime import datetime
 
-from config import COLORS, EMOJIS
+# Import du système d'embeds V2
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.embeds import ModdyEmbed, ModdyResponse
 
 
 class Reboot(commands.Cog):
@@ -28,22 +33,21 @@ class Reboot(commands.Cog):
 
     @commands.command(name="reboot", aliases=["restart", "reload"])
     async def reboot(self, ctx):
-        """Redémarre le bot automatiquement"""
+        """Redémarre le bot automatiquement avec composants V2"""
 
-        # Embed initial
-        embed = discord.Embed(
-            title=f"{EMOJIS['loading']} Redémarrage en cours...",
-            description="Le bot va redémarrer dans quelques secondes.",
-            color=COLORS["warning"],
-            timestamp=datetime.utcnow()
-        )
-        embed.set_footer(
-            text=f"Demandé par {ctx.author}",
-            icon_url=ctx.author.display_avatar.url
-        )
+        # Composants V2 initial
+        components = [
+            ModdyEmbed.heading("Redémarrage en cours...", 2),
+            ModdyEmbed.text("Le bot va redémarrer dans quelques secondes."),
+            ModdyEmbed.separator(),
+            ModdyEmbed.text(f"_Demandé par {ctx.author}_")
+        ]
 
         # Envoyer le message
-        msg = await ctx.send(embed=embed)
+        msg = await ctx.send(**{
+            "flags": ModdyEmbed.V2_FLAGS,
+            "components": components
+        })
 
         # Log l'action
         import logging
@@ -123,58 +127,51 @@ class RebootNotifier(commands.Cog):
                 os.remove(temp_file)
                 return
 
-            # Créer le nouvel embed
-            embed = discord.Embed(
-                title=f"{EMOJIS['success']} Redémarrage terminé !",
-                color=COLORS["success"],
-                timestamp=datetime.utcnow()
-            )
+            # Créer les composants V2
+            components = [
+                ModdyEmbed.heading("Redémarrage terminé !", 2),
+                ModdyEmbed.separator()
+            ]
 
             # Description stylée
             if reboot_duration < 5:
-                speed = "⚡ Ultra rapide"
+                speed = "Ultra rapide"
             elif reboot_duration < 10:
-                speed = "🚀 Rapide"
+                speed = "Rapide"
             elif reboot_duration < 20:
-                speed = "✨ Normal"
+                speed = "Normal"
             else:
-                speed = "🐌 Lent"
+                speed = "Lent"
 
-            embed.description = (
-                f"{speed} - **{reboot_duration:.1f}** secondes\n\n"
-                f"```ansi\n"
-                f"\u001b[2;32m✓ Connexion Discord\u001b[0m\n"
-                f"\u001b[2;32m✓ Chargement des modules\u001b[0m\n"
-                f"\u001b[2;32m✓ Base de données\u001b[0m\n"
-                f"\u001b[2;32m✓ Commandes synchronisées\u001b[0m\n"
-                f"```"
-            )
-
-            # Stats
-            embed.add_field(
-                name="📊 Statistiques",
-                value=f"**Serveurs:** {len(self.bot.guilds)}\n"
-                      f"**Utilisateurs:** {len(self.bot.users)}\n"
-                      f"**Latence:** {round(self.bot.latency * 1000)}ms",
-                inline=True
-            )
-
-            embed.add_field(
-                name="🔧 Système",
-                value=f"**Commandes:** {len(self.bot.commands)}\n"
-                      f"**Cogs:** {len(self.bot.cogs)}\n"
-                      f"**Version:** discord.py {discord.__version__}",
-                inline=True
-            )
-
-            # Footer avec les infos originales
-            embed.set_footer(
-                text=f"Demandé par {info['author_name']}",
-                icon_url=info["author_avatar"]
-            )
+            components.extend([
+                ModdyEmbed.text(f"**{speed}** - `{reboot_duration:.1f}` secondes"),
+                ModdyEmbed.separator(),
+                ModdyEmbed.code_block(
+                    "✓ Connexion Discord\n"
+                    "✓ Chargement des modules\n"
+                    "✓ Base de données\n"
+                    "✓ Commandes synchronisées",
+                    ""
+                ),
+                ModdyEmbed.separator(),
+                ModdyEmbed.heading("Statistiques", 3),
+                ModdyEmbed.text(f"**Serveurs:** `{len(self.bot.guilds)}`"),
+                ModdyEmbed.text(f"**Utilisateurs:** `{len(self.bot.users)}`"),
+                ModdyEmbed.text(f"**Latence:** `{round(self.bot.latency * 1000)}ms`"),
+                ModdyEmbed.separator(),
+                ModdyEmbed.heading("Système", 3),
+                ModdyEmbed.text(f"**Commandes:** `{len(self.bot.commands)}`"),
+                ModdyEmbed.text(f"**Cogs:** `{len(self.bot.cogs)}`"),
+                ModdyEmbed.text(f"**Version:** discord.py `{discord.__version__}`"),
+                ModdyEmbed.separator(),
+                ModdyEmbed.text(f"_Demandé par {info['author_name']}_")
+            ])
 
             # Mettre à jour le message
-            await message.edit(embed=embed)
+            await message.edit(**{
+                "flags": ModdyEmbed.V2_FLAGS,
+                "components": components
+            })
 
             # Supprimer le fichier temporaire
             os.remove(temp_file)

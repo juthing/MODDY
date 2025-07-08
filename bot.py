@@ -70,7 +70,6 @@ class ModdyBot(commands.Bot):
             await self.setup_database()
 
         # Démarre les tâches de fond
-        self.reminder_task.start()
         self.status_update.start()
 
         # Synchronise les commandes slash
@@ -206,28 +205,6 @@ class ModdyBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Erreur BDD (guild_join) : {e}")
 
-        # Envoie un message de bienvenue si possible
-        channel = guild.system_channel or next(
-            (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages),
-            None
-        )
-
-        if channel:
-            embed = discord.Embed(
-                title="👋 Merci de m'avoir ajouté !",
-                description=(
-                    "Je suis **Moddy**, votre assistant pour modérateurs.\n\n"
-                    "• Utilisez `/help` pour voir toutes mes commandes\n"
-                    "• Utilisez `/preferences` pour me configurer\n"
-                    "• Mon préfixe par défaut est `!`"
-                ),
-                color=discord.Color.blurple()
-            )
-            try:
-                await channel.send(embed=embed)
-            except:
-                pass
-
     async def on_guild_remove(self, guild: discord.Guild):
         """Quand le bot quitte un serveur"""
         logger.info(f"➖ Serveur quitté : {guild.name} ({guild.id})")
@@ -250,15 +227,11 @@ class ModdyBot(commands.Bot):
 
     async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
         """Gestion globale des erreurs"""
-        # Erreurs ignorées
-        if isinstance(error, commands.CommandNotFound):
+        # Erreurs ignorées silencieusement
+        if isinstance(error, (commands.CommandNotFound, commands.NotOwner, commands.CheckFailure)):
             return
 
         # Erreurs de permissions
-        if isinstance(error, commands.NotOwner):
-            await ctx.send("❌ Cette commande est réservée aux développeurs.")
-            return
-
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(f"❌ Permissions manquantes : {', '.join(error.missing_permissions)}")
             return
@@ -273,59 +246,6 @@ class ModdyBot(commands.Bot):
 
         if DEBUG:
             await ctx.send(f"```py\n{type(error).__name__}: {error}\n```")
-        else:
-            await ctx.send("❌ Une erreur est survenue. Les développeurs ont été notifiés.")
-
-    @tasks.loop(minutes=1)
-    async def reminder_task(self):
-        """Vérifie les rappels toutes les minutes"""
-        if not self.db_pool:
-            return
-
-        try:
-            async with self.db_pool.acquire() as conn:
-                # Récupère les rappels à envoyer
-                rows = await conn.fetch("""
-                                        SELECT *
-                                        FROM reminders
-                                        WHERE remind_at <= NOW()
-                                          AND NOT completed
-                                        """)
-
-                for row in rows:
-                    try:
-                        # Envoie le rappel
-                        user = self.get_user(row['user_id'])
-                        if user:
-                            embed = discord.Embed(
-                                title="⏰ Rappel !",
-                                description=row['message'],
-                                color=discord.Color.blue(),
-                                timestamp=row['created_at']
-                            )
-
-                            if row['guild_id'] and row['channel_id']:
-                                channel = self.get_channel(row['channel_id'])
-                                if channel:
-                                    await channel.send(f"{user.mention}", embed=embed)
-                            else:
-                                await user.send(embed=embed)
-
-                        # Marque comme complété
-                        await conn.execute(
-                            "UPDATE reminders SET completed = TRUE WHERE id = $1",
-                            row['id']
-                        )
-                    except Exception as e:
-                        logger.error(f"Erreur envoi rappel {row['id']} : {e}")
-
-        except Exception as e:
-            logger.error(f"Erreur tâche rappels : {e}")
-
-    @reminder_task.before_loop
-    async def before_reminder_task(self):
-        """Attendre que le bot soit prêt avant de démarrer la tâche"""
-        await self.wait_until_ready()
 
     @tasks.loop(minutes=10)
     async def status_update(self):
@@ -368,8 +288,6 @@ class ModdyBot(commands.Bot):
         logger.info("🔄 Fermeture en cours...")
 
         # Arrête les tâches AVANT de fermer
-        if self.reminder_task.is_running():
-            self.reminder_task.cancel()
         if self.status_update.is_running():
             self.status_update.cancel()
 

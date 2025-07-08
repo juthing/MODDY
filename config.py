@@ -81,34 +81,34 @@ GLOBAL_COOLDOWN: int = int(os.getenv("GLOBAL_COOLDOWN", "3"))
 # EMOJIS ET APPARENCE
 # =============================================================================
 
-# Emojis utilisés dans le bot
+# Emojis utilisés dans le bot (désactivés pour un design épuré)
 EMOJIS = {
-    "success": "✅",
-    "error": "❌",
-    "warning": "⚠️",
-    "info": "ℹ️",
-    "loading": "⏳",
-    "arrow": "➡️",
-    "bot": "🤖",
-    "developer": "🔧",
-    "reminder": "⏰",
-    "tag": "🏷️",
-    "server": "🏢",
-    "user": "👤",
-    "stats": "📊",
-    "ping": "🏓",
-    "help": "❓",
-    "settings": "⚙️"
+    "success": "",
+    "error": "",
+    "warning": "",
+    "info": "",
+    "loading": "",
+    "arrow": "",
+    "bot": "",
+    "developer": "",
+    "reminder": "",
+    "tag": "",
+    "server": "",
+    "user": "",
+    "stats": "",
+    "ping": "",
+    "help": "",
+    "settings": ""
 }
 
-# Couleurs pour les embeds
+# Couleurs pour les embeds (désactivées pour les composants V2)
 COLORS = {
-    "primary": 0x5865F2,  # Blurple Discord
-    "success": 0x57F287,  # Vert
-    "error": 0xED4245,  # Rouge
-    "warning": 0xFEE75C,  # Jaune
-    "info": 0x5865F2,  # Bleu
-    "developer": 0xEB459E  # Rose (pour les commandes dev)
+    "primary": None,      # Pas de couleur
+    "success": None,      # Pas de couleur
+    "error": None,        # Pas de couleur
+    "warning": None,      # Pas de couleur
+    "info": None,         # Pas de couleur
+    "developer": None     # Pas de couleur
 }
 
 # =============================================================================
@@ -128,7 +128,6 @@ LOGS_DIR.mkdir(exist_ok=True)
 
 # Fichier de log
 LOG_FILE: Path = LOGS_DIR / "moddy.log"
-
 
 # =============================================================================
 # VALIDATION
@@ -165,7 +164,6 @@ def validate_config():
         sys.exit(1)
 
     print("✅ Configuration validée")
-
 
 # Valider au chargement du module
 if __name__ != "__main__":
