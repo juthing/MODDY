@@ -51,6 +51,11 @@ async def main():
         sys.exit(1)
     except KeyboardInterrupt:
         logging.info("⏹️ Arrêt demandé")
+    except RuntimeError as e:
+        if "Session is closed" in str(e):
+            logging.info("🔄 Fermeture pour redémarrage")
+        else:
+            logging.error(f"❌ Erreur runtime : {e}")
     except Exception as e:
         logging.error(f"❌ Erreur fatale : {e}", exc_info=True)
         sys.exit(1)

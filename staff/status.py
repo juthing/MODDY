@@ -1,18 +1,19 @@
 """
 Commande pour changer le statut du bot
 Réservée aux développeurs
-Utilise les composants V2
 """
 
 import discord
 from discord.ext import commands
 from typing import Optional
 
-# Import du système d'embeds V2
+# Import du système d'embeds épuré
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.embeds import ModdyEmbed, ModdyResponse
+from config import COLORS
 
 
 class StatusCommand(commands.Cog):
@@ -29,20 +30,20 @@ class StatusCommand(commands.Cog):
     async def status_group(self, ctx):
         """Commande principale pour gérer le statut"""
         if ctx.invoked_subcommand is None:
-            components = [
-                ModdyEmbed.heading("Utilisation", 3),
-                ModdyEmbed.text("`status set <type> <texte>` - Change le statut"),
-                ModdyEmbed.text("`status clear` - Retire le statut"),
-                ModdyEmbed.text("`status pause` - Met en pause les changements auto"),
-                ModdyEmbed.text("`status resume` - Reprend les changements auto"),
-                ModdyEmbed.separator(),
-                ModdyEmbed.text("**Types:** `playing`, `watching`, `listening`, `streaming`, `competing`")
-            ]
-
-            await ctx.send(**{
-                "flags": ModdyEmbed.V2_FLAGS,
-                "components": components
-            })
+            embed = discord.Embed(
+                title="Gestion du statut",
+                description=(
+                    "**Commandes disponibles:**\n\n"
+                    "`status set <type> <texte>` - Change le statut\n"
+                    "`status clear` - Retire le statut\n"
+                    "`status pause` - Met en pause les changements auto\n"
+                    "`status resume` - Reprend les changements auto\n\n"
+                    "**Types disponibles:**\n"
+                    "`playing`, `watching`, `listening`, `streaming`, `competing`"
+                ),
+                color=COLORS["info"]
+            )
+            await ctx.send(embed=embed)
 
     @status_group.command(name="set")
     async def set_status(self, ctx, activity_type: str, *, text: str):
@@ -57,14 +58,11 @@ class StatusCommand(commands.Cog):
         }
 
         if activity_type.lower() not in activity_types:
-            components = ModdyResponse.error(
+            embed = ModdyResponse.error(
                 "Type invalide",
-                f"Utilise : {', '.join(activity_types.keys())}"
+                f"Utilise l'un de ces types : {', '.join(activity_types.keys())}"
             )
-            await ctx.send(**{
-                "flags": ModdyEmbed.V2_FLAGS,
-                "components": components
-            })
+            await ctx.send(embed=embed)
             return
 
         # Arrête la tâche de mise à jour auto si elle tourne
@@ -79,15 +77,11 @@ class StatusCommand(commands.Cog):
 
         await self.bot.change_presence(activity=activity)
 
-        components = ModdyResponse.success(
+        embed = ModdyResponse.success(
             "Statut changé",
-            f"**{activity_type}** {text}"
+            f"**Type:** {activity_type}\n**Texte:** {text}"
         )
-
-        await ctx.send(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": components
-        })
+        await ctx.send(embed=embed)
 
         # Log l'action
         if log_cog := self.bot.get_cog("LoggingSystem"):
@@ -97,7 +91,12 @@ class StatusCommand(commands.Cog):
     async def clear_status(self, ctx):
         """Retire le statut du bot"""
         await self.bot.change_presence(activity=None)
-        await ctx.send("✅ Statut retiré")
+
+        embed = ModdyResponse.success(
+            "Statut retiré",
+            "Le bot n'a plus de statut personnalisé."
+        )
+        await ctx.send(embed=embed)
 
         # Log
         if log_cog := self.bot.get_cog("LoggingSystem"):
@@ -108,25 +107,43 @@ class StatusCommand(commands.Cog):
         """Met en pause les changements automatiques de statut"""
         if hasattr(self.bot, 'status_update') and self.bot.status_update.is_running():
             self.bot.status_update.stop()
-            await ctx.send("⏸️ Changements automatiques de statut mis en pause")
+            embed = ModdyResponse.success(
+                "Pause activée",
+                "Les changements automatiques de statut sont mis en pause."
+            )
         else:
-            await ctx.send("ℹ️ Les changements automatiques sont déjà en pause")
+            embed = ModdyResponse.info(
+                "Déjà en pause",
+                "Les changements automatiques sont déjà en pause."
+            )
+        await ctx.send(embed=embed)
 
     @status_group.command(name="resume", aliases=["start"])
     async def resume_auto_status(self, ctx):
         """Reprend les changements automatiques de statut"""
         if hasattr(self.bot, 'status_update') and not self.bot.status_update.is_running():
             self.bot.status_update.start()
-            await ctx.send("▶️ Changements automatiques de statut repris")
+            embed = ModdyResponse.success(
+                "Reprise activée",
+                "Les changements automatiques de statut ont repris."
+            )
         else:
-            await ctx.send("ℹ️ Les changements automatiques sont déjà actifs")
+            embed = ModdyResponse.info(
+                "Déjà actifs",
+                "Les changements automatiques sont déjà actifs."
+            )
+        await ctx.send(embed=embed)
 
     @status_group.command(name="streaming")
     async def set_streaming(self, ctx, url: str, *, game: str):
         """Définit un statut de streaming"""
         # Vérifie que l'URL est Twitch ou YouTube
         if not any(domain in url.lower() for domain in ["twitch.tv", "youtube.com", "youtu.be"]):
-            await ctx.send("❌ L'URL doit être un lien Twitch ou YouTube")
+            embed = ModdyResponse.error(
+                "URL invalide",
+                "L'URL doit être un lien Twitch ou YouTube."
+            )
+            await ctx.send(embed=embed)
             return
 
         # Arrête les mises à jour auto
@@ -137,7 +154,11 @@ class StatusCommand(commands.Cog):
         activity = discord.Streaming(name=game, url=url)
         await self.bot.change_presence(activity=activity)
 
-        await ctx.send(f"🔴 Statut streaming défini : **{game}**\nURL : {url}")
+        embed = ModdyResponse.success(
+            "Statut streaming défini",
+            f"**Jeu:** {game}\n**URL:** {url}"
+        )
+        await ctx.send(embed=embed)
 
         # Log
         if log_cog := self.bot.get_cog("LoggingSystem"):
@@ -145,7 +166,7 @@ class StatusCommand(commands.Cog):
 
     @status_group.command(name="custom")
     async def set_custom(self, ctx, emoji: Optional[str] = None, *, text: str):
-        """Définit un statut personnalisé (comme les utilisateurs)"""
+        """Définit un statut personnalisé (simulé avec playing)"""
         # Note: Les bots ne peuvent pas vraiment avoir de statut personnalisé
         # mais on peut simuler avec une activité playing
 
@@ -158,7 +179,12 @@ class StatusCommand(commands.Cog):
         )
 
         await self.bot.change_presence(activity=activity)
-        await ctx.send(f"✅ Statut personnalisé : {text}")
+
+        embed = ModdyResponse.success(
+            "Statut personnalisé",
+            f"Statut défini : {text}"
+        )
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):

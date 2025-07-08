@@ -1,8 +1,3 @@
-"""
-Configuration centralisée pour Moddy
-Charge les variables d'environnement et définit les paramètres
-"""
-
 import os
 import sys
 from pathlib import Path
@@ -101,14 +96,14 @@ EMOJIS = {
     "settings": ""
 }
 
-# Couleurs pour les embeds (désactivées pour les composants V2)
+# Couleurs pour les embeds (couleurs modernes)
 COLORS = {
-    "primary": None,      # Pas de couleur
-    "success": None,      # Pas de couleur
-    "error": None,        # Pas de couleur
-    "warning": None,      # Pas de couleur
-    "info": None,         # Pas de couleur
-    "developer": None     # Pas de couleur
+    "primary": 0x5865F2,      # Blurple Discord moderne
+    "success": 0x23A55A,      # Vert moderne Discord
+    "error": 0xF23F43,        # Rouge moderne Discord
+    "warning": 0xF0B232,      # Jaune doré élégant
+    "info": 0x5865F2,         # Bleu info
+    "developer": 0x1E1F22     # Gris foncé Discord
 }
 
 # =============================================================================

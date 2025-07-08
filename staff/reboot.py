@@ -1,7 +1,6 @@
 """
 Commande reboot pour développeurs
 Redémarre le bot et modifie le message original
-Utilise les composants V2
 """
 
 import discord
@@ -14,11 +13,12 @@ import json
 import tempfile
 from datetime import datetime
 
-# Import du système d'embeds V2
+# Import du système d'embeds épuré
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.embeds import ModdyEmbed, ModdyResponse
+from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
+from config import COLORS
 
 
 class Reboot(commands.Cog):
@@ -33,26 +33,27 @@ class Reboot(commands.Cog):
 
     @commands.command(name="reboot", aliases=["restart", "reload"])
     async def reboot(self, ctx):
-        """Redémarre le bot automatiquement avec composants V2"""
+        """Redémarre le bot automatiquement"""
 
-        # Composants V2 initial
-        components = [
-            ModdyEmbed.heading("Redémarrage en cours...", 2),
-            ModdyEmbed.text("Le bot va redémarrer dans quelques secondes."),
-            ModdyEmbed.separator(),
-            ModdyEmbed.text(f"_Demandé par {ctx.author}_")
-        ]
+        # Embed initial
+        embed = discord.Embed(
+            title="Redémarrage en cours...",
+            description="Le bot va redémarrer dans quelques secondes.",
+            color=COLORS["warning"],
+            timestamp=datetime.utcnow()
+        )
+        embed.set_footer(
+            text=f"Demandé par {ctx.author}",
+            icon_url=ctx.author.display_avatar.url
+        )
 
         # Envoyer le message
-        msg = await ctx.send(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": components
-        })
+        msg = await ctx.send(embed=embed)
 
         # Log l'action
         import logging
         logger = logging.getLogger('moddy')
-        logger.info(f"🔄 Reboot demandé par {ctx.author} ({ctx.author.id})")
+        logger.info(f"Reboot demandé par {ctx.author} ({ctx.author.id})")
 
         # Sauvegarder les infos pour après le reboot
         reboot_info = {
@@ -127,13 +128,7 @@ class RebootNotifier(commands.Cog):
                 os.remove(temp_file)
                 return
 
-            # Créer les composants V2
-            components = [
-                ModdyEmbed.heading("Redémarrage terminé !", 2),
-                ModdyEmbed.separator()
-            ]
-
-            # Description stylée
+            # Déterminer la vitesse
             if reboot_duration < 5:
                 speed = "Ultra rapide"
             elif reboot_duration < 10:
@@ -143,35 +138,50 @@ class RebootNotifier(commands.Cog):
             else:
                 speed = "Lent"
 
-            components.extend([
-                ModdyEmbed.text(f"**{speed}** - `{reboot_duration:.1f}` secondes"),
-                ModdyEmbed.separator(),
-                ModdyEmbed.code_block(
-                    "✓ Connexion Discord\n"
-                    "✓ Chargement des modules\n"
-                    "✓ Base de données\n"
-                    "✓ Commandes synchronisées",
-                    ""
-                ),
-                ModdyEmbed.separator(),
-                ModdyEmbed.heading("Statistiques", 3),
-                ModdyEmbed.text(f"**Serveurs:** `{len(self.bot.guilds)}`"),
-                ModdyEmbed.text(f"**Utilisateurs:** `{len(self.bot.users)}`"),
-                ModdyEmbed.text(f"**Latence:** `{round(self.bot.latency * 1000)}ms`"),
-                ModdyEmbed.separator(),
-                ModdyEmbed.heading("Système", 3),
-                ModdyEmbed.text(f"**Commandes:** `{len(self.bot.commands)}`"),
-                ModdyEmbed.text(f"**Cogs:** `{len(self.bot.cogs)}`"),
-                ModdyEmbed.text(f"**Version:** discord.py `{discord.__version__}`"),
-                ModdyEmbed.separator(),
-                ModdyEmbed.text(f"_Demandé par {info['author_name']}_")
-            ])
+            # Créer le nouvel embed
+            embed = discord.Embed(
+                title="Redémarrage terminé !",
+                color=COLORS["success"],
+                timestamp=datetime.utcnow()
+            )
+
+            # Description avec les détails
+            embed.description = f"**{speed}** - `{reboot_duration:.1f}` secondes"
+
+            # Ajout des champs
+            embed.add_field(
+                name="Étapes",
+                value="✓ Connexion Discord\n"
+                      "✓ Chargement des modules\n"
+                      "✓ Base de données\n"
+                      "✓ Commandes synchronisées",
+                inline=False
+            )
+
+            embed.add_field(
+                name="Statistiques",
+                value=f"**Serveurs:** `{len(self.bot.guilds)}`\n"
+                      f"**Utilisateurs:** `{len(self.bot.users)}`\n"
+                      f"**Latence:** `{round(self.bot.latency * 1000)}ms`",
+                inline=True
+            )
+
+            embed.add_field(
+                name="Système",
+                value=f"**Commandes:** `{len(self.bot.commands)}`\n"
+                      f"**Cogs:** `{len(self.bot.cogs)}`\n"
+                      f"**Version:** discord.py `{discord.__version__}`",
+                inline=True
+            )
+
+            # Footer avec les infos originales
+            embed.set_footer(
+                text=f"Demandé par {info['author_name']}",
+                icon_url=info["author_avatar"]
+            )
 
             # Mettre à jour le message
-            await message.edit(**{
-                "flags": ModdyEmbed.V2_FLAGS,
-                "components": components
-            })
+            await message.edit(embed=embed)
 
             # Supprimer le fichier temporaire
             os.remove(temp_file)
@@ -179,7 +189,7 @@ class RebootNotifier(commands.Cog):
             # Log
             import logging
             logger = logging.getLogger('moddy')
-            logger.info(f"✅ Notification de reboot envoyée (durée: {reboot_duration:.1f}s)")
+            logger.info(f"Notification de reboot envoyée (durée: {reboot_duration:.1f}s)")
 
         except Exception as e:
             import logging

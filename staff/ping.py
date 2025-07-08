@@ -1,7 +1,7 @@
 """
 Commande ping pour développeurs
 Affiche des informations détaillées sur le statut du bot
-Utilise les composants V2 sans bordure colorée
+Style épuré sans emojis système
 """
 
 import discord
@@ -13,12 +13,13 @@ import psutil
 from datetime import datetime, timezone
 from typing import Optional
 
-# Import du système d'embeds V2
+# Import du système d'embeds épuré
 import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.embeds import ModdyEmbed, ModdyResponse
+from utils.embeds import ModdyEmbed, ModdyResponse, format_diagnostic_embed
+from config import COLORS
 
 
 class StaffDiagnostic(commands.Cog):
@@ -33,14 +34,11 @@ class StaffDiagnostic(commands.Cog):
 
     @commands.command(name="diag", aliases=["diagnostic", "sysinfo"])
     async def diagnostic(self, ctx):
-        """Affiche le statut détaillé du bot avec composants V2"""
+        """Affiche le statut détaillé du bot"""
 
-        # Message de chargement V2
-        loading_msg = {
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": ModdyResponse.loading("Diagnostic en cours...")
-        }
-        msg = await ctx.send(**loading_msg)
+        # Message de chargement
+        loading_embed = ModdyResponse.loading("Diagnostic en cours...")
+        msg = await ctx.send(embed=loading_embed)
 
         # Mesure de la latence du message
         start_time = time.perf_counter()
@@ -76,103 +74,46 @@ class StaffDiagnostic(commands.Cog):
         uptime = datetime.now(timezone.utc) - self.bot.launch_time
         hours, remainder = divmod(int(uptime.total_seconds()), 3600)
         minutes, seconds = divmod(remainder, 60)
-        uptime_str = f"`{hours}h {minutes}m {seconds}s`"
+        uptime_str = f"{hours}h {minutes}m {seconds}s"
 
-        # Création des composants V2
-        components = [
-            ModdyEmbed.heading("Diagnostic Système", 1),
-            ModdyEmbed.separator(),
+        # Données pour l'embed
+        diagnostic_data = {
+            'api_latency': api_latency,
+            'message_latency': message_latency,
+            'discord_version': discord.__version__,
+            'db_status': db_status,
+            'db_latency': db_latency,
+            'uptime': uptime_str,
+            'cpu_percent': cpu_percent,
+            'memory_usage': memory_usage,
+            'threads': len(self.bot.guilds),
+            'guilds': len(self.bot.guilds),
+            'users': len(self.bot.users),
+            'commands': len(self.bot.commands),
+            'os': f"{platform.system()} {platform.release()}",
+            'python_version': platform.python_version(),
+            'node': platform.node(),
+            'author': str(ctx.author)
+        }
 
-            # Discord API
-            ModdyEmbed.heading("Discord API", 3),
-            ModdyEmbed.text(f"**Statut**: En ligne"),
-            ModdyEmbed.text(f"**Latence**: `{api_latency}ms`"),
-            ModdyEmbed.text(f"**Gateway**: `v{discord.__version__}`"),
-            ModdyEmbed.separator(),
+        # Créer l'embed de diagnostic
+        embed = format_diagnostic_embed(diagnostic_data)
 
-            # Bot
-            ModdyEmbed.heading("Bot", 3),
-            ModdyEmbed.text(f"**Statut**: Opérationnel"),
-            ModdyEmbed.text(f"**Réponse**: `{message_latency}ms`"),
-            ModdyEmbed.text(f"**Uptime**: {uptime_str}"),
-            ModdyEmbed.separator(),
+        # Créer la vue avec les boutons
+        view = DiagnosticView(self.bot, ctx.author)
 
-            # Base de données
-            ModdyEmbed.heading("Base de données", 3),
-            ModdyEmbed.text(f"**Statut**: {db_status}"),
-            ModdyEmbed.text(f"**Latence**: {db_latency}"),
-            ModdyEmbed.text(f"**Type**: PostgreSQL (Neon)"),
-            ModdyEmbed.separator(),
-
-            # Performance
-            ModdyEmbed.heading("Performance", 3),
-            ModdyEmbed.text(f"**CPU**: `{cpu_percent}%`"),
-            ModdyEmbed.text(f"**RAM**: `{memory_usage:.1f} MB`"),
-            ModdyEmbed.text(f"**Threads**: `{len(self.bot.guilds)}` actifs"),
-            ModdyEmbed.separator(),
-
-            # Statistiques
-            ModdyEmbed.heading("Statistiques", 3),
-            ModdyEmbed.text(f"**Serveurs**: `{len(self.bot.guilds)}`"),
-            ModdyEmbed.text(f"**Utilisateurs**: `{len(self.bot.users)}`"),
-            ModdyEmbed.text(f"**Commandes**: `{len(self.bot.commands)}`"),
-            ModdyEmbed.separator(),
-
-            # Système
-            ModdyEmbed.heading("Système", 3),
-            ModdyEmbed.text(f"**OS**: `{platform.system()} {platform.release()}`"),
-            ModdyEmbed.text(f"**Python**: `{platform.python_version()}`"),
-            ModdyEmbed.text(f"**Node**: `{platform.node()}`"),
-            ModdyEmbed.separator(),
-
-            ModdyEmbed.text(f"_Demandé par {ctx.author}_")
-        ]
-
-        # Boutons d'action
-        buttons = ModdyEmbed.action_row([
-            ModdyEmbed.button("Rafraîchir", "diag_refresh", style=1),
-            ModdyEmbed.button("Collecter les déchets", "diag_gc", style=2),
-            ModdyEmbed.button("Logs", "diag_logs", style=2),
-            ModdyEmbed.button("Fermer", "diag_close", style=4)
-        ])
-
-        components.append(buttons)
-
-        # Mettre à jour le message avec les composants V2
-        await msg.edit(**{
-            "content": None,
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": components,
-            "view": DiagnosticView(self.bot, ctx.author)
-        })
+        await msg.edit(embed=embed, view=view)
 
     @commands.command(name="ping", aliases=["p"])
     async def fast_ping(self, ctx):
-        """Ping rapide sans détails en V2"""
+        """Ping rapide sans détails"""
         start = time.perf_counter()
-
-        # Message initial V2
-        initial_components = [
-            ModdyEmbed.text("Pong!")
-        ]
-
-        msg = await ctx.send(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": initial_components
-        })
-
+        msg = await ctx.send("Pong!")
         end = time.perf_counter()
 
-        # Mise à jour avec les latences
-        updated_components = [
-            ModdyEmbed.text(
-                f"Pong! | API: `{round(self.bot.latency * 1000)}ms` | Message: `{round((end - start) * 1000)}ms`")
-        ]
-
-        await msg.edit(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": updated_components
-        })
+        await msg.edit(
+            content=f"Pong! | API: `{round(self.bot.latency * 1000)}ms` | Message: `{round((end - start) * 1000)}ms`"
+        )
 
 
 class DiagnosticView(discord.ui.View):
@@ -193,7 +134,7 @@ class DiagnosticView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(custom_id="diag_refresh")
+    @discord.ui.button(label="Rafraîchir", style=discord.ButtonStyle.primary)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rafraîchit les statistiques"""
         await interaction.response.send_message("Rafraîchissement...", ephemeral=True)
@@ -203,7 +144,7 @@ class DiagnosticView(discord.ui.View):
         ctx.author = self.author
         await self.bot.get_command("diag").invoke(ctx)
 
-    @discord.ui.button(custom_id="diag_gc")
+    @discord.ui.button(label="Collecter les déchets", style=discord.ButtonStyle.secondary)
     async def garbage_collect(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Force le garbage collector Python"""
         import gc
@@ -213,7 +154,7 @@ class DiagnosticView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(custom_id="diag_logs")
+    @discord.ui.button(label="Logs", style=discord.ButtonStyle.secondary)
     async def show_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche les derniers logs"""
         from config import LOG_FILE
@@ -223,23 +164,23 @@ class DiagnosticView(discord.ui.View):
                 lines = f.readlines()
                 last_logs = ''.join(lines[-10:])  # 10 dernières lignes
 
-            components = [
-                ModdyEmbed.heading("Derniers logs", 3),
-                ModdyEmbed.code_block(last_logs[-1900:], "")
-            ]
+            embed = discord.Embed(
+                title="Derniers logs",
+                description=f"```\n{last_logs[-1900:]}\n```",
+                color=COLORS["developer"]
+            )
 
-            await interaction.response.send_message(**{
-                "flags": ModdyEmbed.V2_FLAGS,
-                "components": components,
-                "ephemeral": True
-            })
+            await interaction.response.send_message(
+                embed=embed,
+                ephemeral=True
+            )
         else:
             await interaction.response.send_message(
                 "Aucun fichier de log trouvé",
                 ephemeral=True
             )
 
-    @discord.ui.button(custom_id="diag_close")
+    @discord.ui.button(label="Fermer", style=discord.ButtonStyle.danger)
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ferme le diagnostic"""
         await interaction.response.defer()

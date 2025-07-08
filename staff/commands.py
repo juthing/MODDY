@@ -1,18 +1,18 @@
 """
 Commande pour lister toutes les commandes disponibles
 Utile pour le debug et la gestion
-Utilise les composants V2
 """
 
 import discord
 from discord.ext import commands
 from typing import List
 
-# Import du système d'embeds V2
+# Import du système d'embeds épuré
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.embeds import ModdyEmbed, ModdyResponse
+from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
+from config import COLORS
 
 
 class CommandsList(commands.Cog):
@@ -27,12 +27,12 @@ class CommandsList(commands.Cog):
 
     @commands.command(name="commands", aliases=["cmds", "list"])
     async def list_commands(self, ctx):
-        """Liste toutes les commandes disponibles avec composants V2"""
+        """Liste toutes les commandes disponibles"""
 
-        components = [
-            ModdyEmbed.heading("Commandes disponibles", 1),
-            ModdyEmbed.separator()
-        ]
+        embed = discord.Embed(
+            title="Commandes Disponibles",
+            color=COLORS["primary"]
+        )
 
         # Commandes par cog
         for cog_name, cog in self.bot.cogs.items():
@@ -49,9 +49,16 @@ class CommandsList(commands.Cog):
                 commands_list.append(f"`/{cmd.name}` (slash)")
 
             if commands_list:
-                components.append(ModdyEmbed.heading(cog_name, 3))
-                components.append(ModdyEmbed.text("\n".join(commands_list)))
-                components.append(ModdyEmbed.separator())
+                # Limiter la longueur pour respecter la limite Discord
+                value = "\n".join(commands_list)
+                if len(value) > 1024:
+                    value = value[:1021] + "..."
+
+                embed.add_field(
+                    name=f"**{cog_name}**",
+                    value=value,
+                    inline=True
+                )
 
         # Commandes sans cog
         no_cog_commands = []
@@ -61,29 +68,33 @@ class CommandsList(commands.Cog):
                 no_cog_commands.append(f"`{cmd.name}{aliases}`")
 
         if no_cog_commands:
-            components.append(ModdyEmbed.heading("Sans catégorie", 3))
-            components.append(ModdyEmbed.text("\n".join(no_cog_commands)))
-            components.append(ModdyEmbed.separator())
+            value = "\n".join(no_cog_commands)
+            if len(value) > 1024:
+                value = value[:1021] + "..."
+
+            embed.add_field(
+                name="**Sans catégorie**",
+                value=value,
+                inline=True
+            )
 
         # Stats
         total_commands = len([c for c in self.bot.commands if not c.hidden])
         total_slash = len(self.bot.tree.get_commands())
 
-        components.append(ModdyEmbed.text(f"_Total : `{total_commands}` commandes texte, `{total_slash}` commandes slash_"))
+        embed.set_footer(text=f"Total : {total_commands} commandes texte, {total_slash} commandes slash")
 
-        await ctx.send(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": components
-        })
+        await ctx.send(embed=embed)
 
     @commands.command(name="cogs", aliases=["modules"])
     async def list_cogs(self, ctx):
-        """Liste tous les cogs chargés avec composants V2"""
+        """Liste tous les cogs chargés"""
 
-        components = [
-            ModdyEmbed.heading("Modules chargés", 1),
-            ModdyEmbed.separator()
-        ]
+        embed = discord.Embed(
+            title="Modules chargés",
+            description="",
+            color=COLORS["primary"]
+        )
 
         for cog_name, cog in self.bot.cogs.items():
             # Compte les commandes
@@ -93,19 +104,14 @@ class CommandsList(commands.Cog):
             # Détermine le type
             cog_type = "Staff" if "staff" in cog.__module__ else "Public"
 
-            components.extend([
-                ModdyEmbed.text(f"**{cog_name}** ({cog_type})"),
-                ModdyEmbed.text(f"→ `{text_cmds}` cmd(s) texte, `{app_cmds}` cmd(s) slash"),
-                ModdyEmbed.text("")  # Ligne vide
-            ])
+            embed.description += (
+                f"**{cog_name}** ({cog_type})\n"
+                f"→ `{text_cmds}` cmd(s) texte, `{app_cmds}` cmd(s) slash\n\n"
+            )
 
-        components.append(ModdyEmbed.separator())
-        components.append(ModdyEmbed.text(f"_Total : `{len(self.bot.cogs)}` cogs_"))
+        embed.set_footer(text=f"Total : {len(self.bot.cogs)} cogs")
 
-        await ctx.send(**{
-            "flags": ModdyEmbed.V2_FLAGS,
-            "components": components
-        })
+        await ctx.send(embed=embed)
 
 
 async def setup(bot):
