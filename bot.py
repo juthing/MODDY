@@ -12,6 +12,7 @@ from typing import Optional, Set
 import os
 import sys
 from pathlib import Path
+import traceback
 
 from config import (
     DEBUG,
@@ -55,9 +56,51 @@ class ModdyBot(commands.Bot):
         # Cache pour les préfixes des serveurs
         self.prefix_cache = {}
 
+        # Configure le gestionnaire d'erreurs global
+        self.setup_error_handler()
+
+    def setup_error_handler(self):
+        """Configure le gestionnaire d'erreurs non capturées"""
+
+        def handle_exception(loop, context):
+            # Récupère l'exception
+            exception = context.get('exception')
+            if exception:
+                logger.error(f"Erreur non capturée: {exception}", exc_info=exception)
+
+                # Essaye d'envoyer à Discord si le bot est connecté
+                if self.is_ready():
+                    asyncio.create_task(self.log_fatal_error(exception, context))
+
+        # Configure le handler
+        asyncio.get_event_loop().set_exception_handler(handle_exception)
+
+    async def log_fatal_error(self, exception: Exception, context: dict):
+        """Log une erreur fatale dans Discord"""
+        try:
+            # Utilise le cog ErrorTracker s'il est chargé
+            error_cog = self.get_cog("ErrorTracker")
+            if error_cog:
+                error_code = error_cog.generate_error_code(exception)
+                error_details = {
+                    "type": type(exception).__name__,
+                    "message": str(exception),
+                    "file": "Erreur système",
+                    "line": "N/A",
+                    "context": str(context),
+                    "traceback": traceback.format_exc()
+                }
+                error_cog.store_error(error_code, error_details)
+                await error_cog.send_error_log(error_code, error_details, is_fatal=True)
+        except Exception as e:
+            logger.error(f"Impossible de logger l'erreur fatale: {e}")
+
     async def setup_hook(self):
         """Appelé une fois au démarrage du bot"""
         logger.info("🔧 Configuration initiale...")
+
+        # Configure le gestionnaire d'erreurs pour les commandes slash
+        self.tree.on_error = self.on_app_command_error
 
         # Récupère l'équipe de développement
         await self.fetch_dev_team()
@@ -83,6 +126,39 @@ class ModdyBot(commands.Bot):
             # En production, sync global
             await self.tree.sync()
             logger.info("✅ Commandes synchronisées globalement")
+
+    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        """Gestion des erreurs des commandes slash"""
+        # Utilise le cog ErrorTracker s'il est chargé
+        error_cog = self.get_cog("ErrorTracker")
+        if error_cog:
+            # Crée un faux contexte pour réutiliser le système existant
+            class FakeContext:
+                def __init__(self, interaction):
+                    self.interaction = interaction
+                    self.command = interaction.command
+                    self.author = interaction.user
+                    self.guild = interaction.guild
+                    self.channel = interaction.channel
+                    # Crée un objet message factice
+                    self.message = type('obj', (object,), {
+                        'content': f"/{interaction.command.name} " + " ".join(
+                            [f"{k}:{v}" for k, v in interaction.namespace.__dict__.items()])
+                    })()
+
+                async def send(self, *args, **kwargs):
+                    if interaction.response.is_done():
+                        return await interaction.followup.send(*args, **kwargs)
+                    else:
+                        return await interaction.response.send_message(*args, **kwargs)
+
+            fake_ctx = FakeContext(interaction)
+
+            # Utilise le gestionnaire existant
+            await error_cog.on_command_error(fake_ctx, error)
+        else:
+            # Fallback si le système n'est pas chargé
+            logger.error(f"Erreur slash command: {error}", exc_info=error)
 
     async def fetch_dev_team(self):
         """Récupère l'équipe de développement depuis Discord"""
@@ -158,11 +234,18 @@ class ModdyBot(commands.Bot):
 
     async def load_extensions(self):
         """Charge tous les cogs et commandes staff"""
+        # Charge d'abord le système d'erreurs
+        try:
+            await self.load_extension("cogs.error_handler")
+            logger.info("✅ Système d'erreurs chargé")
+        except Exception as e:
+            logger.error(f"❌ CRITIQUE: Impossible de charger le système d'erreurs : {e}")
+
         # Charge les cogs utilisateurs
         cogs_dir = Path("cogs")
         if cogs_dir.exists():
             for file in cogs_dir.glob("*.py"):
-                if file.name.startswith("_"):
+                if file.name.startswith("_") or file.name == "error_handler.py":
                     continue
 
                 try:
@@ -170,6 +253,18 @@ class ModdyBot(commands.Bot):
                     logger.info(f"✅ Cog chargé : {file.stem}")
                 except Exception as e:
                     logger.error(f"❌ Erreur cog {file.stem} : {e}")
+                    # Log dans Discord si possible
+                    if error_cog := self.get_cog("ErrorTracker"):
+                        error_code = error_cog.generate_error_code(e)
+                        error_details = {
+                            "type": type(e).__name__,
+                            "message": str(e),
+                            "file": f"cogs/{file.name}",
+                            "line": "N/A",
+                            "traceback": traceback.format_exc()
+                        }
+                        error_cog.store_error(error_code, error_details)
+                        await error_cog.send_error_log(error_code, error_details, is_fatal=False)
 
         # Charge les commandes staff
         staff_dir = Path("staff")
@@ -183,6 +278,18 @@ class ModdyBot(commands.Bot):
                     logger.info(f"✅ Staff chargé : {file.stem}")
                 except Exception as e:
                     logger.error(f"❌ Erreur staff {file.stem} : {e}")
+                    # Log dans Discord si possible
+                    if error_cog := self.get_cog("ErrorTracker"):
+                        error_code = error_cog.generate_error_code(e)
+                        error_details = {
+                            "type": type(e).__name__,
+                            "message": str(e),
+                            "file": f"staff/{file.name}",
+                            "line": "N/A",
+                            "traceback": traceback.format_exc()
+                        }
+                        error_cog.store_error(error_code, error_details)
+                        await error_cog.send_error_log(error_code, error_details, is_fatal=False)
 
     async def on_ready(self):
         """Appelé quand le bot est prêt"""
@@ -227,25 +334,9 @@ class ModdyBot(commands.Bot):
 
     async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
         """Gestion globale des erreurs"""
-        # Erreurs ignorées silencieusement
-        if isinstance(error, (commands.CommandNotFound, commands.NotOwner, commands.CheckFailure)):
-            return
-
-        # Erreurs de permissions
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send(f"❌ Permissions manquantes : {', '.join(error.missing_permissions)}")
-            return
-
-        # Erreur de cooldown
-        if isinstance(error, commands.CommandOnCooldown):
-            await ctx.send(f"⏱️ Cooldown ! Réessaye dans {error.retry_after:.1f}s")
-            return
-
-        # Autres erreurs
-        logger.error(f"Erreur dans {ctx.command} : {error}", exc_info=error)
-
-        if DEBUG:
-            await ctx.send(f"```py\n{type(error).__name__}: {error}\n```")
+        # Le cog ErrorTracker s'occupe de tout maintenant
+        # Cette méthode est gardée pour compatibilité mais délègue au cog
+        pass
 
     @tasks.loop(minutes=10)
     async def status_update(self):

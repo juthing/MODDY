@@ -348,6 +348,8 @@ class DevFun(commands.Cog):
             await ctx.send("Bon okay c'était moi tout le temps 🤖")
 
         except discord.Forbidden:
+            await ctx.send("Je ne peux pas changer mon pseudo sur ce serveur !")
+
     async def cog_command_error(self, ctx, error):
         """Gestion des erreurs pour ce cog"""
         if isinstance(error, commands.UserNotFound):
