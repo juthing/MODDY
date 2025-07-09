@@ -27,6 +27,22 @@ class ConsoleLogger(commands.Cog):
         self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
 
+        # Filtres pour ignorer certains logs
+        self.ignored_patterns = [
+            "discord.gateway",
+            "discord.client",
+            "discord.http",
+            "discord.state",
+            "WebSocket Event",
+            "Dispatching event",
+            "POST https://discord.com",
+            "PUT https://discord.com",
+            "GET https://discord.com",
+            "has returned",
+            "has received",
+            "rate limit bucket"
+        ]
+
         # Configure le logging
         self.setup_logging()
 
@@ -45,11 +61,26 @@ class ConsoleLogger(commands.Cog):
             if isinstance(handler, DiscordLogHandler):
                 logger.removeHandler(handler)
 
+    def should_log(self, content: str) -> bool:
+        """Vérifie si un log doit être envoyé ou ignoré"""
+        # Ignore les logs vides
+        if not content or content.strip() == "":
+            return False
+
+        # Vérifie les patterns à ignorer
+        for pattern in self.ignored_patterns:
+            if pattern in content:
+                return False
+
+        return True
+
     def setup_logging(self):
         """Configure le système de logging pour capturer tout"""
         # Crée notre handler personnalisé
         discord_handler = DiscordLogHandler(self)
-        discord_handler.setLevel(logging.DEBUG)
+
+        # Ne log que INFO et plus (pas DEBUG)
+        discord_handler.setLevel(logging.INFO)
 
         # Format des logs
         formatter = logging.Formatter(
@@ -61,7 +92,9 @@ class ConsoleLogger(commands.Cog):
         # Ajoute le handler au logger root
         root_logger = logging.getLogger()
         root_logger.addHandler(discord_handler)
-        root_logger.setLevel(logging.DEBUG)
+
+        # Met le niveau global à INFO pour éviter le spam de DEBUG
+        root_logger.setLevel(logging.INFO)
 
         # Redirige stdout et stderr
         sys.stdout = ConsoleCapture(self, 'stdout')
@@ -73,6 +106,10 @@ class ConsoleLogger(commands.Cog):
 
     def add_log(self, content: str, log_type: str = 'info'):
         """Ajoute un log au buffer"""
+        # Vérifie si on doit logger
+        if not self.should_log(content):
+            return
+
         timestamp = datetime.now().strftime('%H:%M:%S')
         formatted_log = f"[{timestamp}] {content}"
 
@@ -93,7 +130,7 @@ class ConsoleLogger(commands.Cog):
             # Si la queue est pleine, on ignore (évite le spam)
             pass
 
-    @tasks.loop(seconds=2)
+    @tasks.loop(seconds=5)  # Augmenté à 5 secondes pour réduire le spam
     async def send_logs_task(self):
         """Envoie les logs accumulés vers Discord"""
         if self.log_queue.empty():
@@ -182,8 +219,16 @@ class DiscordLogHandler(logging.Handler):
     def emit(self, record):
         """Émet un log vers Discord"""
         try:
+            # Ignore les logs discord.py
+            if record.name.startswith('discord.'):
+                return
+
             # Formate le message
             log_entry = self.format(record)
+
+            # Vérifie si on doit logger
+            if not self.cog.should_log(log_entry):
+                return
 
             # Détermine le type selon le niveau
             if record.levelno >= logging.ERROR:
@@ -222,7 +267,7 @@ class ConsoleCapture(io.TextIOBase):
         # Si on a une ligne complète
         if '\n' in text or len(self.buffer) > 5:
             full_text = ''.join(self.buffer).strip()
-            if full_text:
+            if full_text and self.cog.should_log(full_text):
                 self.cog.add_log(full_text, self.stream_type)
             self.buffer.clear()
 
@@ -236,7 +281,7 @@ class ConsoleCapture(io.TextIOBase):
         """Flush le buffer"""
         if self.buffer:
             full_text = ''.join(self.buffer).strip()
-            if full_text:
+            if full_text and self.cog.should_log(full_text):
                 self.cog.add_log(full_text, self.stream_type)
             self.buffer.clear()
 
