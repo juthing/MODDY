@@ -1,4 +1,3 @@
-
 """
 Commandes de gestion de la console pour développeurs
 Permet de contrôler les logs console
@@ -14,7 +13,6 @@ import asyncio
 
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.embeds import ModdyEmbed, ModdyResponse
-from utils.two_factor import two_factor
 from config import COLORS
 
 
@@ -155,7 +153,7 @@ class ConsoleCommands(commands.Cog):
 
     @commands.command(name="exec", aliases=["eval"])
     async def execute_code(self, ctx, *, code: str = None):
-        """Exécute du code Python (DANGEREUX - Requiert 2FA)"""
+        """Exécute du code Python (DANGEREUX - Owner uniquement)"""
         if not code:
             embed = ModdyResponse.error(
                 "Code manquant",
@@ -164,61 +162,21 @@ class ConsoleCommands(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        # Vérifie si l'utilisateur a la 2FA activée
-        if not two_factor.has_2fa(ctx.author.id):
-            embed = discord.Embed(
-                title="2FA Requise",
-                description=(
-                    "Cette commande nécessite l'authentification à deux facteurs.\n\n"
-                    "Utilise `<@BOTID> 2fa enable` pour l'activer."
-                ),
-                color=COLORS["error"]
-            )
-            await ctx.send(embed=embed)
-            return
-
-        # Demande le code 2FA
-        embed = discord.Embed(
-            title="Vérification 2FA",
-            description="Entre ton code Google Authenticator dans les 30 prochaines secondes.",
-            color=COLORS["warning"]
-        )
-        await ctx.send(embed=embed)
-
-        def check(m):
-            return m.author == ctx.author and m.channel == ctx.channel and m.content.isdigit() and len(m.content) == 6
-
-        try:
-            msg = await self.bot.wait_for('message', timeout=30.0, check=check)
-
-            # Supprime le message avec le code pour la sécurité
-            try:
-                await msg.delete()
-            except:
-                pass
-
-            # Vérifie le code
-            if not two_factor.verify_code(ctx.author.id, msg.content):
-                embed = ModdyResponse.error(
-                    "Code invalide",
-                    "Le code 2FA est incorrect ou a expiré."
-                )
-                await ctx.send(embed=embed)
-                return
-
-        except asyncio.TimeoutError:
+        # Vérifie que c'est l'owner du bot
+        app_info = await self.bot.application_info()
+        if ctx.author.id != app_info.owner.id:
             embed = ModdyResponse.error(
-                "Temps écoulé",
-                "Tu n'as pas entré de code 2FA dans le temps imparti."
+                "Accès refusé",
+                "Cette commande est réservée au propriétaire du bot."
             )
             await ctx.send(embed=embed)
             return
 
-        # Code 2FA valide, on exécute
+        # Owner confirmé, on exécute
         await self._execute_code(ctx, code)
 
     async def _execute_code(self, ctx, code: str):
-        """Exécute réellement le code après vérification 2FA"""
+        """Exécute réellement le code après vérification owner"""
         # Retire les backticks si présents
         if code.startswith("```python"):
             code = code[9:-3]
@@ -246,7 +204,7 @@ class ConsoleCommands(commands.Cog):
             color=COLORS["warning"],
             timestamp=datetime.now()
         )
-        embed.set_footer(text=f"2FA vérifié • {ctx.author}")
+        embed.set_footer(text=f"Owner uniquement • {ctx.author}")
         msg = await ctx.send(embed=embed)
 
         # Capture la sortie
