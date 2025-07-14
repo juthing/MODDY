@@ -73,18 +73,48 @@ class Reboot(commands.Cog):
         # Petit délai pour s'assurer que le message est envoyé
         await asyncio.sleep(0.5)
 
-        # Préparer les arguments pour le redémarrage
-        args = [sys.executable] + sys.argv
+        # Log pour debug
+        logger.info(f"Fichier temporaire créé : {temp_file}")
+        logger.info(f"Plateforme : {sys.platform}")
+        logger.info(f"Executable : {sys.executable}")
+        logger.info(f"Arguments : {sys.argv}")
 
-        # Sur Windows
-        if sys.platform == "win32":
-            subprocess.Popen(args)
+        try:
+            # Fermer proprement toutes les connexions
             await self.bot.close()
-            sys.exit(0)
-        # Sur Linux/Mac
-        else:
-            await self.bot.close()
-            os.execv(sys.executable, args)
+
+            # Attendre que le bot soit complètement fermé
+            await asyncio.sleep(1)
+
+            # Préparer les arguments pour le redémarrage
+            args = [sys.executable] + sys.argv
+
+            # Sur Windows
+            if sys.platform == "win32":
+                # Utiliser CREATE_NEW_CONSOLE pour s'assurer que le processus continue
+                subprocess.Popen(
+                    args,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS,
+                    close_fds=True
+                )
+            else:
+                # Sur Linux/Mac, utiliser subprocess avec nohup pour détacher le processus
+                subprocess.Popen(
+                    args,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    close_fds=True,
+                    preexec_fn=os.setsid  # Crée une nouvelle session
+                )
+
+            # Forcer la sortie du processus actuel
+            os._exit(0)
+
+        except Exception as e:
+            logger.error(f"Erreur lors du reboot : {e}")
+            # En cas d'erreur, essayer quand même de fermer proprement
+            sys.exit(1)
 
 
 class RebootNotifier(commands.Cog):
@@ -104,13 +134,21 @@ class RebootNotifier(commands.Cog):
 
         temp_file = os.path.join(tempfile.gettempdir(), "moddy_reboot.json")
 
+        # Log pour debug
+        import logging
+        logger = logging.getLogger('moddy')
+        logger.info(f"Vérification du fichier de reboot : {temp_file}")
+
         if not os.path.exists(temp_file):
+            logger.info("Pas de fichier de reboot trouvé")
             return
 
         try:
             # Lire les infos
             with open(temp_file, 'r') as f:
                 info = json.load(f)
+
+            logger.info(f"Infos de reboot trouvées : canal {info['channel_id']}, message {info['message_id']}")
 
             # Calculer le temps de reboot
             start_time = datetime.fromisoformat(info["start_time"])
@@ -119,12 +157,14 @@ class RebootNotifier(commands.Cog):
             # Récupérer le canal et le message
             channel = self.bot.get_channel(info["channel_id"])
             if not channel:
+                logger.warning(f"Canal {info['channel_id']} introuvable")
+                os.remove(temp_file)
                 return
 
             try:
                 message = await channel.fetch_message(info["message_id"])
-            except:
-                # Message introuvable
+            except Exception as e:
+                logger.warning(f"Message introuvable : {e}")
                 os.remove(temp_file)
                 return
 
@@ -186,14 +226,9 @@ class RebootNotifier(commands.Cog):
             # Supprimer le fichier temporaire
             os.remove(temp_file)
 
-            # Log
-            import logging
-            logger = logging.getLogger('moddy')
             logger.info(f"Notification de reboot envoyée (durée: {reboot_duration:.1f}s)")
 
         except Exception as e:
-            import logging
-            logger = logging.getLogger('moddy')
             logger.error(f"Erreur notification reboot: {e}")
 
             # Supprimer le fichier en cas d'erreur
