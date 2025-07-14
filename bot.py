@@ -241,11 +241,18 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"❌ CRITIQUE: Impossible de charger le système d'erreurs : {e}")
 
+        # Charge le système de logging dev
+        try:
+            await self.load_extension("cogs.dev_logger")
+            logger.info("✅ Système de logging dev chargé")
+        except Exception as e:
+            logger.error(f"❌ Erreur chargement logging dev : {e}")
+
         # Charge les cogs utilisateurs
         cogs_dir = Path("cogs")
         if cogs_dir.exists():
             for file in cogs_dir.glob("*.py"):
-                if file.name.startswith("_") or file.name == "error_handler.py":
+                if file.name.startswith("_") or file.name in ["error_handler.py", "dev_logger.py"]:
                     continue
 
                 try:
