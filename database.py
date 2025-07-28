@@ -61,179 +61,97 @@ class ModdyDatabase:
         async with self.pool.acquire() as conn:
             # Table des erreurs
             await conn.execute("""
-                               CREATE TABLE IF NOT EXISTS errors
-                               (
-                                   error_code
-                                   VARCHAR
-                               (
-                                   8
-                               ) PRIMARY KEY,
-                                   error_type VARCHAR
-                               (
-                                   100
-                               ),
-                                   message TEXT,
-                                   file_source VARCHAR
-                               (
-                                   255
-                               ),
-                                   line_number INTEGER,
-                                   traceback TEXT,
-                                   user_id BIGINT,
-                                   guild_id BIGINT,
-                                   command VARCHAR
-                               (
-                                   100
-                               ),
-                                   timestamp TIMESTAMP DEFAULT NOW
-                               (
-                               ),
-                                   context JSONB DEFAULT '{}'::jsonb
-                                   );
+                CREATE TABLE IF NOT EXISTS errors (
+                    error_code VARCHAR(8) PRIMARY KEY,
+                    error_type VARCHAR(100),
+                    message TEXT,
+                    file_source VARCHAR(255),
+                    line_number INTEGER,
+                    traceback TEXT,
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    command VARCHAR(100),
+                    timestamp TIMESTAMP DEFAULT NOW(),
+                    context JSONB DEFAULT '{}'::jsonb
+                )
+            """)
 
-                               CREATE INDEX IF NOT EXISTS idx_errors_timestamp ON errors(timestamp);
-                               CREATE INDEX IF NOT EXISTS idx_errors_user ON errors(user_id);
-                               """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_errors_timestamp ON errors(timestamp)
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_errors_user ON errors(user_id)
+            """)
 
             # Cache des serveurs
             await conn.execute("""
-                               CREATE TABLE IF NOT EXISTS guilds_cache
-                               (
-                                   guild_id
-                                   BIGINT
-                                   PRIMARY
-                                   KEY,
-                                   name
-                                   VARCHAR
-                               (
-                                   100
-                               ),
-                                   icon_url TEXT,
-                                   features TEXT[],
-                                   member_count INTEGER,
-                                   created_at TIMESTAMP,
-                                   last_updated TIMESTAMP DEFAULT NOW
-                               (
-                               ),
-                                   update_source VARCHAR
-                               (
-                                   50
-                               ),
-                                   raw_data JSONB DEFAULT '{}'::jsonb
-                                   );
+                CREATE TABLE IF NOT EXISTS guilds_cache (
+                    guild_id BIGINT PRIMARY KEY,
+                    name VARCHAR(100),
+                    icon_url TEXT,
+                    features TEXT[],
+                    member_count INTEGER,
+                    created_at TIMESTAMP,
+                    last_updated TIMESTAMP DEFAULT NOW(),
+                    update_source VARCHAR(50),
+                    raw_data JSONB DEFAULT '{}'::jsonb
+                )
+            """)
 
-                               CREATE INDEX IF NOT EXISTS idx_guilds_cache_updated ON guilds_cache(last_updated);
-                               """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_guilds_cache_updated ON guilds_cache(last_updated)
+            """)
 
             # Table des utilisateurs (fonctionnelle)
             await conn.execute("""
-                               CREATE TABLE IF NOT EXISTS users
-                               (
-                                   user_id
-                                   BIGINT
-                                   PRIMARY
-                                   KEY,
-                                   attributes
-                                   JSONB
-                                   DEFAULT
-                                   '{}'
-                                   :
-                                   :
-                                   jsonb,
-                                   data
-                                   JSONB
-                                   DEFAULT
-                                   '{}'
-                                   :
-                                   :
-                                   jsonb,
-                                   created_at
-                                   TIMESTAMP
-                                   DEFAULT
-                                   NOW
-                               (
-                               ),
-                                   updated_at TIMESTAMP DEFAULT NOW
-                               (
-                               )
-                                   );
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id BIGINT PRIMARY KEY,
+                    attributes JSONB DEFAULT '{}'::jsonb,
+                    data JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
 
-                               CREATE INDEX IF NOT EXISTS idx_users_attributes ON users USING GIN (attributes);
-                               """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_users_attributes ON users USING GIN (attributes)
+            """)
 
             # Table des serveurs (fonctionnelle)
             await conn.execute("""
-                               CREATE TABLE IF NOT EXISTS guilds
-                               (
-                                   guild_id
-                                   BIGINT
-                                   PRIMARY
-                                   KEY,
-                                   attributes
-                                   JSONB
-                                   DEFAULT
-                                   '{}'
-                                   :
-                                   :
-                                   jsonb,
-                                   data
-                                   JSONB
-                                   DEFAULT
-                                   '{}'
-                                   :
-                                   :
-                                   jsonb,
-                                   created_at
-                                   TIMESTAMP
-                                   DEFAULT
-                                   NOW
-                               (
-                               ),
-                                   updated_at TIMESTAMP DEFAULT NOW
-                               (
-                               )
-                                   );
+                CREATE TABLE IF NOT EXISTS guilds (
+                    guild_id BIGINT PRIMARY KEY,
+                    attributes JSONB DEFAULT '{}'::jsonb,
+                    data JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
 
-                               CREATE INDEX IF NOT EXISTS idx_guilds_attributes ON guilds USING GIN (attributes);
-                               """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_guilds_attributes ON guilds USING GIN (attributes)
+            """)
 
             # Table d'audit des attributs
             await conn.execute("""
-                               CREATE TABLE IF NOT EXISTS attribute_changes
-                               (
-                                   id
-                                   SERIAL
-                                   PRIMARY
-                                   KEY,
-                                   entity_type
-                                   VARCHAR
-                               (
-                                   10
-                               ) CHECK
-                               (
-                                   entity_type
-                                   IN
-                               (
-                                   'user',
-                                   'guild'
-                               )),
-                                   entity_id BIGINT NOT NULL,
-                                   attribute_name VARCHAR
-                               (
-                                   50
-                               ),
-                                   old_value TEXT,
-                                   new_value TEXT,
-                                   changed_by BIGINT,
-                                   changed_at TIMESTAMP DEFAULT NOW
-                               (
-                               ),
-                                   reason TEXT
-                                   );
+                CREATE TABLE IF NOT EXISTS attribute_changes (
+                    id SERIAL PRIMARY KEY,
+                    entity_type VARCHAR(10) CHECK (entity_type IN ('user', 'guild')),
+                    entity_id BIGINT NOT NULL,
+                    attribute_name VARCHAR(50),
+                    old_value TEXT,
+                    new_value TEXT,
+                    changed_by BIGINT,
+                    changed_at TIMESTAMP DEFAULT NOW(),
+                    reason TEXT
+                )
+            """)
 
-                               CREATE INDEX IF NOT EXISTS idx_attribute_changes_entity
-                                   ON attribute_changes(entity_type, entity_id);
-                               """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_attribute_changes_entity 
+                ON attribute_changes(entity_type, entity_id)
+            """)
 
             logger.info("✅ Tables initialisées")
 
@@ -243,22 +161,22 @@ class ModdyDatabase:
         """Enregistre une erreur dans la base de données"""
         async with self.pool.acquire() as conn:
             await conn.execute("""
-                               INSERT INTO errors (error_code, error_type, message, file_source,
-                                                   line_number, traceback, user_id, guild_id,
-                                                   command, context)
-                               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                               """,
-                               error_code,
-                               error_data.get('type'),
-                               error_data.get('message'),
-                               error_data.get('file'),
-                               error_data.get('line'),
-                               error_data.get('traceback'),
-                               error_data.get('user_id'),
-                               error_data.get('guild_id'),
-                               error_data.get('command'),
-                               json.dumps(error_data.get('context', {}))
-                               )
+                INSERT INTO errors (error_code, error_type, message, file_source,
+                                    line_number, traceback, user_id, guild_id,
+                                    command, context)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """,
+                error_code,
+                error_data.get('type'),
+                error_data.get('message'),
+                error_data.get('file'),
+                error_data.get('line'),
+                error_data.get('traceback'),
+                error_data.get('user_id'),
+                error_data.get('guild_id'),
+                error_data.get('command'),
+                json.dumps(error_data.get('context', {}))
+            )
 
     async def get_error(self, error_code: str) -> Optional[Dict[str, Any]]:
         """Récupère une erreur par son code"""
@@ -276,37 +194,37 @@ class ModdyDatabase:
         """Met en cache les informations d'un serveur"""
         async with self.pool.acquire() as conn:
             await conn.execute("""
-                               INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
-                                                         created_at, update_source, raw_data)
-                               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (guild_id) DO
-                               UPDATE SET
-                                   name = EXCLUDED.name,
-                                   icon_url = EXCLUDED.icon_url,
-                                   features = EXCLUDED.features,
-                                   member_count = EXCLUDED.member_count,
-                                   last_updated = NOW(),
-                                   update_source = EXCLUDED.update_source,
-                                   raw_data = EXCLUDED.raw_data
-                               """,
-                               guild_id,
-                               info.get('name'),
-                               info.get('icon_url'),
-                               info.get('features', []),
-                               info.get('member_count'),
-                               info.get('created_at'),
-                               source.value,
-                               json.dumps(info)
-                               )
+                INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
+                                          created_at, update_source, raw_data)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (guild_id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    icon_url = EXCLUDED.icon_url,
+                    features = EXCLUDED.features,
+                    member_count = EXCLUDED.member_count,
+                    last_updated = NOW(),
+                    update_source = EXCLUDED.update_source,
+                    raw_data = EXCLUDED.raw_data
+            """,
+                guild_id,
+                info.get('name'),
+                info.get('icon_url'),
+                info.get('features', []),
+                info.get('member_count'),
+                info.get('created_at'),
+                source.value,
+                json.dumps(info)
+            )
 
     async def get_cached_guild(self, guild_id: int, max_age_days: int = 7) -> Optional[Dict[str, Any]]:
         """Récupère les infos cachées d'un serveur si elles sont assez récentes"""
         async with self.pool.acquire() as conn:
-            row = await conn.fetchrow("""
-                                      SELECT *
-                                      FROM guilds_cache
-                                      WHERE guild_id = $1
-                                        AND last_updated > NOW() - INTERVAL '%s days'
-                                      """, guild_id, max_age_days)
+            query = f"""
+                SELECT * FROM guilds_cache 
+                WHERE guild_id = $1 
+                AND last_updated > NOW() - INTERVAL '{max_age_days} days'
+            """
+            row = await conn.fetchrow(query, guild_id)
 
             if row:
                 data = dict(row)
@@ -375,13 +293,19 @@ class ModdyDatabase:
         table = 'users' if entity_type == 'user' else 'guilds'
 
         async with self.pool.acquire() as conn:
+            # S'assure que l'entité existe d'abord
+            if entity_type == 'user':
+                await self.get_user(entity_id)
+            else:
+                await self.get_guild(entity_id)
+
             # Récupère l'ancienne valeur
             row = await conn.fetchrow(
                 f"SELECT attributes FROM {table} WHERE {entity_type}_id = $1",
                 entity_id
             )
 
-            old_attributes = json.loads(row['attributes']) if row else {}
+            old_attributes = json.loads(row['attributes']) if row and row['attributes'] else {}
             old_value = old_attributes.get(attribute)
 
             # Met à jour l'attribut
@@ -395,21 +319,21 @@ class ModdyDatabase:
             # Sauvegarde
             await conn.execute(f"""
                 UPDATE {table} 
-                SET attributes = $1, updated_at = NOW()
+                SET attributes = $1::jsonb, updated_at = NOW()
                 WHERE {entity_type}_id = $2
             """, json.dumps(old_attributes), entity_id)
 
             # Log le changement
             await conn.execute("""
-                               INSERT INTO attribute_changes (entity_type, entity_id, attribute_name,
-                                                              old_value, new_value, changed_by, reason)
-                               VALUES ($1, $2, $3, $4, $5, $6, $7)
-                               """,
-                               entity_type, entity_id, attribute,
-                               str(old_value) if old_value is not None else None,
-                               str(value) if value is not None else None,
-                               changed_by, reason
-                               )
+                INSERT INTO attribute_changes (entity_type, entity_id, attribute_name,
+                                               old_value, new_value, changed_by, reason)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
+                entity_type, entity_id, attribute,
+                str(old_value) if old_value is not None else None,
+                str(value) if value is not None else None,
+                changed_by, reason
+            )
 
     async def has_attribute(self, entity_type: str, entity_id: int, attribute: str) -> bool:
         """Vérifie si une entité a un attribut spécifique"""
@@ -427,30 +351,34 @@ class ModdyDatabase:
         """Met à jour une partie spécifique de la data utilisateur"""
         async with self.pool.acquire() as conn:
             # Utilise jsonb_set pour mettre à jour un chemin spécifique
+            path_parts = path.split('.')
+            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
-                               UPDATE users
-                               SET data       = jsonb_set(data, $1, $2, true),
-                                   updated_at = NOW()
-                               WHERE user_id = $3
-                               """,
-                               '{' + path.replace('.', ',') + '}',
-                               json.dumps(value),
-                               user_id
-                               )
+                UPDATE users 
+                SET data = jsonb_set(data, $1, $2, true),
+                    updated_at = NOW()
+                WHERE user_id = $3
+            """,
+                json_path,
+                json.dumps(value),
+                user_id
+            )
 
     async def update_guild_data(self, guild_id: int, path: str, value: Any):
         """Met à jour une partie spécifique de la data serveur"""
         async with self.pool.acquire() as conn:
+            path_parts = path.split('.')
+            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
-                               UPDATE guilds
-                               SET data       = jsonb_set(data, $1, $2, true),
-                                   updated_at = NOW()
-                               WHERE guild_id = $3
-                               """,
-                               '{' + path.replace('.', ',') + '}',
-                               json.dumps(value),
-                               guild_id
-                               )
+                UPDATE guilds 
+                SET data = jsonb_set(data, $1, $2, true),
+                    updated_at = NOW()
+                WHERE guild_id = $3
+            """,
+                json_path,
+                json.dumps(value),
+                guild_id
+            )
 
     # ================ REQUÊTES UTILES ================
 
@@ -460,17 +388,15 @@ class ModdyDatabase:
             if value is None:
                 # Cherche juste la présence de l'attribut
                 rows = await conn.fetch("""
-                                        SELECT user_id
-                                        FROM users
-                                        WHERE attributes ? $1
-                                        """, attribute)
+                    SELECT user_id FROM users 
+                    WHERE attributes ? $1
+                """, attribute)
             else:
                 # Cherche une valeur spécifique
                 rows = await conn.fetch("""
-                                        SELECT user_id
-                                        FROM users
-                                        WHERE attributes @ > $1
-                                        """, json.dumps({attribute: value}))
+                    SELECT user_id FROM users 
+                    WHERE attributes @> $1
+                """, json.dumps({attribute: value}))
 
             return [row['user_id'] for row in rows]
 
@@ -479,27 +405,24 @@ class ModdyDatabase:
         async with self.pool.acquire() as conn:
             if value is None:
                 rows = await conn.fetch("""
-                                        SELECT guild_id
-                                        FROM guilds
-                                        WHERE attributes ? $1
-                                        """, attribute)
+                    SELECT guild_id FROM guilds 
+                    WHERE attributes ? $1
+                """, attribute)
             else:
                 rows = await conn.fetch("""
-                                        SELECT guild_id
-                                        FROM guilds
-                                        WHERE attributes @ > $1
-                                        """, json.dumps({attribute: value}))
+                    SELECT guild_id FROM guilds 
+                    WHERE attributes @> $1
+                """, json.dumps({attribute: value}))
 
             return [row['guild_id'] for row in rows]
 
     async def cleanup_old_errors(self, days: int = 30):
         """Nettoie les erreurs de plus de X jours"""
         async with self.pool.acquire() as conn:
-            deleted = await conn.execute("""
-                                         DELETE
-                                         FROM errors
-                                         WHERE timestamp < NOW() - INTERVAL '%s days'
-                                         """, days)
+            deleted = await conn.execute(f"""
+                DELETE FROM errors 
+                WHERE timestamp < NOW() - INTERVAL '{days} days'
+            """)
             return deleted
 
     async def get_stats(self) -> Dict[str, int]:
@@ -514,22 +437,19 @@ class ModdyDatabase:
 
             # Statistiques spécifiques
             stats['beta_users'] = await conn.fetchval("""
-                                                      SELECT COUNT(*)
-                                                      FROM users
-                                                      WHERE attributes ? 'BETA'
-                                                      """)
+                SELECT COUNT(*) FROM users 
+                WHERE attributes ? 'BETA'
+            """)
 
             stats['premium_users'] = await conn.fetchval("""
-                                                         SELECT COUNT(*)
-                                                         FROM users
-                                                         WHERE attributes ? 'PREMIUM'
-                                                         """)
+                SELECT COUNT(*) FROM users 
+                WHERE attributes ? 'PREMIUM'
+            """)
 
             stats['blacklisted_users'] = await conn.fetchval("""
-                                                             SELECT COUNT(*)
-                                                             FROM users
-                                                             WHERE attributes @ > '{"BLACKLISTED": true}'::jsonb
-                                                             """)
+                SELECT COUNT(*) FROM users 
+                WHERE attributes @> '{"BLACKLISTED": true}'::jsonb
+            """)
 
             return stats
 

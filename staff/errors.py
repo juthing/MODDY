@@ -5,7 +5,7 @@ Permet de consulter et gérer les erreurs du bot
 
 import discord
 from discord.ext import commands
-from datetime import datetime
+from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 
@@ -41,10 +41,11 @@ class ErrorManagement(commands.Cog):
                 color=COLORS["info"]
             )
 
+            # D'abord, cherche dans le cache mémoire
             errors_list = list(error_tracker.error_cache)[-10:]
 
             if not errors_list:
-                embed.description = "Aucune erreur enregistrée récemment"
+                embed.description = "Aucune erreur en cache mémoire"
             else:
                 for error in reversed(errors_list):
                     timestamp = error['timestamp'].strftime("%H:%M:%S")
@@ -55,6 +56,12 @@ class ErrorManagement(commands.Cog):
                         inline=True
                     )
 
+            # Note sur la BDD
+            if self.bot.db:
+                embed.set_footer(text="💡 Utilise le code d'erreur pour plus de détails depuis la BDD")
+            else:
+                embed.set_footer(text="⚠️ Base de données non connectée")
+
             await ctx.send(embed=embed)
             return
 
@@ -62,15 +69,44 @@ class ErrorManagement(commands.Cog):
         error_code = error_code.upper()
         found_error = None
 
+        # D'abord dans le cache mémoire
         for error in error_tracker.error_cache:
             if error['code'] == error_code:
                 found_error = error
+                source = "cache"
                 break
+
+        # Si pas trouvé et qu'on a une BDD, cherche dedans
+        if not found_error and self.bot.db:
+            try:
+                db_error = await self.bot.db.get_error(error_code)
+                if db_error:
+                    found_error = {
+                        'code': db_error['error_code'],
+                        'timestamp': db_error['timestamp'],
+                        'data': {
+                            'type': db_error['error_type'],
+                            'message': db_error['message'],
+                            'file': db_error['file_source'],
+                            'line': str(db_error['line_number']),
+                            'traceback': db_error['traceback'],
+                            'command': db_error['command'],
+                            'user': f"<@{db_error['user_id']}>" if db_error['user_id'] else 'N/A',
+                            'guild': f"ID: {db_error['guild_id']}" if db_error['guild_id'] else 'N/A',
+                            'context': db_error.get('context', {})
+                        }
+                    }
+                    source = "database"
+            except Exception as e:
+                import logging
+                logger = logging.getLogger('moddy')
+                logger.error(f"Erreur recherche BDD: {e}")
 
         if not found_error:
             embed = ModdyResponse.error(
                 "Erreur introuvable",
-                f"Aucune erreur avec le code `{error_code}` n'a été trouvée"
+                f"Aucune erreur avec le code `{error_code}` n'a été trouvée\n\n"
+                f"**Recherché dans :** Cache mémoire{' et base de données' if self.bot.db else ''}"
             )
             await ctx.send(embed=embed)
             return
@@ -84,6 +120,9 @@ class ErrorManagement(commands.Cog):
             color=COLORS["warning"],
             timestamp=timestamp
         )
+
+        # Badge de source
+        embed.set_author(name=f"Source: {source}")
 
         # Informations de base
         embed.add_field(
@@ -117,7 +156,7 @@ class ErrorManagement(commands.Cog):
                 f"**Commande:** `{data.get('command', 'N/A')}`\n"
                 f"**Utilisateur:** {data.get('user', 'N/A')}\n"
                 f"**Serveur:** {data.get('guild', 'N/A')}\n"
-                f"**Canal:** {data.get('channel', 'N/A')}"
+                f"**Canal:** {data.get('channel', data.get('context', {}).get('channel', 'N/A'))}"
             )
             embed.add_field(
                 name="Contexte",
@@ -133,7 +172,7 @@ class ErrorManagement(commands.Cog):
             )
 
         # Traceback si disponible
-        if 'traceback' in data:
+        if 'traceback' in data and data['traceback']:
             tb = data['traceback']
             if len(tb) > 800:
                 tb = tb[:800] + "\n... (tronqué)"
@@ -147,28 +186,47 @@ class ErrorManagement(commands.Cog):
 
         # Log l'action
         if log_cog := self.bot.get_cog("LoggingSystem"):
-            await log_cog.log_command(ctx, "error")
+            await log_cog.log_command(ctx, "error", {"code": error_code, "source": source})
 
     @commands.command(name="clearerrors", aliases=["cerr", "errorclear"])
-    async def clear_errors(self, ctx):
-        """Vide le cache d'erreurs"""
+    async def clear_errors(self, ctx, days: int = None):
+        """Vide le cache d'erreurs et/ou nettoie les vieilles erreurs de la BDD"""
         error_tracker = self.bot.get_cog("ErrorTracker")
         if not error_tracker:
             await ctx.send("❌ Système d'erreurs non chargé")
             return
 
-        count = len(error_tracker.error_cache)
+        # Vide le cache mémoire
+        cache_count = len(error_tracker.error_cache)
         error_tracker.error_cache.clear()
 
-        embed = ModdyResponse.success(
-            "Cache vidé",
-            f"`{count}` erreurs ont été supprimées du cache"
+        message = f"✅ **Cache mémoire vidé:** `{cache_count}` erreurs supprimées"
+
+        # Si on a spécifié des jours et qu'on a une BDD
+        if days and self.bot.db:
+            try:
+                result = await self.bot.db.cleanup_old_errors(days)
+                # Parser le résultat pour obtenir le nombre
+                if result and hasattr(result, 'split'):
+                    parts = result.split()
+                    if len(parts) >= 2 and parts[0] == "DELETE":
+                        db_count = parts[1]
+                        message += f"\n✅ **Base de données:** `{db_count}` erreurs de plus de {days} jours supprimées"
+                else:
+                    message += f"\n✅ **Base de données:** Erreurs de plus de {days} jours supprimées"
+            except Exception as e:
+                message += f"\n❌ **Erreur BDD:** {str(e)[:100]}"
+
+        embed = discord.Embed(
+            title="Nettoyage des erreurs",
+            description=message,
+            color=COLORS["success"]
         )
         await ctx.send(embed=embed)
 
         # Log l'action
         if log_cog := self.bot.get_cog("LoggingSystem"):
-            await log_cog.log_command(ctx, "clearerrors")
+            await log_cog.log_command(ctx, "clearerrors", {"cache": cache_count, "days": days})
 
     @commands.command(name="errortest", aliases=["testerror", "testerr"])
     async def test_error(self, ctx, error_type: str = "basic"):
@@ -207,84 +265,104 @@ class ErrorManagement(commands.Cog):
 
         errors = list(error_tracker.error_cache)
 
-        if not errors:
-            embed = ModdyResponse.info(
-                "Aucune erreur",
-                "Aucune erreur n'a été enregistrée depuis le dernier redémarrage"
-            )
-            await ctx.send(embed=embed)
-            return
-
-        # Calcul des stats
-        error_types = {}
-        error_files = {}
-        error_users = {}
-
-        for error in errors:
-            data = error['data']
-
-            # Par type
-            error_type = data.get('type', 'Unknown')
-            error_types[error_type] = error_types.get(error_type, 0) + 1
-
-            # Par fichier
-            error_file = data.get('file', 'Unknown')
-            error_files[error_file] = error_files.get(error_file, 0) + 1
-
-            # Par utilisateur (si disponible)
-            if 'user' in data:
-                user_str = data['user'].split('(')[0].strip()
-                error_users[user_str] = error_users.get(user_str, 0) + 1
-
-        # Trie et limite
-        top_types = sorted(error_types.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_files = sorted(error_files.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_users = sorted(error_users.items(), key=lambda x: x[1], reverse=True)[:5]
-
         embed = discord.Embed(
             title="Statistiques des erreurs",
-            description=f"Total : `{len(errors)}` erreurs enregistrées",
             color=COLORS["info"],
             timestamp=datetime.utcnow()
         )
 
-        # Top types d'erreurs
-        types_text = "\n".join([f"`{t[0]}` : **{t[1]}**" for t in top_types])
-        embed.add_field(
-            name="Types d'erreurs",
-            value=types_text or "Aucune",
-            inline=True
-        )
-
-        # Top fichiers
-        files_text = "\n".join([f"`{f[0]}` : **{f[1]}**" for f in top_files])
-        embed.add_field(
-            name="Fichiers affectés",
-            value=files_text or "Aucun",
-            inline=True
-        )
-
-        # Top utilisateurs (si applicable)
-        if top_users:
-            users_text = "\n".join([f"{u[0]} : **{u[1]}**" for u in top_users])
+        # Stats du cache mémoire
+        if not errors:
             embed.add_field(
-                name="Utilisateurs",
-                value=users_text,
+                name="Cache mémoire",
+                value="Aucune erreur en cache",
+                inline=False
+            )
+        else:
+            # Calcul des stats
+            error_types = {}
+            error_files = {}
+            error_users = {}
+
+            for error in errors:
+                data = error['data']
+
+                # Par type
+                error_type = data.get('type', 'Unknown')
+                error_types[error_type] = error_types.get(error_type, 0) + 1
+
+                # Par fichier
+                error_file = data.get('file', 'Unknown')
+                error_files[error_file] = error_files.get(error_file, 0) + 1
+
+                # Par utilisateur (si disponible)
+                if 'user' in data:
+                    user_str = data['user'].split('(')[0].strip()
+                    error_users[user_str] = error_users.get(user_str, 0) + 1
+
+            # Trie et limite
+            top_types = sorted(error_types.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_files = sorted(error_files.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_users = sorted(error_users.items(), key=lambda x: x[1], reverse=True)[:5]
+
+            # Cache mémoire
+            cache_text = f"**Total:** `{len(errors)}` erreurs\n"
+
+            if errors:
+                oldest = errors[0]['timestamp']
+                newest = errors[-1]['timestamp']
+                cache_text += f"**Période:** {oldest.strftime('%H:%M')} - {newest.strftime('%H:%M')}"
+
+            embed.add_field(
+                name="Cache mémoire",
+                value=cache_text,
+                inline=False
+            )
+
+            # Top types d'erreurs
+            types_text = "\n".join([f"`{t[0]}` : **{t[1]}**" for t in top_types])
+            embed.add_field(
+                name="Types d'erreurs",
+                value=types_text or "Aucune",
                 inline=True
             )
 
-        # Période
-        if errors:
-            oldest = errors[0]['timestamp']
-            newest = errors[-1]['timestamp']
-            duration = newest - oldest
-            hours = duration.total_seconds() / 3600
-
+            # Top fichiers
+            files_text = "\n".join([f"`{f[0]}` : **{f[1]}**" for f in top_files])
             embed.add_field(
-                name="Période",
-                value=f"**Première:** `{oldest.strftime('%H:%M:%S')}`\n"
-                      f"**Dernière:** `{newest.strftime('%H:%M:%S')}`\n"
-                      f"**Durée:** `{hours:.1f}` heures",
+                name="Fichiers affectés",
+                value=files_text or "Aucun",
+                inline=True
+            )
+
+            # Top utilisateurs (si applicable)
+            if top_users:
+                users_text = "\n".join([f"{u[0]} : **{u[1]}**" for u in top_users])
+                embed.add_field(
+                    name="Utilisateurs",
+                    value=users_text,
+                    inline=True
+                )
+
+        # Stats de la BDD si disponible
+        if self.bot.db:
+            try:
+                stats = await self.bot.db.get_stats()
+                embed.add_field(
+                    name="Base de données",
+                    value=f"**Total historique:** `{stats.get('errors', 0)}` erreurs",
+                    inline=False
+                )
+            except:
+                embed.add_field(
+                    name="Base de données",
+                    value="⚠️ Impossible de récupérer les stats",
+                    inline=False
+                )
+        else:
+            embed.add_field(
+                name="Base de données",
+                value="❌ Non connectée",
                 inline=False
             )
 
@@ -293,6 +371,86 @@ class ErrorManagement(commands.Cog):
         # Log l'action
         if log_cog := self.bot.get_cog("LoggingSystem"):
             await log_cog.log_command(ctx, "errorstats")
+
+    @commands.command(name="errordb", aliases=["errdb"])
+    async def error_database(self, ctx, action: str = "info"):
+        """Gestion de la base de données d'erreurs"""
+        if not self.bot.db:
+            embed = ModdyResponse.error(
+                "Base de données non connectée",
+                "La base de données n'est pas disponible"
+            )
+            await ctx.send(embed=embed)
+            return
+
+        if action == "info":
+            # Affiche des infos sur la BDD
+            try:
+                stats = await self.bot.db.get_stats()
+
+                embed = discord.Embed(
+                    title="Base de données d'erreurs",
+                    color=COLORS["info"]
+                )
+
+                embed.add_field(
+                    name="Statistiques",
+                    value=(
+                        f"**Erreurs stockées:** `{stats.get('errors', 0)}`\n"
+                        f"**Utilisateurs trackés:** `{stats.get('users', 0)}`\n"
+                        f"**Serveurs trackés:** `{stats.get('guilds', 0)}`"
+                    ),
+                    inline=False
+                )
+
+                embed.add_field(
+                    name="Configuration",
+                    value=(
+                        f"**Pool min:** `{self.bot.db.pool._minsize}`\n"
+                        f"**Pool max:** `{self.bot.db.pool._maxsize}`\n"
+                        f"**Pool actuel:** `{self.bot.db.pool._holders.__len__()}`"
+                    ),
+                    inline=False
+                )
+
+                await ctx.send(embed=embed)
+
+            except Exception as e:
+                embed = ModdyResponse.error(
+                    "Erreur BDD",
+                    f"Impossible de récupérer les stats: {str(e)[:200]}"
+                )
+                await ctx.send(embed=embed)
+
+        elif action == "test":
+            # Test de connexion
+            try:
+                async with self.bot.db.pool.acquire() as conn:
+                    result = await conn.fetchval("SELECT 1")
+
+                embed = ModdyResponse.success(
+                    "Test réussi",
+                    "La connexion à la base de données fonctionne correctement"
+                )
+                await ctx.send(embed=embed)
+
+            except Exception as e:
+                embed = ModdyResponse.error(
+                    "Test échoué",
+                    f"Erreur de connexion: {str(e)[:200]}"
+                )
+                await ctx.send(embed=embed)
+
+        else:
+            embed = discord.Embed(
+                title="Actions disponibles",
+                description=(
+                    "`errordb info` - Affiche les statistiques\n"
+                    "`errordb test` - Test la connexion"
+                ),
+                color=COLORS["info"]
+            )
+            await ctx.send(embed=embed)
 
 
 async def setup(bot):

@@ -1,6 +1,6 @@
 """
 Système de gestion d'erreurs avancé pour Moddy
-Tracking, logs Discord et notifications
+Tracking, logs Discord et notifications avec base de données
 """
 
 import discord
@@ -21,7 +21,7 @@ class ErrorTracker(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.error_cache = deque(maxlen=100)  # Garde les 100 dernières erreurs
+        self.error_cache = deque(maxlen=100)  # Garde les 100 dernières erreurs en mémoire
         self.error_channel_id = 1392439223717724160
         self.dev_user_id = 1164597199594852395
 
@@ -33,12 +33,48 @@ class ErrorTracker(commands.Cog):
         return hash_obj.hexdigest()[:8].upper()
 
     def store_error(self, error_code: str, error_data: Dict[str, Any]):
-        """Stocke l'erreur dans le cache"""
+        """Stocke l'erreur dans le cache mémoire"""
         self.error_cache.append({
             "code": error_code,
             "timestamp": datetime.now(timezone.utc),
             "data": error_data
         })
+
+    async def store_error_db(self, error_code: str, error_data: Dict[str, Any], ctx: Optional[commands.Context] = None):
+        """Stocke l'erreur dans la base de données"""
+        if not self.bot.db:
+            return
+
+        try:
+            # Prépare les données pour la BDD
+            db_data = {
+                "type": error_data.get("type"),
+                "message": error_data.get("message"),
+                "file": error_data.get("file"),
+                "line": int(error_data.get("line")) if error_data.get("line", "").isdigit() else None,
+                "traceback": error_data.get("traceback"),
+                "user_id": None,
+                "guild_id": None,
+                "command": error_data.get("command"),
+                "context": {}
+            }
+
+            # Ajoute les infos de contexte si disponibles
+            if ctx:
+                db_data["user_id"] = ctx.author.id
+                db_data["guild_id"] = ctx.guild.id if ctx.guild else None
+                db_data["context"] = {
+                    "channel": str(ctx.channel),
+                    "message": ctx.message.content[:200] if hasattr(ctx, 'message') else None
+                }
+
+            # Stocke dans la BDD
+            await self.bot.db.log_error(error_code, db_data)
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('moddy')
+            logger.error(f"Erreur lors du stockage en BDD: {e}")
 
     async def get_error_channel(self) -> Optional[discord.TextChannel]:
         """Récupère le canal d'erreurs"""
@@ -149,6 +185,12 @@ class ErrorTracker(commands.Cog):
                 inline=False
             )
 
+        # Note sur la BDD
+        if self.bot.db:
+            embed.set_footer(text="✅ Erreur enregistrée dans la base de données")
+        else:
+            embed.set_footer(text="⚠️ Base de données non connectée - Erreur en cache uniquement")
+
         # Ping pour les erreurs fatales
         content = f"<@{self.dev_user_id}> Erreur fatale détectée !" if is_fatal else None
 
@@ -201,8 +243,11 @@ class ErrorTracker(commands.Cog):
         error_code = self.generate_error_code(error, ctx)
         error_details = self.format_error_details(error.original if hasattr(error, 'original') else error, ctx)
 
-        # Stocke l'erreur
+        # Stocke l'erreur en mémoire
         self.store_error(error_code, error_details)
+
+        # Stocke dans la BDD si disponible
+        await self.store_error_db(error_code, error_details, ctx)
 
         # Détermine si c'est fatal
         is_fatal = isinstance(error.original if hasattr(error, 'original') else error, (
@@ -262,9 +307,12 @@ class ErrorTracker(commands.Cog):
         }
 
         self.store_error(error_code, error_details)
+
+        # Stocke dans la BDD si disponible
+        if self.bot.db:
+            await self.store_error_db(error_code, error_details)
+
         await self.send_error_log(error_code, error_details, is_fatal=True)
-
-
 
 
 async def setup(bot):

@@ -20,6 +20,7 @@ from config import (
     DATABASE_URL,
     DEVELOPER_IDS
 )
+from database import setup_database, db
 
 logger = logging.getLogger('moddy')
 
@@ -49,7 +50,7 @@ class ModdyBot(commands.Bot):
 
         # Variables internes
         self.launch_time = datetime.now(timezone.utc)
-        self.db_pool = None
+        self.db = None  # Instance de ModdyDatabase
         self._dev_team_ids: Set[int] = set()
         self.maintenance_mode = False
 
@@ -105,12 +106,12 @@ class ModdyBot(commands.Bot):
         # Récupère l'équipe de développement
         await self.fetch_dev_team()
 
-        # Charge les extensions
-        await self.load_extensions()
-
         # Connecte la base de données
         if DATABASE_URL:
             await self.setup_database()
+
+        # Charge les extensions
+        await self.load_extensions()
 
         # Démarre les tâches de fond
         self.status_update.start()
@@ -172,6 +173,10 @@ class ModdyBot(commands.Bot):
                 self._dev_team_ids = {app_info.owner.id}
                 logger.info(f"✅ Propriétaire : {app_info.owner}")
 
+            # Ajoute aussi les IDs depuis la config
+            if DEVELOPER_IDS:
+                self._dev_team_ids.update(DEVELOPER_IDS)
+
         except Exception as e:
             logger.error(f"❌ Erreur lors de la récupération de l'équipe : {e}")
             # Fallback sur les IDs dans config si disponibles
@@ -202,16 +207,12 @@ class ModdyBot(commands.Bot):
 
     async def get_guild_prefix(self, guild_id: int) -> Optional[str]:
         """Récupère le préfixe d'un serveur depuis la BDD"""
-        if not self.db_pool:
+        if not self.db:
             return None
 
         try:
-            async with self.db_pool.acquire() as conn:
-                row = await conn.fetchrow(
-                    "SELECT prefix FROM guilds WHERE guild_id = $1",
-                    guild_id
-                )
-                return row['prefix'] if row else None
+            guild_data = await self.db.get_guild(guild_id)
+            return guild_data['data'].get('config', {}).get('prefix')
         except Exception as e:
             logger.error(f"Erreur BDD (prefix) : {e}")
             return None
@@ -219,18 +220,16 @@ class ModdyBot(commands.Bot):
     async def setup_database(self):
         """Initialise la connexion à la base de données"""
         try:
-            import asyncpg
-            self.db_pool = await asyncpg.create_pool(
-                DATABASE_URL,
-                min_size=1,
-                max_size=10,
-                command_timeout=60
-            )
-            logger.info("✅ Base de données connectée")
-        except ImportError:
-            logger.warning("⚠️ asyncpg non installé - Mode sans BDD")
+            self.db = await setup_database(DATABASE_URL)
+            logger.info("✅ Base de données connectée (ModdyDatabase)")
+
+            # Propriété pour la compatibilité avec l'ancien code
+            self.db_pool = self.db.pool
+
         except Exception as e:
             logger.error(f"❌ Erreur connexion BDD : {e}")
+            self.db = None
+            self.db_pool = None
 
     async def load_extensions(self):
         """Charge tous les cogs et commandes staff"""
@@ -304,18 +303,53 @@ class ModdyBot(commands.Bot):
         logger.info(f"📊 {len(self.guilds)} serveurs | {len(self.users)} utilisateurs")
         logger.info(f"🏓 Latence : {round(self.latency * 1000)}ms")
 
+        # Met à jour les attributs DEVELOPER maintenant que self.user est disponible
+        if self.db and self._dev_team_ids:
+            logger.info(f"📝 Mise à jour automatique des attributs DEVELOPER...")
+            for dev_id in self._dev_team_ids:
+                try:
+                    # Récupère ou crée l'utilisateur
+                    await self.db.get_user(dev_id)
+
+                    # Définit l'attribut DEVELOPER
+                    await self.db.set_attribute(
+                        'user', dev_id, 'DEVELOPER', True,
+                        self.user.id, "Auto-détection au démarrage"
+                    )
+                    logger.info(f"✅ Attribut DEVELOPER défini pour {dev_id}")
+
+                except Exception as e:
+                    logger.error(f"❌ Erreur attribut DEVELOPER pour {dev_id}: {e}")
+
+        # Stats de la BDD si connectée
+        if self.db:
+            try:
+                stats = await self.db.get_stats()
+                logger.info(f"📊 BDD: {stats['users']} users, {stats['guilds']} guilds, {stats['errors']} errors")
+            except:
+                pass
+
     async def on_guild_join(self, guild: discord.Guild):
         """Quand le bot rejoint un serveur"""
         logger.info(f"➕ Nouveau serveur : {guild.name} ({guild.id})")
 
         # Enregistre dans la BDD
-        if self.db_pool:
+        if self.db:
             try:
-                async with self.db_pool.acquire() as conn:
-                    await conn.execute("""
-                                       INSERT INTO guilds (guild_id, joined_at)
-                                       VALUES ($1, $2) ON CONFLICT (guild_id) DO NOTHING
-                                       """, guild.id, datetime.now(timezone.utc))
+                # Crée l'entrée du serveur
+                await self.db.get_guild(guild.id)  # Crée si n'existe pas
+
+                # Cache les informations du serveur
+                from database import UpdateSource
+                guild_info = {
+                    'name': guild.name,
+                    'icon_url': str(guild.icon.url) if guild.icon else None,
+                    'features': guild.features,
+                    'member_count': guild.member_count,
+                    'created_at': guild.created_at
+                }
+                await self.db.cache_guild_info(guild.id, guild_info, UpdateSource.BOT_JOIN)
+
             except Exception as e:
                 logger.error(f"Erreur BDD (guild_join) : {e}")
 
@@ -335,6 +369,14 @@ class ModdyBot(commands.Bot):
         # Mode maintenance - seuls les devs peuvent utiliser le bot
         if self.maintenance_mode and not self.is_developer(message.author.id):
             return
+
+        # Vérifie si l'utilisateur est blacklisté
+        if self.db:
+            try:
+                if await self.db.get_attribute('user', message.author.id, 'BLACKLISTED'):
+                    return  # Ignore silencieusement les messages des utilisateurs blacklistés
+            except:
+                pass
 
         # Traite les commandes
         await self.process_commands(message)
@@ -358,6 +400,15 @@ class ModdyBot(commands.Bot):
             ("watching", "les modérateurs"),
             ("playing", f"avec {len(self.users)} utilisateurs")
         ]
+
+        # Ajoute des statuts spéciaux si connecté à la BDD
+        if self.db:
+            try:
+                stats = await self.db.get_stats()
+                if stats.get('beta_users', 0) > 0:
+                    statuses.append(("playing", f"en beta avec {stats['beta_users']} testeurs"))
+            except:
+                pass
 
         # Choix aléatoire
         import random
@@ -393,8 +444,8 @@ class ModdyBot(commands.Bot):
         await asyncio.sleep(0.1)
 
         # Ferme la connexion BDD
-        if self.db_pool:
-            await self.db_pool.close()
+        if self.db:
+            await self.db.close()
 
         # Ferme proprement le client HTTP
         if hasattr(self, 'http') and self.http and hasattr(self.http, '_HTTPClient__session'):
