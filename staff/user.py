@@ -33,14 +33,14 @@ class UserManagement(commands.Cog):
 
         if not user:
             embed = discord.Embed(
-                title="<:manageuser:1398729745293774919> Gestion Utilisateur",
+                title="<:manageuser:1398729745293774919> User Management",
                 description=(
-                    "**Usage :** `user @utilisateur` ou `user [ID]`\n\n"
-                    "Affiche un panel complet pour gérer l'utilisateur :\n"
-                    "• Voir et modifier les attributs\n"
-                    "• Consulter la data stockée\n"
-                    "• Gérer les permissions\n"
-                    "• Voir l'historique"
+                    "**Usage:** `user @user` or `user [ID]`\n\n"
+                    "Displays a complete panel to manage the user:\n"
+                    "• View and modify attributes\n"
+                    "• Check stored data\n"
+                    "• Manage permissions\n"
+                    "• View history"
                 ),
                 color=COLORS["info"]
             )
@@ -49,7 +49,7 @@ class UserManagement(commands.Cog):
 
         # Vérifie la BDD
         if not self.bot.db:
-            await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
+            await ctx.send("<:undone:1398729502028333218> Database not connected")
             return
 
         # Récupère les données utilisateur
@@ -57,8 +57,8 @@ class UserManagement(commands.Cog):
             user_data = await self.bot.db.get_user(user.id)
         except Exception as e:
             embed = ModdyResponse.error(
-                "Erreur BDD",
-                f"Impossible de récupérer les données : {str(e)}"
+                "Database Error",
+                f"Unable to retrieve data: {str(e)}"
             )
             await ctx.send(embed=embed)
             return
@@ -97,7 +97,7 @@ class UserManagement(commands.Cog):
         if user_data['attributes'].get('TRACK'):
             badges.append("<:track:1401596933222695002>")
 
-        badges_str = " ".join(badges) if badges else "Aucun"
+        badges_str = " ".join(badges) if badges else "None"
 
         # Compte les serveurs mutuels
         mutual_guilds = []
@@ -106,7 +106,7 @@ class UserManagement(commands.Cog):
                 mutual_guilds.append(guild)
 
         embed = discord.Embed(
-            title=f"<:manageuser:1398729745293774919> Gestion de {user}",
+            title=f"<:manageuser:1398729745293774919> Managing {user}",
             color=COLORS["primary"]
         )
 
@@ -115,23 +115,23 @@ class UserManagement(commands.Cog):
 
         # Informations principales
         embed.add_field(
-            name="<:user:1398729712204779571> Informations",
+            name="<:user:1398729712204779571> Information",
             value=(
-                f"**ID :** `{user.id}`\n"
-                f"**Mention :** {user.mention}\n"
-                f"**Créé :** <t:{created_at}:R>\n"
-                f"**Bot :** {'Oui' if user.bot else 'Non'}"
+                f"**ID:** `{user.id}`\n"
+                f"**Mention:** {user.mention}\n"
+                f"**Created:** <t:{created_at}:R>\n"
+                f"**Bot:** {'Yes' if user.bot else 'No'}"
             ),
             inline=True
         )
 
         embed.add_field(
-            name="<:settings:1398729549323440208> Statut",
+            name="<:settings:1398729549323440208> Status",
             value=(
-                f"**Badges :** {badges_str}\n"
-                f"**Serveurs mutuels :** `{len(mutual_guilds)}`\n"
-                f"**Attributs :** `{len(user_data['attributes'])}`\n"
-                f"**Data stockée :** {'Oui' if user_data['data'] else 'Non'}"
+                f"**Badges:** {badges_str}\n"
+                f"**Mutual servers:** `{len(mutual_guilds)}`\n"
+                f"**Attributes:** `{len(user_data['attributes'])}`\n"
+                f"**Stored data:** {'Yes' if user_data['data'] else 'No'}"
             ),
             inline=True
         )
@@ -144,20 +144,20 @@ class UserManagement(commands.Cog):
                     val_str = "<:done:1398729525277229066>" if value else "<:undone:1398729502028333218>"
                 else:
                     val_str = str(value)
-                attrs_preview.append(f"`{attr}` : {val_str}")
+                attrs_preview.append(f"`{attr}`: {val_str}")
 
             if len(user_data['attributes']) > 3:
-                attrs_preview.append(f"*+{len(user_data['attributes']) - 3} autres...*")
+                attrs_preview.append(f"*+{len(user_data['attributes']) - 3} more...*")
 
             embed.add_field(
-                name="<:label:1398729473649676440> Attributs",
+                name="<:label:1398729473649676440> Attributes",
                 value="\n".join(attrs_preview),
                 inline=False
             )
 
         # Footer avec timestamp
         embed.set_footer(
-            text=f"Demandé par {ctx.author}",
+            text=f"Requested by {ctx.author}",
             icon_url=ctx.author.display_avatar.url
         )
         embed.timestamp = datetime.now(timezone.utc)
@@ -193,7 +193,7 @@ class UserManagementView(discord.ui.View):
         # Vérifie d'abord que c'est un développeur
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
@@ -201,25 +201,25 @@ class UserManagementView(discord.ui.View):
         # Vérifie ensuite que c'est l'auteur de la commande
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Seul l'auteur de la commande peut utiliser ces boutons.",
+                "<:undone:1398729502028333218> Only the command author can use these buttons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Attributs", emoji="<:label:1398729473649676440>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Attributes", emoji="<:label:1398729473649676440>", style=discord.ButtonStyle.primary)
     async def show_attributes(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche et gère les attributs"""
 
         embed = discord.Embed(
-            title=f"<:label:1398729473649676440> Attributs de {self.user}",
+            title=f"<:label:1398729473649676440> {self.user}'s Attributes",
             color=COLORS["info"]
         )
 
         if self.user_data['attributes']:
             for attr, value in self.user_data['attributes'].items():
                 if isinstance(value, bool):
-                    val_str = "<:done:1398729525277229066> Activé" if value else "<:undone:1398729502028333218> Désactivé"
+                    val_str = "<:done:1398729525277229066> Enabled" if value else "<:undone:1398729502028333218> Disabled"
                 else:
                     val_str = f"`{value}`"
 
@@ -229,7 +229,7 @@ class UserManagementView(discord.ui.View):
                     inline=True
                 )
         else:
-            embed.description = "Aucun attribut défini pour cet utilisateur."
+            embed.description = "No attributes defined for this user."
 
         view = AttributeActionView(self.bot, self.user, self.user_data, self.author, self)
         view.message = interaction.message
@@ -241,7 +241,7 @@ class UserManagementView(discord.ui.View):
         """Affiche la data stockée"""
 
         embed = discord.Embed(
-            title=f"<:data_object:1401600908323852318> Data de {self.user}",
+            title=f"<:data_object:1401600908323852318> {self.user}'s Data",
             color=COLORS["info"]
         )
 
@@ -254,15 +254,15 @@ class UserManagementView(discord.ui.View):
             embed.description = f"```json\n{data_str}\n```"
 
             embed.add_field(
-                name="<:settings:1398729549323440208> Informations",
+                name="<:settings:1398729549323440208> Information",
                 value=(
-                    f"**Taille :** `{len(json.dumps(self.user_data['data']))}` octets\n"
-                    f"**Clés principales :** `{len(self.user_data['data'])}`"
+                    f"**Size:** `{len(json.dumps(self.user_data['data']))}` bytes\n"
+                    f"**Main keys:** `{len(self.user_data['data'])}`"
                 ),
                 inline=False
             )
         else:
-            embed.description = "Aucune data stockée pour cet utilisateur."
+            embed.description = "No data stored for this user."
 
         view = DataManagementView(self.bot, self.user, self.user_data, self.author, self)
 
@@ -273,8 +273,8 @@ class UserManagementView(discord.ui.View):
         """Affiche les actions disponibles"""
 
         embed = discord.Embed(
-            title=f"<:settings:1398729549323440208> Actions pour {self.user}",
-            description="Choisissez une action à effectuer :",
+            title=f"<:settings:1398729549323440208> Actions for {self.user}",
+            description="Choose an action to perform:",
             color=COLORS["warning"]
         )
 
@@ -283,12 +283,12 @@ class UserManagementView(discord.ui.View):
 
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label="Historique", emoji="<:history:1401600464587456512>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="History", emoji="<:history:1401600464587456512>", style=discord.ButtonStyle.secondary)
     async def show_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche l'historique des changements"""
 
         embed = discord.Embed(
-            title=f"<:history:1401600464587456512> Historique de {self.user}",
+            title=f"<:history:1401600464587456512> {self.user}'s History",
             color=COLORS["info"]
         )
 
@@ -307,11 +307,11 @@ class UserManagementView(discord.ui.View):
                     timestamp = int(row['changed_at'].timestamp())
 
                     value_text = (
-                        f"**Attribut :** `{row['attribute_name']}`\n"
-                        f"**Avant :** `{row['old_value'] or 'Non défini'}`\n"
-                        f"**Après :** `{row['new_value'] or 'Supprimé'}`\n"
-                        f"**Par :** {changed_by}\n"
-                        f"**Raison :** {row['reason'] or 'Aucune'}"
+                        f"**Attribute:** `{row['attribute_name']}`\n"
+                        f"**Before:** `{row['old_value'] or 'Not defined'}`\n"
+                        f"**After:** `{row['new_value'] or 'Removed'}`\n"
+                        f"**By:** {changed_by}\n"
+                        f"**Reason:** {row['reason'] or 'None'}"
                     )
 
                     embed.add_field(
@@ -320,16 +320,16 @@ class UserManagementView(discord.ui.View):
                         inline=False
                     )
             else:
-                embed.description = "Aucun historique trouvé pour cet utilisateur."
+                embed.description = "No history found for this user."
 
         except Exception as e:
-            embed.description = f"<:undone:1398729502028333218> Erreur : {str(e)}"
+            embed.description = f"<:undone:1398729502028333218> Error: {str(e)}"
 
         view = BackButtonView(self, interaction.message)
 
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label="Rafraîchir", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Refresh", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.secondary)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rafraîchit les données"""
 
@@ -353,11 +353,11 @@ class UserManagementView(discord.ui.View):
 
         except Exception as e:
             await interaction.followup.send(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
-    @discord.ui.button(label="Fermer", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Close", style=discord.ButtonStyle.danger)
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ferme le panel"""
         await interaction.response.defer()
@@ -391,31 +391,31 @@ class AttributeActionView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
 
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Seul l'auteur de la commande peut utiliser ces boutons.",
+                "<:undone:1398729502028333218> Only the command author can use these buttons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Ajouter", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Add", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Modal pour ajouter un attribut"""
         modal = AddAttributeModal(self.bot, self.user, self.author, self)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Modifier", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Modify", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
     async def modify_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Sélecteur pour modifier un attribut"""
         if not self.user_data['attributes']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucun attribut à modifier",
+                "<:undone:1398729502028333218> No attributes to modify",
                 ephemeral=True
             )
             return
@@ -423,17 +423,17 @@ class AttributeActionView(discord.ui.View):
         view = ModifyAttributeView(self.bot, self.user, self.user_data, self.author)
 
         await interaction.response.send_message(
-            "Sélectionnez l'attribut à modifier :",
+            "Select the attribute to modify:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Supprimer", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Remove", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
     async def remove_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Sélecteur pour supprimer un attribut"""
         if not self.user_data['attributes']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucun attribut à supprimer",
+                "<:undone:1398729502028333218> No attributes to remove",
                 ephemeral=True
             )
             return
@@ -441,12 +441,12 @@ class AttributeActionView(discord.ui.View):
         view = RemoveAttributeView(self.bot, self.user, self.user_data, self.author)
 
         await interaction.response.send_message(
-            "Sélectionnez l'attribut à supprimer :",
+            "Select the attribute to remove:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.user_data = await self.bot.db.get_user(self.user.id)
@@ -519,7 +519,7 @@ class UserActionsView(discord.ui.View):
 
         # Autres boutons
         reset_btn = discord.ui.Button(
-            label="Réinitialiser",
+            label="Reset",
             emoji="<:sync:1398729150885269546>",
             style=discord.ButtonStyle.danger,
             row=1
@@ -528,7 +528,7 @@ class UserActionsView(discord.ui.View):
         self.add_item(reset_btn)
 
         export_btn = discord.ui.Button(
-            label="Exporter",
+            label="Export",
             emoji="<:download:1401600503867248730>",
             style=discord.ButtonStyle.secondary,
             row=1
@@ -537,7 +537,7 @@ class UserActionsView(discord.ui.View):
         self.add_item(export_btn)
 
         back_btn = discord.ui.Button(
-            label="Retour",
+            label="Back",
             emoji="<:back:1401600847733067806>",
             style=discord.ButtonStyle.secondary,
             row=1
@@ -549,7 +549,7 @@ class UserActionsView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
@@ -563,7 +563,7 @@ class UserActionsView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'user', self.user.id, 'PREMIUM', new_value,
-                self.author.id, f"{'Retrait' if has_premium else 'Ajout'} via panel par {self.author}"
+                self.author.id, f"{'Removal' if has_premium else 'Addition'} via panel by {self.author}"
             )
 
             # Rafraîchit les données
@@ -576,8 +576,8 @@ class UserActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.user}",
-                description=f"<:done:1398729525277229066> Premium {'activé' if new_value else 'désactivé'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.user}",
+                description=f"<:done:1398729525277229066> Premium {'enabled' if new_value else 'disabled'}!",
                 color=COLORS["success"]
             )
 
@@ -585,7 +585,7 @@ class UserActionsView(discord.ui.View):
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -597,9 +597,9 @@ class UserActionsView(discord.ui.View):
             # Demande confirmation pour blacklist
             view = ConfirmView()
             embed = discord.Embed(
-                title="Confirmation requise",
-                description=f"Êtes-vous sûr de vouloir blacklist {self.user.mention} ?\n"
-                            "Il ne pourra plus utiliser le bot.",
+                title="Confirmation required",
+                description=f"Are you sure you want to blacklist {self.user.mention}?\n"
+                            "They will no longer be able to use the bot.",
                 color=COLORS["error"]
             )
 
@@ -613,7 +613,7 @@ class UserActionsView(discord.ui.View):
             new_value = not is_blacklisted
             await self.bot.db.set_attribute(
                 'user', self.user.id, 'BLACKLISTED', new_value,
-                self.author.id, f"{'Retrait' if is_blacklisted else 'Ajout'} blacklist via panel"
+                self.author.id, f"{'Removal' if is_blacklisted else 'Addition'} blacklist via panel"
             )
 
             # Rafraîchit les données
@@ -626,8 +626,8 @@ class UserActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.user}",
-                description=f"<:done:1398729525277229066> {'Blacklist activée' if new_value else 'Blacklist retirée'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.user}",
+                description=f"<:done:1398729525277229066> {'Blacklist enabled' if new_value else 'Blacklist removed'}!",
                 color=COLORS["success"]
             )
 
@@ -639,12 +639,12 @@ class UserActionsView(discord.ui.View):
         except Exception as e:
             if is_blacklisted:
                 await interaction.response.send_message(
-                    f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    f"<:undone:1398729502028333218> Error: {str(e)}",
                     ephemeral=True
                 )
             else:
                 await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
                     embed=None,
                     view=None
                 )
@@ -657,7 +657,7 @@ class UserActionsView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'user', self.user.id, 'TRACK', new_value,
-                self.author.id, f"{'Arrêt' if is_tracked else 'Début'} du tracking via panel"
+                self.author.id, f"{'Stop' if is_tracked else 'Start'} tracking via panel"
             )
 
             # Rafraîchit les données
@@ -670,8 +670,8 @@ class UserActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.user}",
-                description=f"<:done:1398729525277229066> Tracking {'activé' if new_value else 'désactivé'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.user}",
+                description=f"<:done:1398729525277229066> Tracking {'enabled' if new_value else 'disabled'}!",
                 color=COLORS["success"]
             )
 
@@ -679,7 +679,7 @@ class UserActionsView(discord.ui.View):
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -720,14 +720,14 @@ class UserActionsView(discord.ui.View):
             )
 
             await interaction.followup.send(
-                f"<:done:1398729525277229066> Export complet de {self.user.mention}",
+                f"<:done:1398729525277229066> Complete export of {self.user.mention}",
                 file=file,
                 ephemeral=True
             )
 
         except Exception as e:
             await interaction.followup.send(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -761,48 +761,48 @@ class DataManagementView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
         return interaction.user == self.author
 
-    @discord.ui.button(label="Modifier JSON", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Edit JSON", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
     async def edit_json(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ouvre un modal pour éditer le JSON complet"""
         modal = EditDataModal(self.bot, self.user, self.user_data, self.author)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Ajouter une clé", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Add key", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_key(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ajoute une nouvelle clé à la data"""
         modal = AddDataKeyModal(self.bot, self.user, self.author)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Supprimer une clé", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Remove key", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
     async def remove_key(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Supprime une clé de la data"""
         if not self.user_data['data']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucune data à supprimer",
+                "<:undone:1398729502028333218> No data to remove",
                 ephemeral=True
             )
             return
 
         view = RemoveDataKeyView(self.bot, self.user, self.user_data, self.author)
         await interaction.response.send_message(
-            "Sélectionnez la clé à supprimer :",
+            "Select the key to remove:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Réinitialiser", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Reset", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.danger)
     async def reset_data(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Réinitialise toute la data"""
         view = ConfirmView()
         embed = discord.Embed(
-            title="Confirmation requise",
-            description=f"Êtes-vous sûr de vouloir réinitialiser toute la data de {self.user.mention} ?",
+            title="Confirmation required",
+            description=f"Are you sure you want to reset all data for {self.user.mention}?",
             color=COLORS["error"]
         )
 
@@ -819,18 +819,18 @@ class DataManagementView(discord.ui.View):
                     """, self.user.id)
 
                 await interaction.edit_original_response(
-                    content=f"<:done:1398729525277229066> Data réinitialisée pour {self.user.mention}",
+                    content=f"<:done:1398729525277229066> Data reset for {self.user.mention}",
                     embed=None,
                     view=None
                 )
             except Exception as e:
                 await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
                     embed=None,
                     view=None
                 )
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.user_data = await self.bot.db.get_user(self.user.id)
@@ -846,7 +846,7 @@ class DataManagementView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
 
-class EditDataModal(discord.ui.Modal, title="Modifier la data JSON"):
+class EditDataModal(discord.ui.Modal, title="Edit JSON data"):
     """Modal pour éditer le JSON complet"""
 
     def __init__(self, bot, user: discord.User, user_data: Dict[str, Any], author: discord.User):
@@ -864,7 +864,7 @@ class EditDataModal(discord.ui.Modal, title="Modifier la data JSON"):
             current_json = current_json[:1021] + "..."
 
         self.json_input = discord.ui.TextInput(
-            label="Data JSON",
+            label="JSON Data",
             style=discord.TextStyle.paragraph,
             placeholder='{"key": "value"}',
             default=current_json,
@@ -887,24 +887,24 @@ class EditDataModal(discord.ui.Modal, title="Modifier la data JSON"):
                 """, json.dumps(new_data), self.user.id)
 
             embed = ModdyResponse.success(
-                "Data modifiée",
-                f"<:done:1398729525277229066> La data de {self.user.mention} a été mise à jour"
+                "Data modified",
+                f"<:done:1398729525277229066> {self.user.mention}'s data has been updated"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except json.JSONDecodeError as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> JSON invalide : {str(e)}",
+                f"<:undone:1398729502028333218> Invalid JSON: {str(e)}",
                 ephemeral=True
             )
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class AddDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"):
+class AddDataKeyModal(discord.ui.Modal, title="Add a key to data"):
     """Modal pour ajouter une nouvelle clé"""
 
     def __init__(self, bot, user: discord.User, author: discord.User):
@@ -914,16 +914,16 @@ class AddDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"):
         self.author = author
 
     key_path = discord.ui.TextInput(
-        label="Chemin de la clé",
-        placeholder="Ex: preferences.theme ou simplement theme",
+        label="Key path",
+        placeholder="Ex: preferences.theme or simply theme",
         max_length=100,
         required=True
     )
 
     value_input = discord.ui.TextInput(
-        label="Valeur (JSON)",
+        label="Value (JSON)",
         style=discord.TextStyle.paragraph,
-        placeholder='Exemples:\n"texte"\n123\ntrue\n{"key": "value"}\n["item1", "item2"]',
+        placeholder='Examples:\n"text"\n123\ntrue\n{"key": "value"}\n["item1", "item2"]',
         max_length=1000,
         required=True
     )
@@ -948,14 +948,14 @@ class AddDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"):
             await self.bot.db.update_user_data(self.user.id, self.key_path.value, value)
 
             embed = ModdyResponse.success(
-                "Clé ajoutée",
+                "Key added",
                 f"<:done:1398729525277229066> `{self.key_path.value}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -987,7 +987,7 @@ class RemoveDataKeyView(discord.ui.View):
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez une clé à supprimer",
+            placeholder="Choose a key to remove",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1015,14 +1015,14 @@ class RemoveDataKeyView(discord.ui.View):
                 """, json.dumps(current_data), self.user.id)
 
             embed = ModdyResponse.success(
-                "Clé supprimée",
-                f"<:done:1398729525277229066> La clé `{selected}` a été supprimée"
+                "Key removed",
+                f"<:done:1398729525277229066> The key `{selected}` has been removed"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1039,13 +1039,13 @@ class BackButtonView(discord.ui.View):
         """Vérifie que c'est un développeur"""
         if not self.parent_view.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.user_data = await self.parent_view.bot.db.get_user(self.parent_view.user.id)
@@ -1066,7 +1066,7 @@ class BackButtonView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
 
 
-class AddAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
+class AddAttributeModal(discord.ui.Modal, title="Add an attribute"):
     """Modal pour ajouter un attribut"""
 
     def __init__(self, bot, user: discord.User, author: discord.User, parent_view=None):
@@ -1077,22 +1077,22 @@ class AddAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
         self.parent_view = parent_view
 
     attribute_name = discord.ui.TextInput(
-        label="Nom de l'attribut",
+        label="Attribute name",
         placeholder="Ex: BETA, PREMIUM, LANG...",
         max_length=50,
         required=True
     )
 
     attribute_value = discord.ui.TextInput(
-        label="Valeur",
-        placeholder="true, false, FR, EN... (laisser vide pour true)",
+        label="Value",
+        placeholder="true, false, FR, EN... (leave empty for true)",
         max_length=100,
         required=False
     )
 
     reason = discord.ui.TextInput(
-        label="Raison",
-        placeholder="Pourquoi cet attribut est ajouté",
+        label="Reason",
+        placeholder="Why this attribute is being added",
         max_length=200,
         required=False
     )
@@ -1112,7 +1112,7 @@ class AddAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
                 self.attribute_name.value.upper(),
                 value,
                 self.author.id,
-                self.reason.value or "Ajout via panel"
+                self.reason.value or "Added via panel"
             )
 
             # Rafraîchit les données du parent si disponible
@@ -1120,14 +1120,14 @@ class AddAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
                 await self.parent_view.refresh_parent_data()
 
             embed = ModdyResponse.success(
-                "Attribut ajouté",
+                "Attribute added",
                 f"<:done:1398729525277229066> `{self.attribute_name.value.upper()}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1148,12 +1148,12 @@ class ModifyAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Valeur actuelle : {value}"
+                    description=f"Current value: {value}"
                 )
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez un attribut",
+            placeholder="Choose an attribute",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1184,13 +1184,13 @@ class RemoveAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Valeur : {value}",
+                    description=f"Value: {value}",
                     emoji="<:undone:1398729502028333218>"
                 )
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez un attribut à supprimer",
+            placeholder="Choose an attribute to remove",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1203,23 +1203,23 @@ class RemoveAttributeView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'user', self.user.id, selected, None,
-                self.author.id, f"Suppression via panel"
+                self.author.id, f"Removed via panel"
             )
 
             embed = ModdyResponse.success(
-                "Attribut supprimé",
-                f"<:done:1398729525277229066> L'attribut `{selected}` a été supprimé"
+                "Attribute removed",
+                f"<:done:1398729525277229066> The attribute `{selected}` has been removed"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class ModifyAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
+class ModifyAttributeModal(discord.ui.Modal, title="Modify an attribute"):
     """Modal pour modifier un attribut"""
 
     def __init__(self, bot, user: discord.User, author: discord.User, attr_name: str, current_value):
@@ -1230,8 +1230,8 @@ class ModifyAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         self.attr_name = attr_name
 
         self.value_input = discord.ui.TextInput(
-            label=f"Nouvelle valeur pour {attr_name}",
-            placeholder=f"Valeur actuelle : {current_value}",
+            label=f"New value for {attr_name}",
+            placeholder=f"Current value: {current_value}",
             default=str(current_value),
             max_length=100,
             required=True
@@ -1239,8 +1239,8 @@ class ModifyAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         self.add_item(self.value_input)
 
         self.reason = discord.ui.TextInput(
-            label="Raison de la modification",
-            placeholder="Optionnel",
+            label="Reason for modification",
+            placeholder="Optional",
             max_length=200,
             required=False
         )
@@ -1258,18 +1258,18 @@ class ModifyAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         try:
             await self.bot.db.set_attribute(
                 'user', self.user.id, self.attr_name, value,
-                self.author.id, self.reason.value or "Modification via panel"
+                self.author.id, self.reason.value or "Modified via panel"
             )
 
             embed = ModdyResponse.success(
-                "Attribut modifié",
+                "Attribute modified",
                 f"<:done:1398729525277229066> `{self.attr_name}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1281,20 +1281,20 @@ class ConfirmView(discord.ui.View):
         super().__init__(timeout=30)
         self.value = None
 
-    @discord.ui.button(label="Confirmer", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = True
         self.stop()
 
-    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = False
         self.stop()
 
 
-class ResetConfirmModal(discord.ui.Modal, title="Réinitialiser l'utilisateur"):
+class ResetConfirmModal(discord.ui.Modal, title="Reset user"):
     """Modal de confirmation pour reset"""
 
     def __init__(self, bot, user: discord.User, author: discord.User):
@@ -1304,15 +1304,15 @@ class ResetConfirmModal(discord.ui.Modal, title="Réinitialiser l'utilisateur"):
         self.author = author
 
     confirm_text = discord.ui.TextInput(
-        label="Tapez le nom d'utilisateur pour confirmer",
-        placeholder="Nom exact de l'utilisateur",
+        label="Type the username to confirm",
+        placeholder="Exact username",
         max_length=100,
         required=True
     )
 
     reason = discord.ui.TextInput(
-        label="Raison de la réinitialisation",
-        placeholder="Pourquoi réinitialiser cet utilisateur ?",
+        label="Reason for reset",
+        placeholder="Why reset this user?",
         max_length=200,
         required=True
     )
@@ -1320,7 +1320,7 @@ class ResetConfirmModal(discord.ui.Modal, title="Réinitialiser l'utilisateur"):
     async def on_submit(self, interaction: discord.Interaction):
         if self.confirm_text.value != self.user.name:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Confirmation incorrecte. Vous devez taper exactement : `{self.user.name}`",
+                f"<:undone:1398729502028333218> Incorrect confirmation. You must type exactly: `{self.user.name}`",
                 ephemeral=True
             )
             return
@@ -1331,7 +1331,7 @@ class ResetConfirmModal(discord.ui.Modal, title="Réinitialiser l'utilisateur"):
             for attr in list(user_data['attributes'].keys()):
                 await self.bot.db.set_attribute(
                     'user', self.user.id, attr, None,
-                    self.author.id, f"Reset complet : {self.reason.value}"
+                    self.author.id, f"Complete reset: {self.reason.value}"
                 )
 
             async with self.bot.db.pool.acquire() as conn:
@@ -1342,14 +1342,14 @@ class ResetConfirmModal(discord.ui.Modal, title="Réinitialiser l'utilisateur"):
                 """, self.user.id)
 
             embed = ModdyResponse.success(
-                "Utilisateur réinitialisé",
-                f"<:done:1398729525277229066> Toutes les données de {self.user.mention} ont été supprimées."
+                "User reset",
+                f"<:done:1398729525277229066> All data for {self.user.mention} has been deleted."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
