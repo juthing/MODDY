@@ -167,15 +167,27 @@ class ModdyBot(commands.Bot):
             app_info = await self.application_info()
 
             if app_info.team:
-                self._dev_team_ids = {member.id for member in app_info.team.members}
+                # Filtre pour ne garder que les vrais utilisateurs (pas les bots)
+                self._dev_team_ids = {
+                    member.id for member in app_info.team.members
+                    if not member.bot and member.id != app_info.id
+                }
                 logger.info(f"✅ Équipe de dev : {len(self._dev_team_ids)} membres")
+                logger.info(f"   IDs: {list(self._dev_team_ids)}")
             else:
                 self._dev_team_ids = {app_info.owner.id}
-                logger.info(f"✅ Propriétaire : {app_info.owner}")
+                logger.info(f"✅ Propriétaire : {app_info.owner} ({app_info.owner.id})")
 
             # Ajoute aussi les IDs depuis la config
             if DEVELOPER_IDS:
                 self._dev_team_ids.update(DEVELOPER_IDS)
+                logger.info(f"   + IDs depuis config: {DEVELOPER_IDS}")
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération de l'équipe : {e}")
+            # Fallback sur les IDs dans config si disponibles
+            if DEVELOPER_IDS:
+                self._dev_team_ids = set(DEVELOPER_IDS)
 
         except Exception as e:
             logger.error(f"❌ Erreur lors de la récupération de l'équipe : {e}")
