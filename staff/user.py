@@ -264,7 +264,7 @@ class UserManagementView(discord.ui.View):
         else:
             embed.description = "Aucune data stockée pour cet utilisateur."
 
-        view = BackButtonView(self, interaction.message)
+        view = DataManagementView(self.bot, self.user, self.user_data, self.author, self)
 
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -404,7 +404,7 @@ class AttributeActionView(discord.ui.View):
             return False
         return True
 
-    @discord.ui.button(label="Ajouter", emoji="<:done:1398729525277229066>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Ajouter", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Modal pour ajouter un attribut"""
         modal = AddAttributeModal(self.bot, self.user, self.author, self)
@@ -744,6 +744,287 @@ class UserActionsView(discord.ui.View):
         embed = UserManagement._create_user_embed(self.bot, self.user, self.parent_view.user_data, fake_ctx)
 
         await interaction.response.edit_message(embed=embed, view=self.parent_view)
+
+
+class DataManagementView(discord.ui.View):
+    """Vue pour gérer la data utilisateur"""
+
+    def __init__(self, bot, user: discord.User, user_data: Dict[str, Any], author: discord.User, parent_view):
+        super().__init__(timeout=600)
+        self.bot = bot
+        self.user = user
+        self.user_data = user_data
+        self.author = author
+        self.parent_view = parent_view
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Vérifie que c'est un développeur ET l'auteur"""
+        if not self.bot.is_developer(interaction.user.id):
+            await interaction.response.send_message(
+                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                ephemeral=True
+            )
+            return False
+        return interaction.user == self.author
+
+    @discord.ui.button(label="Modifier JSON", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
+    async def edit_json(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Ouvre un modal pour éditer le JSON complet"""
+        modal = EditDataModal(self.bot, self.user, self.user_data, self.author)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Ajouter une clé", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    async def add_key(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Ajoute une nouvelle clé à la data"""
+        modal = AddDataKeyModal(self.bot, self.user, self.author)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Supprimer une clé", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    async def remove_key(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Supprime une clé de la data"""
+        if not self.user_data['data']:
+            await interaction.response.send_message(
+                "<:undone:1398729502028333218> Aucune data à supprimer",
+                ephemeral=True
+            )
+            return
+
+        view = RemoveDataKeyView(self.bot, self.user, self.user_data, self.author)
+        await interaction.response.send_message(
+            "Sélectionnez la clé à supprimer :",
+            view=view,
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="Réinitialiser", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.danger)
+    async def reset_data(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Réinitialise toute la data"""
+        view = ConfirmView()
+        embed = discord.Embed(
+            title="Confirmation requise",
+            description=f"Êtes-vous sûr de vouloir réinitialiser toute la data de {self.user.mention} ?",
+            color=COLORS["error"]
+        )
+
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await view.wait()
+
+        if view.value:
+            try:
+                async with self.bot.db.pool.acquire() as conn:
+                    await conn.execute("""
+                        UPDATE users 
+                        SET data = '{}'::jsonb, updated_at = NOW()
+                        WHERE user_id = $1
+                    """, self.user.id)
+
+                await interaction.edit_original_response(
+                    content=f"<:done:1398729525277229066> Data réinitialisée pour {self.user.mention}",
+                    embed=None,
+                    view=None
+                )
+            except Exception as e:
+                await interaction.edit_original_response(
+                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    embed=None,
+                    view=None
+                )
+
+    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Retour au menu principal"""
+        self.parent_view.user_data = await self.bot.db.get_user(self.user.id)
+
+        class FakeContext:
+            def __init__(self, author):
+                self.author = author
+
+        fake_ctx = FakeContext(self.author)
+
+        embed = UserManagement._create_user_embed(self.bot, self.user, self.parent_view.user_data, fake_ctx)
+
+        await interaction.response.edit_message(embed=embed, view=self.parent_view)
+
+
+class EditDataModal(discord.ui.Modal, title="Modifier la data JSON"):
+    """Modal pour éditer le JSON complet"""
+
+    def __init__(self, bot, user: discord.User, user_data: Dict[str, Any], author: discord.User):
+        super().__init__()
+        self.bot = bot
+        self.user = user
+        self.user_data = user_data
+        self.author = author
+
+        # Prépare le JSON actuel
+        current_json = json.dumps(user_data['data'], indent=2, ensure_ascii=False)
+
+        # Limite à 1024 caractères pour le champ Discord
+        if len(current_json) > 1024:
+            current_json = current_json[:1021] + "..."
+
+        self.json_input = discord.ui.TextInput(
+            label="Data JSON",
+            style=discord.TextStyle.paragraph,
+            placeholder='{"key": "value"}',
+            default=current_json,
+            max_length=4000,
+            required=True
+        )
+        self.add_item(self.json_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Parse le JSON
+            new_data = json.loads(self.json_input.value)
+
+            # Met à jour dans la BDD
+            async with self.bot.db.pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE users 
+                    SET data = $1::jsonb, updated_at = NOW()
+                    WHERE user_id = $2
+                """, json.dumps(new_data), self.user.id)
+
+            embed = ModdyResponse.success(
+                "Data modifiée",
+                f"<:done:1398729525277229066> La data de {self.user.mention} a été mise à jour"
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        except json.JSONDecodeError as e:
+            await interaction.response.send_message(
+                f"<:undone:1398729502028333218> JSON invalide : {str(e)}",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(
+                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                ephemeral=True
+            )
+
+
+class AddDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"):
+    """Modal pour ajouter une nouvelle clé"""
+
+    def __init__(self, bot, user: discord.User, author: discord.User):
+        super().__init__()
+        self.bot = bot
+        self.user = user
+        self.author = author
+
+    key_path = discord.ui.TextInput(
+        label="Chemin de la clé",
+        placeholder="Ex: preferences.theme ou simplement theme",
+        max_length=100,
+        required=True
+    )
+
+    value_input = discord.ui.TextInput(
+        label="Valeur (JSON)",
+        style=discord.TextStyle.paragraph,
+        placeholder='Exemples:\n"texte"\n123\ntrue\n{"key": "value"}\n["item1", "item2"]',
+        max_length=1000,
+        required=True
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            # Parse la valeur
+            if self.value_input.value.lower() == "true":
+                value = True
+            elif self.value_input.value.lower() == "false":
+                value = False
+            elif self.value_input.value.lower() == "null":
+                value = None
+            else:
+                try:
+                    value = json.loads(self.value_input.value)
+                except:
+                    # Si ce n'est pas du JSON valide, traite comme string
+                    value = self.value_input.value
+
+            # Met à jour dans la BDD
+            await self.bot.db.update_user_data(self.user.id, self.key_path.value, value)
+
+            embed = ModdyResponse.success(
+                "Clé ajoutée",
+                f"<:done:1398729525277229066> `{self.key_path.value}` = `{value}`"
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                ephemeral=True
+            )
+
+
+class RemoveDataKeyView(discord.ui.View):
+    """Vue pour sélectionner une clé à supprimer"""
+
+    def __init__(self, bot, user: discord.User, user_data: Dict[str, Any], author: discord.User):
+        super().__init__(timeout=60)
+        self.bot = bot
+        self.user = user
+        self.user_data = user_data
+        self.author = author
+
+        # Crée les options depuis les clés de premier niveau
+        options = []
+        for key in user_data['data'].keys():
+            value_preview = str(user_data['data'][key])
+            if len(value_preview) > 50:
+                value_preview = value_preview[:47] + "..."
+
+            options.append(
+                discord.SelectOption(
+                    label=key,
+                    value=key,
+                    description=value_preview,
+                    emoji="<:undone:1398729502028333218>"
+                )
+            )
+
+        self.select = discord.ui.Select(
+            placeholder="Choisissez une clé à supprimer",
+            options=options[:25]
+        )
+        self.select.callback = self.select_callback
+        self.add_item(self.select)
+
+    async def select_callback(self, interaction: discord.Interaction):
+        """Quand une clé est sélectionnée"""
+        selected = self.select.values[0]
+
+        try:
+            # Récupère la data actuelle
+            user_data = await self.bot.db.get_user(self.user.id)
+            current_data = user_data['data']
+
+            # Supprime la clé
+            if selected in current_data:
+                del current_data[selected]
+
+            # Met à jour dans la BDD
+            async with self.bot.db.pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE users 
+                    SET data = $1::jsonb, updated_at = NOW()
+                    WHERE user_id = $2
+                """, json.dumps(current_data), self.user.id)
+
+            embed = ModdyResponse.success(
+                "Clé supprimée",
+                f"<:done:1398729525277229066> La clé `{selected}` a été supprimée"
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                ephemeral=True
+            )
 
 
 class BackButtonView(discord.ui.View):
