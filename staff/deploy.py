@@ -26,6 +26,33 @@ class Deploy(commands.Cog):
         """Vérifie que l'utilisateur est développeur"""
         return self.bot.is_developer(ctx.author.id)
 
+    def install_requirements(self):
+        """Installe les requirements dans l'environnement virtuel"""
+        venv_path = Path(__file__).parent.parent / ".venv"
+
+        # Détermine le chemin du pip selon l'OS
+        if sys.platform == "win32":
+            pip_path = venv_path / "Scripts" / "pip.exe"
+        else:
+            pip_path = venv_path / "bin" / "pip"
+
+        # Si l'environnement virtuel existe, utilise son pip
+        if venv_path.exists() and pip_path.exists():
+            cmd = [str(pip_path), "install", "-r", "requirements.txt"]
+        else:
+            # Sinon utilise le pip du système Python actuel
+            cmd = [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
+
+        # Exécute l'installation
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent.parent
+        )
+
+        return result
+
     @commands.command(name="deploy", aliases=["update", "pull", "git"])
     async def deploy(self, ctx, branch: str = None):
         """Déploie les dernières modifications depuis GitHub"""
@@ -100,13 +127,21 @@ class Deploy(commands.Cog):
                 cwd=Path(__file__).parent.parent
             )
 
+            # Vérifie si requirements.txt sera modifié
+            diff_result = subprocess.run(
+                ["git", "diff", "HEAD", f"origin/{current_branch}", "--name-only"],
+                capture_output=True,
+                text=True,
+                cwd=Path(__file__).parent.parent
+            )
+            requirements_will_update = "requirements.txt" in diff_result.stdout
+
             # Embed de confirmation
             confirm_embed = discord.Embed(
                 title="<:commit:1398728993284296806> Déploiement disponible",
                 description=(
                     f"**Branche :** `{current_branch}`\n"
-                    f"**Commits en retard :** `{commits_behind}`\n\n"
-                    "**Changements à déployer :**"
+                    f"**Commits en retard :** `{commits_behind}`\n"
                 ),
                 color=COLORS["warning"],
                 timestamp=datetime.utcnow()
@@ -123,13 +158,20 @@ class Deploy(commands.Cog):
                     inline=False
                 )
 
+            if requirements_will_update:
+                confirm_embed.add_field(
+                    name="<:info:1401614681440784477> Requirements.txt modifié",
+                    value="Les dépendances seront automatiquement mises à jour après le pull",
+                    inline=False
+                )
+
             confirm_embed.add_field(
                 name="<:info:1401614681440784477> Instructions",
                 value=(
                     "1. Confirme le déploiement\n"
                     "2. Attends la fin du pull\n"
-                    "3. Redémarre le VPS depuis Hostinger\n"
-                    "4. Le bot sera mis à jour !"
+                    f"3. {'Les dépendances seront installées' if requirements_will_update else 'Pas de nouvelles dépendances'}\n"
+                    "4. Redémarre le VPS depuis Hostinger"
                 ),
                 inline=False
             )
@@ -140,7 +182,7 @@ class Deploy(commands.Cog):
             )
 
             # Vue de confirmation
-            view = DeployConfirmView(self.bot, ctx.author, current_branch, commits_behind)
+            view = DeployConfirmView(self.bot, ctx.author, current_branch, commits_behind, requirements_will_update)
 
             await checking_msg.edit(embed=confirm_embed, view=view)
             view.message = checking_msg
@@ -161,12 +203,13 @@ class Deploy(commands.Cog):
 class DeployConfirmView(discord.ui.View):
     """Vue pour confirmer le déploiement"""
 
-    def __init__(self, bot, author, branch, commits_count):
+    def __init__(self, bot, author, branch, commits_count, requirements_will_update):
         super().__init__(timeout=60)
         self.bot = bot
         self.author = author
         self.branch = branch
         self.commits_count = commits_count
+        self.requirements_will_update = requirements_will_update
         self.message = None
         self.confirmed = False
 
@@ -184,149 +227,8 @@ class DeployConfirmView(discord.ui.View):
     async def confirm_deploy(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Confirme et lance le déploiement"""
         # Ouvre le modal pour les credentials
-        modal = GitHubCredentialsModal(self.bot, self.branch, self.commits_count, self.message, self.author)
+        modal = GitHubCredentialsModal(self.bot, self.branch, self.commits_count, self.message, self.author, self.requirements_will_update)
         await interaction.response.send_modal(modal)
-
-        try:
-            # Git pull
-            pull_result = subprocess.run(
-                ["git", "pull", "origin", self.branch],
-                capture_output=True,
-                text=True,
-                cwd=Path(__file__).parent.parent
-            )
-
-            if pull_result.returncode == 0:
-                # Succès - Analyse les changements
-                output_lines = pull_result.stdout.strip().split('\n')
-
-                # Cherche les stats de changements
-                files_changed = 0
-                insertions = 0
-                deletions = 0
-
-                for line in output_lines:
-                    if "files changed" in line:
-                        parts = line.split(',')
-                        for part in parts:
-                            if "file" in part:
-                                files_changed = int(''.join(filter(str.isdigit, part.split('file')[0])))
-                            elif "insertion" in part:
-                                insertions = int(''.join(filter(str.isdigit, part.split('insertion')[0])))
-                            elif "deletion" in part:
-                                deletions = int(''.join(filter(str.isdigit, part.split('deletion')[0])))
-
-                # Obtient le dernier commit
-                commit_result = subprocess.run(
-                    ["git", "log", "-1", "--oneline"],
-                    capture_output=True,
-                    text=True,
-                    cwd=Path(__file__).parent.parent
-                )
-                last_commit = commit_result.stdout.strip()
-
-                # Embed de succès
-                success_embed = discord.Embed(
-                    title="<:done:1398729525277229066> Déploiement réussi !",
-                    description=(
-                        f"Les modifications ont été récupérées depuis GitHub.\n\n"
-                        f"**Dernier commit :** `{last_commit}`"
-                    ),
-                    color=COLORS["success"],
-                    timestamp=datetime.utcnow()
-                )
-
-                # Stats si disponibles
-                if files_changed > 0:
-                    success_embed.add_field(
-                        name="<:commit:1398728993284296806> Changements",
-                        value=(
-                            f"**Fichiers modifiés :** `{files_changed}`\n"
-                            f"**Lignes ajoutées :** `+{insertions}`\n"
-                            f"**Lignes supprimées :** `-{deletions}`"
-                        ),
-                        inline=True
-                    )
-
-                success_embed.add_field(
-                    name="<:settings:1398729549323440208> Prochaine étape",
-                    value=(
-                        "1. Va sur ton dashboard Hostinger\n"
-                        "2. Redémarre le VPS\n"
-                        "3. Le bot sera mis à jour !"
-                    ),
-                    inline=False
-                )
-
-                success_embed.set_footer(
-                    text=f"Déployé par {self.author}",
-                    icon_url=self.author.display_avatar.url
-                )
-
-                await self.message.edit(embed=success_embed, view=self)
-
-                # Log l'action
-                if log_cog := self.bot.get_cog("LoggingSystem"):
-                    await log_cog.log_command(
-                        type('obj', (object,), {
-                            'author': self.author,
-                            'guild': None,
-                            'channel': self.message.channel
-                        })(),
-                        "deploy",
-                        {
-                            "branch": self.branch,
-                            "commits": self.commits_count,
-                            "files_changed": files_changed,
-                            "status": "success"
-                        }
-                    )
-
-            else:
-                # Erreur pendant le pull
-                error_embed = discord.Embed(
-                    title="<:undone:1398729502028333218> Erreur de déploiement",
-                    description="Le déploiement a échoué.",
-                    color=COLORS["error"],
-                    timestamp=datetime.utcnow()
-                )
-
-                error_output = pull_result.stderr or pull_result.stdout
-                if len(error_output) > 1000:
-                    error_output = error_output[:997] + "..."
-
-                error_embed.add_field(
-                    name="Détails de l'erreur",
-                    value=f"```\n{error_output}\n```",
-                    inline=False
-                )
-
-                error_embed.add_field(
-                    name="<:bug:1401614189482475551> Solutions possibles",
-                    value=(
-                        "• Vérifie qu'il n'y a pas de conflits\n"
-                        "• Assure-toi que le bot a les permissions Git\n"
-                        "• Connecte-toi au VPS pour résoudre manuellement"
-                    ),
-                    inline=False
-                )
-
-                await self.message.edit(embed=error_embed, view=self)
-
-        except Exception as e:
-            # Erreur Python
-            error_embed = ModdyResponse.error(
-                "Erreur système",
-                f"Une erreur s'est produite : {str(e)}"
-            )
-            await self.message.edit(embed=error_embed, view=self)
-
-            # Log l'erreur
-            import logging
-            logger = logging.getLogger('moddy')
-            logger.error(f"Erreur déploiement : {e}", exc_info=True)
-
-        self.stop()
 
     @discord.ui.button(label="Annuler", style=discord.ButtonStyle.danger)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -366,13 +268,14 @@ class DeployConfirmView(discord.ui.View):
 class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
     """Modal pour entrer les credentials GitHub de manière sécurisée"""
 
-    def __init__(self, bot, branch, commits_count, message, author):
+    def __init__(self, bot, branch, commits_count, message, author, requirements_will_update):
         super().__init__()
         self.bot = bot
         self.branch = branch
         self.commits_count = commits_count
         self.message = message
         self.author = author
+        self.requirements_will_update = requirements_will_update
 
     username = discord.ui.TextInput(
         label="Nom d'utilisateur GitHub",
@@ -493,6 +396,19 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 )
                 last_commit = commit_result.stdout.strip()
 
+                # Si requirements doit être mis à jour, on installe
+                pip_install_result = None
+                if self.requirements_will_update or files_changed > 0:
+                    # Met à jour l'embed pour montrer qu'on installe les dépendances
+                    deploy_embed.title = "<:sync:1398729150885269546> Installation des dépendances..."
+                    deploy_embed.description = "Mise à jour des packages Python en cours"
+                    await interaction.edit_original_response(embed=deploy_embed)
+
+                    # Importe le cog Deploy pour utiliser sa méthode
+                    deploy_cog = self.bot.get_cog("Deploy")
+                    if deploy_cog:
+                        pip_install_result = deploy_cog.install_requirements()
+
                 # Embed de succès
                 success_embed = discord.Embed(
                     title="<:done:1398729525277229066> Déploiement réussi !",
@@ -515,6 +431,22 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                         ),
                         inline=True
                     )
+
+                # Résultat de l'installation des dépendances
+                if pip_install_result:
+                    if pip_install_result.returncode == 0:
+                        success_embed.add_field(
+                            name="<:done:1398729525277229066> Dépendances",
+                            value="✅ Requirements.txt installé avec succès",
+                            inline=False
+                        )
+                    else:
+                        error_msg = pip_install_result.stderr[:300] if pip_install_result.stderr else "Erreur inconnue"
+                        success_embed.add_field(
+                            name="<:undone:1398729502028333218> Dépendances",
+                            value=f"⚠️ Erreur lors de l'installation:\n```\n{error_msg}\n```",
+                            inline=False
+                        )
 
                 success_embed.add_field(
                     name="<:settings:1398729549323440208> Prochaine étape",
@@ -549,6 +481,7 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                             "branch": self.branch,
                             "commits": self.commits_count,
                             "files_changed": files_changed,
+                            "dependencies_updated": self.requirements_will_update,
                             "status": "success"
                         }
                     )
