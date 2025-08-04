@@ -10,6 +10,7 @@ import asyncio
 import sys
 from pathlib import Path
 from datetime import datetime
+import os
 
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
@@ -26,33 +27,6 @@ class Deploy(commands.Cog):
         """Vérifie que l'utilisateur est développeur"""
         return self.bot.is_developer(ctx.author.id)
 
-    def install_requirements(self):
-        """Installe les requirements dans l'environnement virtuel"""
-        venv_path = Path(__file__).parent.parent / ".venv"
-
-        # Détermine le chemin du pip selon l'OS
-        if sys.platform == "win32":
-            pip_path = venv_path / "Scripts" / "pip.exe"
-        else:
-            pip_path = venv_path / "bin" / "pip"
-
-        # Si l'environnement virtuel existe, utilise son pip
-        if venv_path.exists() and pip_path.exists():
-            cmd = [str(pip_path), "install", "-r", "requirements.txt"]
-        else:
-            # Sinon utilise le pip du système Python actuel
-            cmd = [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"]
-
-        # Exécute l'installation
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent
-        )
-
-        return result
-
     @commands.command(name="deploy", aliases=["update", "pull", "git"])
     async def deploy(self, ctx, branch: str = None):
         """Déploie les dernières modifications depuis GitHub"""
@@ -66,14 +40,19 @@ class Deploy(commands.Cog):
         )
         checking_msg = await ctx.send(embed=checking_embed)
 
-        # Fetch les changements depuis GitHub
+        # Git fetch pour voir s'il y a des changements
         try:
+            # Configure Git pour ne pas demander de credentials interactivement
+            env = os.environ.copy()
+            env['GIT_TERMINAL_PROMPT'] = '0'
+
             # Git fetch pour voir s'il y a des changements
             fetch_result = subprocess.run(
                 ["git", "fetch"],
                 capture_output=True,
                 text=True,
-                cwd=Path(__file__).parent.parent
+                cwd=Path(__file__).parent.parent,
+                env=env
             )
 
             if fetch_result.returncode != 0:
@@ -108,7 +87,7 @@ class Deploy(commands.Cog):
                 text=True,
                 cwd=Path(__file__).parent.parent
             )
-            commits_behind = int(behind_result.stdout.strip())
+            commits_behind = int(behind_result.stdout.strip() or "0")
 
             if commits_behind == 0:
                 up_to_date_embed = discord.Embed(
@@ -127,21 +106,13 @@ class Deploy(commands.Cog):
                 cwd=Path(__file__).parent.parent
             )
 
-            # Vérifie si requirements.txt sera modifié
-            diff_result = subprocess.run(
-                ["git", "diff", "HEAD", f"origin/{current_branch}", "--name-only"],
-                capture_output=True,
-                text=True,
-                cwd=Path(__file__).parent.parent
-            )
-            requirements_will_update = "requirements.txt" in diff_result.stdout
-
             # Embed de confirmation
             confirm_embed = discord.Embed(
                 title="<:commit:1398728993284296806> Déploiement disponible",
                 description=(
                     f"**Branche :** `{current_branch}`\n"
-                    f"**Commits en retard :** `{commits_behind}`\n"
+                    f"**Commits en retard :** `{commits_behind}`\n\n"
+                    "**Changements à déployer :**"
                 ),
                 color=COLORS["warning"],
                 timestamp=datetime.utcnow()
@@ -158,19 +129,12 @@ class Deploy(commands.Cog):
                     inline=False
                 )
 
-            if requirements_will_update:
-                confirm_embed.add_field(
-                    name="<:info:1401614681440784477> Requirements.txt modifié",
-                    value="Les dépendances seront automatiquement mises à jour après le pull",
-                    inline=False
-                )
-
             confirm_embed.add_field(
                 name="<:info:1401614681440784477> Instructions",
                 value=(
                     "1. Confirme le déploiement\n"
-                    "2. Attends la fin du pull\n"
-                    f"3. {'Les dépendances seront installées' if requirements_will_update else 'Pas de nouvelles dépendances'}\n"
+                    "2. Entre tes credentials GitHub\n"
+                    "3. Attends la fin du pull\n"
                     "4. Redémarre le VPS depuis Hostinger"
                 ),
                 inline=False
@@ -182,10 +146,9 @@ class Deploy(commands.Cog):
             )
 
             # Vue de confirmation
-            view = DeployConfirmView(self.bot, ctx.author, current_branch, commits_behind, requirements_will_update)
+            view = DeployConfirmView(self.bot, ctx.author, current_branch, commits_behind, checking_msg)
 
             await checking_msg.edit(embed=confirm_embed, view=view)
-            view.message = checking_msg
 
         except Exception as e:
             error_embed = ModdyResponse.error(
@@ -203,14 +166,13 @@ class Deploy(commands.Cog):
 class DeployConfirmView(discord.ui.View):
     """Vue pour confirmer le déploiement"""
 
-    def __init__(self, bot, author, branch, commits_count, requirements_will_update):
+    def __init__(self, bot, author, branch, commits_count, message):
         super().__init__(timeout=60)
         self.bot = bot
         self.author = author
         self.branch = branch
         self.commits_count = commits_count
-        self.requirements_will_update = requirements_will_update
-        self.message = None
+        self.message = message
         self.confirmed = False
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -227,7 +189,7 @@ class DeployConfirmView(discord.ui.View):
     async def confirm_deploy(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Confirme et lance le déploiement"""
         # Ouvre le modal pour les credentials
-        modal = GitHubCredentialsModal(self.bot, self.branch, self.commits_count, self.message, self.author, self.requirements_will_update)
+        modal = GitHubCredentialsModal(self.bot, self.branch, self.commits_count, self.message, self.author)
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Annuler", style=discord.ButtonStyle.danger)
@@ -268,14 +230,13 @@ class DeployConfirmView(discord.ui.View):
 class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
     """Modal pour entrer les credentials GitHub de manière sécurisée"""
 
-    def __init__(self, bot, branch, commits_count, message, author, requirements_will_update):
+    def __init__(self, bot, branch, commits_count, message, author):
         super().__init__()
         self.bot = bot
         self.branch = branch
         self.commits_count = commits_count
         self.message = message
         self.author = author
-        self.requirements_will_update = requirements_will_update
 
     username = discord.ui.TextInput(
         label="Nom d'utilisateur GitHub",
@@ -295,7 +256,7 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
     async def on_submit(self, interaction: discord.Interaction):
         """Quand le formulaire est soumis"""
         # Désactive les boutons du message original
-        if self.message.components:
+        if self.message and hasattr(self.message, 'components') and self.message.components:
             view = discord.ui.View()
             for item in self.message.components[0].children:
                 item.disabled = True
@@ -314,9 +275,10 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
         await interaction.response.send_message(embed=deploy_embed, ephemeral=True)
 
         try:
-            # Construit l'URL avec les credentials
-            # Format: https://username:token@github.com/user/repo.git
-            import re
+            # Créer les variables d'environnement avec les credentials
+            env = os.environ.copy()
+            env['GIT_TERMINAL_PROMPT'] = '0'  # Désactive les prompts
+            env['GIT_ASKPASS'] = 'echo'  # Empêche Git de demander
 
             # Récupère l'URL actuelle du remote
             remote_result = subprocess.run(
@@ -330,6 +292,9 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 raise Exception("Impossible de récupérer l'URL du remote")
 
             current_url = remote_result.stdout.strip()
+
+            # Sauvegarde l'URL originale pour la restaurer après
+            original_url = current_url
 
             # Parse l'URL pour injecter les credentials
             if current_url.startswith("https://"):
@@ -352,17 +317,18 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 check=True
             )
 
-            # Git pull
+            # Git pull avec les variables d'environnement
             pull_result = subprocess.run(
                 ["git", "pull", "origin", self.branch],
                 capture_output=True,
                 text=True,
-                cwd=Path(__file__).parent.parent
+                cwd=Path(__file__).parent.parent,
+                env=env
             )
 
             # IMPORTANT: Restaure l'URL sans credentials pour la sécurité
             subprocess.run(
-                ["git", "remote", "set-url", "origin", current_url],
+                ["git", "remote", "set-url", "origin", original_url],
                 cwd=Path(__file__).parent.parent,
                 check=True
             )
@@ -381,11 +347,11 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                         parts = line.split(',')
                         for part in parts:
                             if "file" in part:
-                                files_changed = int(''.join(filter(str.isdigit, part.split('file')[0])))
+                                files_changed = int(''.join(filter(str.isdigit, part.split('file')[0])) or 0)
                             elif "insertion" in part:
-                                insertions = int(''.join(filter(str.isdigit, part.split('insertion')[0])))
+                                insertions = int(''.join(filter(str.isdigit, part.split('insertion')[0])) or 0)
                             elif "deletion" in part:
-                                deletions = int(''.join(filter(str.isdigit, part.split('deletion')[0])))
+                                deletions = int(''.join(filter(str.isdigit, part.split('deletion')[0])) or 0)
 
                 # Obtient le dernier commit
                 commit_result = subprocess.run(
@@ -395,19 +361,6 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                     cwd=Path(__file__).parent.parent
                 )
                 last_commit = commit_result.stdout.strip()
-
-                # Si requirements doit être mis à jour, on installe
-                pip_install_result = None
-                if self.requirements_will_update or files_changed > 0:
-                    # Met à jour l'embed pour montrer qu'on installe les dépendances
-                    deploy_embed.title = "<:sync:1398729150885269546> Installation des dépendances..."
-                    deploy_embed.description = "Mise à jour des packages Python en cours"
-                    await interaction.edit_original_response(embed=deploy_embed)
-
-                    # Importe le cog Deploy pour utiliser sa méthode
-                    deploy_cog = self.bot.get_cog("Deploy")
-                    if deploy_cog:
-                        pip_install_result = deploy_cog.install_requirements()
 
                 # Embed de succès
                 success_embed = discord.Embed(
@@ -432,22 +385,6 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                         inline=True
                     )
 
-                # Résultat de l'installation des dépendances
-                if pip_install_result:
-                    if pip_install_result.returncode == 0:
-                        success_embed.add_field(
-                            name="<:done:1398729525277229066> Dépendances",
-                            value="✅ Requirements.txt installé avec succès",
-                            inline=False
-                        )
-                    else:
-                        error_msg = pip_install_result.stderr[:300] if pip_install_result.stderr else "Erreur inconnue"
-                        success_embed.add_field(
-                            name="<:undone:1398729502028333218> Dépendances",
-                            value=f"⚠️ Erreur lors de l'installation:\n```\n{error_msg}\n```",
-                            inline=False
-                        )
-
                 success_embed.add_field(
                     name="<:settings:1398729549323440208> Prochaine étape",
                     value=(
@@ -466,7 +403,8 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 await interaction.edit_original_response(embed=success_embed)
 
                 # Met à jour le message original aussi
-                await self.message.edit(embed=success_embed)
+                if self.message:
+                    await self.message.edit(embed=success_embed, view=None)
 
                 # Log l'action
                 if log_cog := self.bot.get_cog("LoggingSystem"):
@@ -474,14 +412,13 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                         type('obj', (object,), {
                             'author': self.author,
                             'guild': None,
-                            'channel': self.message.channel
+                            'channel': self.message.channel if self.message else None
                         })(),
                         "deploy",
                         {
                             "branch": self.branch,
                             "commits": self.commits_count,
                             "files_changed": files_changed,
-                            "dependencies_updated": self.requirements_will_update,
                             "status": "success"
                         }
                     )
@@ -536,12 +473,13 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 await interaction.edit_original_response(embed=error_embed)
 
         except Exception as e:
-            # IMPORTANT: Restaure l'URL en cas d'erreurb
+            # IMPORTANT: Restaure l'URL en cas d'erreur
             try:
-                subprocess.run(
-                    ["git", "remote", "set-url", "origin", current_url],
-                    cwd=Path(__file__).parent.parent
-                )
+                if 'original_url' in locals():
+                    subprocess.run(
+                        ["git", "remote", "set-url", "origin", original_url],
+                        cwd=Path(__file__).parent.parent
+                    )
             except:
                 pass
 
