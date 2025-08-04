@@ -6,7 +6,7 @@ Base de données locale sur le VPS
 import asyncpg
 import json
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from enum import Enum
 import logging
 
@@ -287,9 +287,14 @@ class ModdyDatabase:
             }
 
     async def set_attribute(self, entity_type: str, entity_id: int,
-                            attribute: str, value: Any, changed_by: int,
-                            reason: str = None):
-        """Définit un attribut pour un utilisateur ou serveur"""
+                            attribute: str, value: Optional[Union[str, bool]],
+                            changed_by: int, reason: str = None):
+        """Définit un attribut pour un utilisateur ou serveur
+
+        Pour les attributs booléens : si value est True, on stocke juste l'attribut
+        Pour les attributs avec valeur : on stocke la valeur (ex: LANG=FR)
+        Si value est None, on supprime l'attribut
+        """
         table = 'users' if entity_type == 'user' else 'guilds'
 
         async with self.pool.acquire() as conn:
@@ -308,12 +313,20 @@ class ModdyDatabase:
             old_attributes = json.loads(row['attributes']) if row and row['attributes'] else {}
             old_value = old_attributes.get(attribute)
 
-            # Met à jour l'attribut
-            if value is None and attribute in old_attributes:
+            # Met à jour l'attribut selon le nouveau système
+            if value is None:
                 # Supprime l'attribut
-                del old_attributes[attribute]
+                if attribute in old_attributes:
+                    del old_attributes[attribute]
+            elif value is True:
+                # Pour les booléens True, on stocke juste la clé sans valeur
+                old_attributes[attribute] = True
+            elif value is False:
+                # Pour les booléens False, on supprime l'attribut
+                if attribute in old_attributes:
+                    del old_attributes[attribute]
             else:
-                # Définit/met à jour l'attribut
+                # Pour les autres valeurs (string, int, etc), on stocke la valeur
                 old_attributes[attribute] = value
 
             # Sauvegarde
@@ -341,7 +354,12 @@ class ModdyDatabase:
         return attribute in entity['attributes']
 
     async def get_attribute(self, entity_type: str, entity_id: int, attribute: str) -> Any:
-        """Récupère la valeur d'un attribut"""
+        """Récupère la valeur d'un attribut
+
+        Retourne True pour les attributs booléens présents
+        Retourne la valeur pour les attributs avec valeur
+        Retourne None si l'attribut n'existe pas
+        """
         entity = await self.get_user(entity_id) if entity_type == 'user' else await self.get_guild(entity_id)
         return entity['attributes'].get(attribute)
 
@@ -383,7 +401,11 @@ class ModdyDatabase:
     # ================ REQUÊTES UTILES ================
 
     async def get_users_with_attribute(self, attribute: str, value: Any = None) -> List[int]:
-        """Récupère tous les utilisateurs ayant un attribut spécifique"""
+        """Récupère tous les utilisateurs ayant un attribut spécifique
+
+        Si value est None, cherche juste la présence de l'attribut
+        Si value est fournie, cherche cette valeur spécifique
+        """
         async with self.pool.acquire() as conn:
             if value is None:
                 # Cherche juste la présence de l'attribut
@@ -435,20 +457,23 @@ class ModdyDatabase:
                 count = await conn.fetchval(f"SELECT COUNT(*) FROM {table}")
                 stats[table] = count
 
-            # Statistiques spécifiques
+            # Statistiques spécifiques avec le nouveau système
+            # Compte les utilisateurs ayant l'attribut BETA (peu importe la valeur)
             stats['beta_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'BETA'
             """)
 
+            # Compte les utilisateurs ayant l'attribut PREMIUM
             stats['premium_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'PREMIUM'
             """)
 
+            # Compte les utilisateurs blacklistés (ayant l'attribut BLACKLISTED)
             stats['blacklisted_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
-                WHERE attributes @> '{"BLACKLISTED": true}'::jsonb
+                WHERE attributes ? 'BLACKLISTED'
             """)
 
             return stats

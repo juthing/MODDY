@@ -18,7 +18,8 @@ from config import (
     DEBUG,
     DEFAULT_PREFIX,
     DATABASE_URL,
-    DEVELOPER_IDS
+    DEVELOPER_IDS,
+    COLORS
 )
 from database import setup_database, db
 
@@ -252,6 +253,13 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"❌ CRITIQUE: Impossible de charger le système d'erreurs : {e}")
 
+        # Charge le système de vérification blacklist EN PRIORITÉ
+        try:
+            await self.load_extension("cogs.blacklist_check")
+            logger.info("✅ Système de vérification blacklist chargé")
+        except Exception as e:
+            logger.error(f"❌ Erreur chargement blacklist check : {e}")
+
         # Charge le système de logging dev
         try:
             await self.load_extension("cogs.dev_logger")
@@ -263,7 +271,7 @@ class ModdyBot(commands.Bot):
         cogs_dir = Path("cogs")
         if cogs_dir.exists():
             for file in cogs_dir.glob("*.py"):
-                if file.name.startswith("_") or file.name in ["error_handler.py", "dev_logger.py"]:
+                if file.name.startswith("_") or file.name in ["error_handler.py", "blacklist_check.py", "dev_logger.py"]:
                     continue
 
                 try:
@@ -323,7 +331,7 @@ class ModdyBot(commands.Bot):
                     # Récupère ou crée l'utilisateur
                     await self.db.get_user(dev_id)
 
-                    # Définit l'attribut DEVELOPER
+                    # Définit l'attribut DEVELOPER (True = présent dans le système simplifié)
                     await self.db.set_attribute(
                         'user', dev_id, 'DEVELOPER', True,
                         self.user.id, "Auto-détection au démarrage"
@@ -345,9 +353,54 @@ class ModdyBot(commands.Bot):
         """Quand le bot rejoint un serveur"""
         logger.info(f"➕ Nouveau serveur : {guild.name} ({guild.id})")
 
-        # Enregistre dans la BDD
+        # Vérifie si le propriétaire du serveur est blacklisté
         if self.db:
             try:
+                if await self.db.has_attribute('user', guild.owner_id, 'BLACKLISTED'):
+                    logger.warning(f"⚠️ Tentative d'ajout par utilisateur blacklisté: {guild.owner_id}")
+
+                    # Envoie un message au propriétaire si possible
+                    try:
+                        embed = discord.Embed(
+                            description=(
+                                "<:blacklist:1401596864784777363> You cannot add Moddy to servers while blacklisted.\n"
+                                "<:blacklist:1401596864784777363> Vous ne pouvez pas ajouter Moddy à des serveurs en étant blacklisté."
+                            ),
+                            color=COLORS["error"]
+                        )
+                        embed.set_footer(text=f"ID: {guild.owner_id}")
+
+                        # Crée le bouton
+                        view = discord.ui.View()
+                        view.add_item(discord.ui.Button(
+                            label="Unblacklist request",
+                            url="https://moddy.app/unbl_request",
+                            style=discord.ButtonStyle.link
+                        ))
+
+                        await guild.owner.send(embed=embed, view=view)
+                    except:
+                        pass
+
+                    # Quitte le serveur
+                    await guild.leave()
+
+                    # Log l'action
+                    if log_cog := self.get_cog("LoggingSystem"):
+                        await log_cog.log_critical(
+                            title="Ajout Bloqué - Utilisateur Blacklisté",
+                            description=(
+                                f"**Serveur:** {guild.name} (`{guild.id}`)\n"
+                                f"**Propriétaire:** {guild.owner} (`{guild.owner_id}`)\n"
+                                f"**Membres:** {guild.member_count}\n"
+                                f"**Action:** Bot a quitté automatiquement"
+                            ),
+                            ping_dev=False
+                        )
+
+                    return
+
+                # Si pas blacklisté, continue normalement
                 # Crée l'entrée du serveur
                 await self.db.get_guild(guild.id)  # Crée si n'existe pas
 
@@ -382,13 +435,8 @@ class ModdyBot(commands.Bot):
         if self.maintenance_mode and not self.is_developer(message.author.id):
             return
 
-        # Vérifie si l'utilisateur est blacklisté
-        if self.db:
-            try:
-                if await self.db.get_attribute('user', message.author.id, 'BLACKLISTED'):
-                    return  # Ignore silencieusement les messages des utilisateurs blacklistés
-            except:
-                pass
+        # La vérification du blacklist est maintenant gérée par le cog BlacklistCheck
+        # qui intercepte toutes les interactions AVANT qu'elles soient traitées
 
         # Traite les commandes
         await self.process_commands(message)

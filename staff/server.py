@@ -33,14 +33,14 @@ class ServerManagement(commands.Cog):
 
         if not guild_input:
             embed = discord.Embed(
-                title="<:server:1398840906248671354> Gestion Serveur",
+                title="<:server:1398840906248671354> Server Management",
                 description=(
-                    "**Usage :** `server [nom/ID]`\n\n"
-                    "Affiche un panel complet pour gérer le serveur :\n"
-                    "• Voir et modifier les attributs\n"
-                    "• Consulter la configuration\n"
-                    "• Gérer les permissions\n"
-                    "• Voir l'historique et le cache"
+                    "**Usage:** `server [name/ID]`\n\n"
+                    "Displays a complete panel to manage the server:\n"
+                    "• View and modify attributes\n"
+                    "• Check configuration\n"
+                    "• Manage permissions\n"
+                    "• View history and cache"
                 ),
                 color=COLORS["info"]
             )
@@ -74,12 +74,12 @@ class ServerManagement(commands.Cog):
                 pass
 
         if not guild:
-            await ctx.send(f"<:undone:1398729502028333218> Serveur `{guild_input}` introuvable")
+            await ctx.send(f"<:undone:1398729502028333218> Server `{guild_input}` not found")
             return
 
         # Vérifie la BDD
         if not self.bot.db:
-            await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
+            await ctx.send("<:undone:1398729502028333218> Database not connected")
             return
 
         # Récupère les données serveur
@@ -87,8 +87,8 @@ class ServerManagement(commands.Cog):
             guild_data = await self.bot.db.get_guild(guild.id)
         except Exception as e:
             embed = ModdyResponse.error(
-                "Erreur BDD",
-                f"Impossible de récupérer les données : {str(e)}"
+                "Database Error",
+                f"Unable to retrieve data: {str(e)}"
             )
             await ctx.send(embed=embed)
             return
@@ -135,7 +135,7 @@ class ServerManagement(commands.Cog):
         if guild_data['attributes'].get('LEGACY'):
             badges.append("<:time:1398729780723060736>")
 
-        badges_str = " ".join(badges) if badges else "Aucun"
+        badges_str = " ".join(badges) if badges else "None"
 
         # Infos selon la source
         if is_cached:
@@ -143,12 +143,12 @@ class ServerManagement(commands.Cog):
             member_count = guild._cached_data.get('member_count', 'N/A')
             icon_url = guild._cached_data.get('icon_url')
         else:
-            info_source = "(Bot présent)"
+            info_source = "(Bot present)"
             member_count = guild.member_count
             icon_url = guild.icon.url if guild.icon else None
 
         embed = discord.Embed(
-            title=f"<:server:1398840906248671354> Gestion de {guild.name}",
+            title=f"<:server:1398840906248671354> Managing {guild.name}",
             description=f"*{info_source}*",
             color=COLORS["primary"]
         )
@@ -159,22 +159,22 @@ class ServerManagement(commands.Cog):
 
         # Informations principales
         embed.add_field(
-            name="<:info:1401614681440784477> Informations",
+            name="<:info:1401614681440784477> Information",
             value=(
-                f"**ID :** `{guild.id}`\n"
-                f"**Créé :** <t:{created_timestamp}:R>\n"
-                f"**Membres :** `{member_count}`"
+                f"**ID:** `{guild.id}`\n"
+                f"**Created:** <t:{created_timestamp}:R>\n"
+                f"**Members:** `{member_count}`"
             ),
             inline=True
         )
 
         embed.add_field(
-            name="<:settings:1398729549323440208> Statut",
+            name="<:settings:1398729549323440208> Status",
             value=(
-                f"**Badges :** {badges_str}\n"
-                f"**Attributs :** `{len(guild_data['attributes'])}`\n"
-                f"**Config :** {'<:done:1398729525277229066>' if guild_data['data'].get('config') else '<:undone:1398729502028333218>'}\n"
-                f"**Préfixe :** `{guild_data['data'].get('config', {}).get('prefix', '!')}`"
+                f"**Badges:** {badges_str}\n"
+                f"**Attributes:** `{len(guild_data['attributes'])}`\n"
+                f"**Config:** {'<:done:1398729525277229066>' if guild_data['data'].get('config') else '<:undone:1398729502028333218>'}\n"
+                f"**Prefix:** `{guild_data['data'].get('config', {}).get('prefix', '!')}`"
             ),
             inline=True
         )
@@ -187,13 +187,13 @@ class ServerManagement(commands.Cog):
                     val_str = "<:done:1398729525277229066>" if value else "<:undone:1398729502028333218>"
                 else:
                     val_str = str(value)
-                attrs_preview.append(f"`{attr}` : {val_str}")
+                attrs_preview.append(f"`{attr}`: {val_str}")
 
             if len(guild_data['attributes']) > 3:
-                attrs_preview.append(f"*+{len(guild_data['attributes']) - 3} autres...*")
+                attrs_preview.append(f"*+{len(guild_data['attributes']) - 3} more...*")
 
             embed.add_field(
-                name="<:label:1398729473649676440> Attributs",
+                name="<:label:1398729473649676440> Attributes",
                 value="\n".join(attrs_preview),
                 inline=False
             )
@@ -205,16 +205,16 @@ class ServerManagement(commands.Cog):
             # Préfixe si dans config
             config = guild_data['data'].get('config', {})
             if config.get('prefix'):
-                preview_lines.append(f"**Préfixe :** `{config['prefix']}`")
+                preview_lines.append(f"**Prefix:** `{config['prefix']}`")
 
             # Nombre de tags
             if guild_data['data'].get('tags'):
-                preview_lines.append(f"**Tags :** `{len(guild_data['data']['tags'])}`")
+                preview_lines.append(f"**Tags:** `{len(guild_data['data']['tags'])}`")
 
             # Autres clés importantes
             other_keys = [k for k in guild_data['data'].keys() if k not in ['config', 'tags']]
             if other_keys:
-                preview_lines.append(f"**Autres clés :** `{len(other_keys)}`")
+                preview_lines.append(f"**Other keys:** `{len(other_keys)}`")
 
             if preview_lines:
                 embed.add_field(
@@ -225,7 +225,7 @@ class ServerManagement(commands.Cog):
 
         # Footer avec timestamp
         embed.set_footer(
-            text=f"Demandé par {ctx.author}",
+            text=f"Requested by {ctx.author}",
             icon_url=ctx.author.display_avatar.url
         )
         embed.timestamp = datetime.now(timezone.utc)
@@ -260,32 +260,32 @@ class ServerManagementView(discord.ui.View):
         """Seul l'auteur peut utiliser les boutons ET doit être développeur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
 
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Seul l'auteur de la commande peut utiliser ces boutons.",
+                "<:undone:1398729502028333218> Only the command author can use these buttons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Attributs", emoji="<:label:1398729473649676440>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Attributes", emoji="<:label:1398729473649676440>", style=discord.ButtonStyle.primary)
     async def show_attributes(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche et gère les attributs"""
 
         embed = discord.Embed(
-            title=f"<:label:1398729473649676440> Attributs de {self.guild.name}",
+            title=f"<:label:1398729473649676440> {self.guild.name}'s Attributes",
             color=COLORS["info"]
         )
 
         if self.guild_data['attributes']:
             for attr, value in self.guild_data['attributes'].items():
                 if isinstance(value, bool):
-                    val_str = "<:done:1398729525277229066> Activé" if value else "<:undone:1398729502028333218> Désactivé"
+                    val_str = "<:done:1398729525277229066> Enabled" if value else "<:undone:1398729502028333218> Disabled"
                 else:
                     val_str = f"`{value}`"
 
@@ -295,7 +295,7 @@ class ServerManagementView(discord.ui.View):
                     inline=True
                 )
         else:
-            embed.description = "Aucun attribut défini pour ce serveur."
+            embed.description = "No attributes defined for this server."
 
         view = GuildAttributeActionView(self.bot, self.guild, self.guild_data, self.author, self)
         view.message = interaction.message
@@ -307,7 +307,7 @@ class ServerManagementView(discord.ui.View):
         """Affiche la data stockée"""
 
         embed = discord.Embed(
-            title=f"<:data_object:1401600908323852318> Data de {self.guild.name}",
+            title=f"<:data_object:1401600908323852318> {self.guild.name}'s Data",
             color=COLORS["info"]
         )
 
@@ -320,15 +320,15 @@ class ServerManagementView(discord.ui.View):
             embed.description = f"```json\n{data_str}\n```"
 
             embed.add_field(
-                name="<:settings:1398729549323440208> Informations",
+                name="<:settings:1398729549323440208> Information",
                 value=(
-                    f"**Taille :** `{len(json.dumps(self.guild_data['data']))}` octets\n"
-                    f"**Clés principales :** `{len(self.guild_data['data'])}`"
+                    f"**Size:** `{len(json.dumps(self.guild_data['data']))}` bytes\n"
+                    f"**Main keys:** `{len(self.guild_data['data'])}`"
                 ),
                 inline=False
             )
         else:
-            embed.description = "Aucune data stockée pour ce serveur."
+            embed.description = "No data stored for this server."
 
         view = GuildDataManagementView(self.bot, self.guild, self.guild_data, self.author, self)
 
@@ -339,8 +339,8 @@ class ServerManagementView(discord.ui.View):
         """Affiche les actions disponibles"""
 
         embed = discord.Embed(
-            title=f"<:settings:1398729549323440208> Actions pour {self.guild.name}",
-            description="Choisissez une action à effectuer :",
+            title=f"<:settings:1398729549323440208> Actions for {self.guild.name}",
+            description="Choose an action to perform:",
             color=COLORS["warning"]
         )
 
@@ -349,12 +349,12 @@ class ServerManagementView(discord.ui.View):
 
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label="Historique", emoji="<:history:1401600464587456512>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="History", emoji="<:history:1401600464587456512>", style=discord.ButtonStyle.secondary)
     async def show_history(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Affiche l'historique des changements"""
 
         embed = discord.Embed(
-            title=f"<:history:1401600464587456512> Historique de {self.guild.name}",
+            title=f"<:history:1401600464587456512> {self.guild.name}'s History",
             color=COLORS["info"]
         )
 
@@ -373,11 +373,11 @@ class ServerManagementView(discord.ui.View):
                     timestamp = int(row['changed_at'].timestamp())
 
                     value_text = (
-                        f"**Attribut :** `{row['attribute_name']}`\n"
-                        f"**Avant :** `{row['old_value'] or 'Non défini'}`\n"
-                        f"**Après :** `{row['new_value'] or 'Supprimé'}`\n"
-                        f"**Par :** {changed_by}\n"
-                        f"**Raison :** {row['reason'] or 'Aucune'}"
+                        f"**Attribute:** `{row['attribute_name']}`\n"
+                        f"**Before:** `{row['old_value'] or 'Not defined'}`\n"
+                        f"**After:** `{row['new_value'] or 'Removed'}`\n"
+                        f"**By:** {changed_by}\n"
+                        f"**Reason:** {row['reason'] or 'None'}"
                     )
 
                     embed.add_field(
@@ -386,16 +386,16 @@ class ServerManagementView(discord.ui.View):
                         inline=False
                     )
             else:
-                embed.description = "Aucun historique trouvé pour ce serveur."
+                embed.description = "No history found for this server."
 
         except Exception as e:
-            embed.description = f"<:undone:1398729502028333218> Erreur : {str(e)}"
+            embed.description = f"<:undone:1398729502028333218> Error: {str(e)}"
 
         view = BackButtonView(self, interaction.message)
 
         await interaction.response.edit_message(embed=embed, view=view)
 
-    @discord.ui.button(label="Rafraîchir", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Refresh", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.secondary)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Rafraîchit les données"""
 
@@ -432,11 +432,11 @@ class ServerManagementView(discord.ui.View):
 
         except Exception as e:
             await interaction.followup.send(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
-    @discord.ui.button(label="Fermer", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Close", style=discord.ButtonStyle.danger)
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ferme le panel"""
         await interaction.response.defer()
@@ -470,31 +470,31 @@ class GuildAttributeActionView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
 
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Seul l'auteur de la commande peut utiliser ces boutons.",
+                "<:undone:1398729502028333218> Only the command author can use these buttons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Ajouter", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Add", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Modal pour ajouter un attribut"""
         modal = AddGuildAttributeModal(self.bot, self.guild, self.author, self)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Modifier", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Modify", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
     async def modify_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Sélecteur pour modifier un attribut"""
         if not self.guild_data['attributes']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucun attribut à modifier",
+                "<:undone:1398729502028333218> No attributes to modify",
                 ephemeral=True
             )
             return
@@ -502,17 +502,17 @@ class GuildAttributeActionView(discord.ui.View):
         view = ModifyGuildAttributeView(self.bot, self.guild, self.guild_data, self.author)
 
         await interaction.response.send_message(
-            "Sélectionnez l'attribut à modifier :",
+            "Select the attribute to modify:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Supprimer", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Remove", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
     async def remove_attribute(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Sélecteur pour supprimer un attribut"""
         if not self.guild_data['attributes']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucun attribut à supprimer",
+                "<:undone:1398729502028333218> No attributes to remove",
                 ephemeral=True
             )
             return
@@ -520,12 +520,12 @@ class GuildAttributeActionView(discord.ui.View):
         view = RemoveGuildAttributeView(self.bot, self.guild, self.guild_data, self.author)
 
         await interaction.response.send_message(
-            "Sélectionnez l'attribut à supprimer :",
+            "Select the attribute to remove:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.guild_data = await self.bot.db.get_guild(self.guild.id)
@@ -588,7 +588,7 @@ class GuildActionsView(discord.ui.View):
         # Bouton Officiel
         is_official = self.guild_data['attributes'].get('OFFICIAL_SERVER', False)
         official_btn = discord.ui.Button(
-            label="Officiel",
+            label="Official",
             emoji="<:verified:1398729677601902635>",
             style=discord.ButtonStyle.success if is_official else discord.ButtonStyle.danger,
             row=0
@@ -599,7 +599,7 @@ class GuildActionsView(discord.ui.View):
         # Autres boutons
         if not hasattr(self.guild, '_cached_data'):  # Seulement si le bot est présent
             leave_btn = discord.ui.Button(
-                label="Quitter",
+                label="Leave",
                 emoji="<:import:1398729171584421958>",
                 style=discord.ButtonStyle.danger,
                 row=1
@@ -608,7 +608,7 @@ class GuildActionsView(discord.ui.View):
             self.add_item(leave_btn)
 
         reset_btn = discord.ui.Button(
-            label="Réinitialiser",
+            label="Reset",
             emoji="<:sync:1398729150885269546>",
             style=discord.ButtonStyle.danger,
             row=1
@@ -617,7 +617,7 @@ class GuildActionsView(discord.ui.View):
         self.add_item(reset_btn)
 
         export_btn = discord.ui.Button(
-            label="Exporter",
+            label="Export",
             emoji="<:download:1401600503867248730>",
             style=discord.ButtonStyle.secondary,
             row=1
@@ -626,7 +626,7 @@ class GuildActionsView(discord.ui.View):
         self.add_item(export_btn)
 
         back_btn = discord.ui.Button(
-            label="Retour",
+            label="Back",
             emoji="<:back:1401600847733067806>",
             style=discord.ButtonStyle.secondary,
             row=1
@@ -638,7 +638,7 @@ class GuildActionsView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
@@ -652,7 +652,7 @@ class GuildActionsView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'guild', self.guild.id, 'PREMIUM_GUILD', new_value,
-                self.author.id, f"{'Retrait' if has_premium else 'Ajout'} via panel par {self.author}"
+                self.author.id, f"{'Removal' if has_premium else 'Addition'} via panel by {self.author}"
             )
 
             # Rafraîchit les données
@@ -665,8 +665,8 @@ class GuildActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.guild.name}",
-                description=f"<:done:1398729525277229066> Premium {'activé' if new_value else 'désactivé'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.guild.name}",
+                description=f"<:done:1398729525277229066> Premium {'enabled' if new_value else 'disabled'}!",
                 color=COLORS["success"]
             )
 
@@ -674,7 +674,7 @@ class GuildActionsView(discord.ui.View):
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -686,7 +686,7 @@ class GuildActionsView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'guild', self.guild.id, 'BETA_FEATURES', new_value,
-                self.author.id, f"{'Retrait' if has_beta else 'Ajout'} beta via panel"
+                self.author.id, f"{'Removal' if has_beta else 'Addition'} beta via panel"
             )
 
             # Rafraîchit les données
@@ -699,8 +699,8 @@ class GuildActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.guild.name}",
-                description=f"<:done:1398729525277229066> Features beta {'activées' if new_value else 'désactivées'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.guild.name}",
+                description=f"<:done:1398729525277229066> Beta features {'enabled' if new_value else 'disabled'}!",
                 color=COLORS["success"]
             )
 
@@ -708,7 +708,7 @@ class GuildActionsView(discord.ui.View):
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -720,8 +720,8 @@ class GuildActionsView(discord.ui.View):
             # Demande confirmation
             view = ConfirmView()
             embed = discord.Embed(
-                title="Confirmation requise",
-                description=f"Êtes-vous sûr de vouloir marquer **{self.guild.name}** comme serveur officiel ?",
+                title="Confirmation required",
+                description=f"Are you sure you want to mark **{self.guild.name}** as an official server?",
                 color=COLORS["warning"]
             )
 
@@ -735,7 +735,7 @@ class GuildActionsView(discord.ui.View):
             new_value = not is_official
             await self.bot.db.set_attribute(
                 'guild', self.guild.id, 'OFFICIAL_SERVER', new_value,
-                self.author.id, f"{'Retrait' if is_official else 'Ajout'} statut officiel"
+                self.author.id, f"{'Removal' if is_official else 'Addition'} official status"
             )
 
             # Rafraîchit les données
@@ -748,8 +748,8 @@ class GuildActionsView(discord.ui.View):
 
             # Recrée l'embed
             embed = discord.Embed(
-                title=f"<:settings:1398729549323440208> Actions pour {self.guild.name}",
-                description=f"<:done:1398729525277229066> Statut officiel {'activé' if new_value else 'retiré'} !",
+                title=f"<:settings:1398729549323440208> Actions for {self.guild.name}",
+                description=f"<:done:1398729525277229066> Official status {'enabled' if new_value else 'removed'}!",
                 color=COLORS["success"]
             )
 
@@ -761,12 +761,12 @@ class GuildActionsView(discord.ui.View):
         except Exception as e:
             if is_official:
                 await interaction.response.send_message(
-                    f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    f"<:undone:1398729502028333218> Error: {str(e)}",
                     ephemeral=True
                 )
             else:
                 await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
                     embed=None,
                     view=None
                 )
@@ -775,8 +775,8 @@ class GuildActionsView(discord.ui.View):
         """Fait quitter le bot du serveur"""
         view = ConfirmView()
         embed = discord.Embed(
-            title="Confirmation requise",
-            description=f"Êtes-vous sûr de vouloir faire quitter le bot de **{self.guild.name}** ?",
+            title="Confirmation required",
+            description=f"Are you sure you want to make the bot leave **{self.guild.name}**?",
             color=COLORS["error"]
         )
 
@@ -789,19 +789,19 @@ class GuildActionsView(discord.ui.View):
                 if real_guild:
                     await real_guild.leave()
                     await interaction.edit_original_response(
-                        content=f"<:done:1398729525277229066> Le bot a quitté **{self.guild.name}**",
+                        content=f"<:done:1398729525277229066> The bot has left **{self.guild.name}**",
                         embed=None,
                         view=None
                     )
                 else:
                     await interaction.edit_original_response(
-                        content="<:undone:1398729502028333218> Le bot n'est pas dans ce serveur",
+                        content="<:undone:1398729502028333218> The bot is not in this server",
                         embed=None,
                         view=None
                     )
             except Exception as e:
                 await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
                     embed=None,
                     view=None
                 )
@@ -849,14 +849,14 @@ class GuildActionsView(discord.ui.View):
             )
 
             await interaction.followup.send(
-                f"<:done:1398729525277229066> Export complet de **{self.guild.name}**",
+                f"<:done:1398729525277229066> Complete export of **{self.guild.name}**",
                 file=file,
                 ephemeral=True
             )
 
         except Exception as e:
             await interaction.followup.send(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -890,48 +890,48 @@ class GuildDataManagementView(discord.ui.View):
         """Vérifie que c'est un développeur ET l'auteur"""
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
         return interaction.user == self.author
 
-    @discord.ui.button(label="Modifier JSON", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Edit JSON", emoji="<:edit:1401600709824086169>", style=discord.ButtonStyle.primary)
     async def edit_json(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ouvre un modal pour éditer le JSON complet"""
         modal = EditGuildDataModal(self.bot, self.guild, self.guild_data, self.author)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Ajouter une clé", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Add key", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_key(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ajoute une nouvelle clé à la data"""
         modal = AddGuildDataKeyModal(self.bot, self.guild, self.author)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Supprimer une clé", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Remove key", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
     async def remove_key(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Supprime une clé de la data"""
         if not self.guild_data['data']:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucune data à supprimer",
+                "<:undone:1398729502028333218> No data to remove",
                 ephemeral=True
             )
             return
 
         view = RemoveGuildDataKeyView(self.bot, self.guild, self.guild_data, self.author)
         await interaction.response.send_message(
-            "Sélectionnez la clé à supprimer :",
+            "Select the key to remove:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Réinitialiser", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Reset", emoji="<:sync:1398729150885269546>", style=discord.ButtonStyle.danger)
     async def reset_data(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Réinitialise toute la data"""
         view = ConfirmView()
         embed = discord.Embed(
-            title="Confirmation requise",
-            description=f"Êtes-vous sûr de vouloir réinitialiser toute la data de **{self.guild.name}** ?",
+            title="Confirmation required",
+            description=f"Are you sure you want to reset all data for **{self.guild.name}**?",
             color=COLORS["error"]
         )
 
@@ -948,18 +948,18 @@ class GuildDataManagementView(discord.ui.View):
                     """, self.guild.id)
 
                 await interaction.edit_original_response(
-                    content=f"<:done:1398729525277229066> Data réinitialisée pour **{self.guild.name}**",
+                    content=f"<:done:1398729525277229066> Data reset for **{self.guild.name}**",
                     embed=None,
                     view=None
                 )
             except Exception as e:
                 await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
                     embed=None,
                     view=None
                 )
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.guild_data = await self.bot.db.get_guild(self.guild.id)
@@ -986,20 +986,20 @@ class TagManagementView(discord.ui.View):
         self.author = author
         self.parent_view = parent_view
 
-    @discord.ui.button(label="Ajouter", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="Add", emoji="<:add:1401608434230493254>", style=discord.ButtonStyle.success)
     async def add_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Ajoute un nouveau tag"""
         modal = AddTagModal(self.bot, self.guild, self.author)
         await interaction.response.send_modal(modal)
 
-    @discord.ui.button(label="Supprimer", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Remove", emoji="<:undone:1398729502028333218>", style=discord.ButtonStyle.danger)
     async def remove_tag(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Supprime un tag"""
         tags = self.guild_data['data'].get('tags', {})
 
         if not tags:
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Aucun tag à supprimer",
+                "<:undone:1398729502028333218> No tags to remove",
                 ephemeral=True
             )
             return
@@ -1007,19 +1007,19 @@ class TagManagementView(discord.ui.View):
         view = RemoveTagView(self.bot, self.guild, tags, self.author)
 
         await interaction.response.send_message(
-            "Sélectionnez le tag à supprimer :",
+            "Select the tag to remove:",
             view=view,
             ephemeral=True
         )
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour à la config"""
         # Rafraîchit les données
         self.parent_view.guild_data = await self.bot.db.get_guild(self.guild.id)
 
         embed = discord.Embed(
-            title=f"<:panel:1398720151980998789> Configuration de {self.guild.name}",
+            title=f"<:panel:1398720151980998789> {self.guild.name} Configuration",
             color=COLORS["info"]
         )
 
@@ -1027,11 +1027,11 @@ class TagManagementView(discord.ui.View):
 
         if config:
             embed.add_field(
-                name="<:settings:1398729549323440208> Paramètres",
+                name="<:settings:1398729549323440208> Settings",
                 value=(
-                    f"**Préfixe :** `{config.get('prefix', '!')}`\n"
-                    f"**Canal de bienvenue :** {f'<#{config["welcome_channel"]}>' if config.get('welcome_channel') else 'Non défini'}\n"
-                    f"**Canal de logs :** {f'<#{config["log_channel"]}>' if config.get('log_channel') else 'Non défini'}"
+                    f"**Prefix:** `{config.get('prefix', '!')}`\n"
+                    f"**Welcome channel:** {f'<#{config["welcome_channel"]}>' if config.get('welcome_channel') else 'Not defined'}\n"
+                    f"**Log channel:** {f'<#{config["log_channel"]}>' if config.get('log_channel') else 'Not defined'}"
                 ),
                 inline=False
             )
@@ -1041,7 +1041,7 @@ class TagManagementView(discord.ui.View):
 
 # === MODALS ===
 
-class AddGuildAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
+class AddGuildAttributeModal(discord.ui.Modal, title="Add an attribute"):
     """Modal pour ajouter un attribut serveur"""
 
     def __init__(self, bot, guild, author: discord.User, parent_view=None):
@@ -1052,22 +1052,22 @@ class AddGuildAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
         self.parent_view = parent_view
 
     attribute_name = discord.ui.TextInput(
-        label="Nom de l'attribut",
+        label="Attribute name",
         placeholder="Ex: BETA_FEATURES, PREMIUM_GUILD, LANG...",
         max_length=50,
         required=True
     )
 
     attribute_value = discord.ui.TextInput(
-        label="Valeur",
-        placeholder="true, false, FR, EN... (laisser vide pour true)",
+        label="Value",
+        placeholder="true, false, FR, EN... (leave empty for true)",
         max_length=100,
         required=False
     )
 
     reason = discord.ui.TextInput(
-        label="Raison",
-        placeholder="Pourquoi cet attribut est ajouté",
+        label="Reason",
+        placeholder="Why this attribute is being added",
         max_length=200,
         required=False
     )
@@ -1087,21 +1087,21 @@ class AddGuildAttributeModal(discord.ui.Modal, title="Ajouter un attribut"):
                 self.attribute_name.value.upper(),
                 value,
                 self.author.id,
-                self.reason.value or "Ajout via panel"
+                self.reason.value or "Added via panel"
             )
 
             if self.parent_view and hasattr(self.parent_view, 'refresh_parent_data'):
                 await self.parent_view.refresh_parent_data()
 
             embed = ModdyResponse.success(
-                "Attribut ajouté",
+                "Attribute added",
                 f"<:done:1398729525277229066> `{self.attribute_name.value.upper()}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1122,12 +1122,12 @@ class ModifyGuildAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Valeur actuelle : {value}"
+                    description=f"Current value: {value}"
                 )
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez un attribut",
+            placeholder="Choose an attribute",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1158,13 +1158,13 @@ class RemoveGuildAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Valeur : {value}",
+                    description=f"Value: {value}",
                     emoji="<:undone:1398729502028333218>"
                 )
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez un attribut à supprimer",
+            placeholder="Choose an attribute to remove",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1177,23 +1177,23 @@ class RemoveGuildAttributeView(discord.ui.View):
         try:
             await self.bot.db.set_attribute(
                 'guild', self.guild.id, selected, None,
-                self.author.id, f"Suppression via panel"
+                self.author.id, f"Removed via panel"
             )
 
             embed = ModdyResponse.success(
-                "Attribut supprimé",
-                f"<:done:1398729525277229066> L'attribut `{selected}` a été supprimé"
+                "Attribute removed",
+                f"<:done:1398729525277229066> The attribute `{selected}` has been removed"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class ModifyGuildAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
+class ModifyGuildAttributeModal(discord.ui.Modal, title="Modify an attribute"):
     """Modal pour modifier un attribut serveur"""
 
     def __init__(self, bot, guild, author: discord.User, attr_name: str, current_value):
@@ -1204,8 +1204,8 @@ class ModifyGuildAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         self.attr_name = attr_name
 
         self.value_input = discord.ui.TextInput(
-            label=f"Nouvelle valeur pour {attr_name}",
-            placeholder=f"Valeur actuelle : {current_value}",
+            label=f"New value for {attr_name}",
+            placeholder=f"Current value: {current_value}",
             default=str(current_value),
             max_length=100,
             required=True
@@ -1213,8 +1213,8 @@ class ModifyGuildAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         self.add_item(self.value_input)
 
         self.reason = discord.ui.TextInput(
-            label="Raison de la modification",
-            placeholder="Optionnel",
+            label="Reason for modification",
+            placeholder="Optional",
             max_length=200,
             required=False
         )
@@ -1232,23 +1232,23 @@ class ModifyGuildAttributeModal(discord.ui.Modal, title="Modifier un attribut"):
         try:
             await self.bot.db.set_attribute(
                 'guild', self.guild.id, self.attr_name, value,
-                self.author.id, self.reason.value or "Modification via panel"
+                self.author.id, self.reason.value or "Modified via panel"
             )
 
             embed = ModdyResponse.success(
-                "Attribut modifié",
+                "Attribute modified",
                 f"<:done:1398729525277229066> `{self.attr_name}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class EditGuildDataModal(discord.ui.Modal, title="Modifier la data JSON"):
+class EditGuildDataModal(discord.ui.Modal, title="Edit JSON data"):
     """Modal pour éditer le JSON complet de la data serveur"""
 
     def __init__(self, bot, guild, guild_data: Dict[str, Any], author: discord.User):
@@ -1266,7 +1266,7 @@ class EditGuildDataModal(discord.ui.Modal, title="Modifier la data JSON"):
             current_json = current_json[:1021] + "..."
 
         self.json_input = discord.ui.TextInput(
-            label="Data JSON",
+            label="JSON Data",
             style=discord.TextStyle.paragraph,
             placeholder='{"key": "value"}',
             default=current_json,
@@ -1293,24 +1293,24 @@ class EditGuildDataModal(discord.ui.Modal, title="Modifier la data JSON"):
                 self.bot.prefix_cache.pop(self.guild.id, None)
 
             embed = ModdyResponse.success(
-                "Data modifiée",
-                f"<:done:1398729525277229066> La data de **{self.guild.name}** a été mise à jour"
+                "Data modified",
+                f"<:done:1398729525277229066> **{self.guild.name}**'s data has been updated"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except json.JSONDecodeError as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> JSON invalide : {str(e)}",
+                f"<:undone:1398729502028333218> Invalid JSON: {str(e)}",
                 ephemeral=True
             )
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class AddGuildDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"):
+class AddGuildDataKeyModal(discord.ui.Modal, title="Add a key to data"):
     """Modal pour ajouter une nouvelle clé à la data serveur"""
 
     def __init__(self, bot, guild, author: discord.User):
@@ -1320,16 +1320,16 @@ class AddGuildDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"
         self.author = author
 
     key_path = discord.ui.TextInput(
-        label="Chemin de la clé",
-        placeholder="Ex: config.prefix ou simplement tags",
+        label="Key path",
+        placeholder="Ex: config.prefix or simply tags",
         max_length=100,
         required=True
     )
 
     value_input = discord.ui.TextInput(
-        label="Valeur (JSON)",
+        label="Value (JSON)",
         style=discord.TextStyle.paragraph,
-        placeholder='Exemples:\n"texte"\n123\ntrue\n{"key": "value"}\n["item1", "item2"]',
+        placeholder='Examples:\n"text"\n123\ntrue\n{"key": "value"}\n["item1", "item2"]',
         max_length=1000,
         required=True
     )
@@ -1358,14 +1358,14 @@ class AddGuildDataKeyModal(discord.ui.Modal, title="Ajouter une clé à la data"
                 self.bot.prefix_cache.pop(self.guild.id, None)
 
             embed = ModdyResponse.success(
-                "Clé ajoutée",
+                "Key added",
                 f"<:done:1398729525277229066> `{self.key_path.value}` = `{value}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1397,7 +1397,7 @@ class RemoveGuildDataKeyView(discord.ui.View):
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez une clé à supprimer",
+            placeholder="Choose a key to remove",
             options=options[:25]
         )
         self.select.callback = self.select_callback
@@ -1429,19 +1429,19 @@ class RemoveGuildDataKeyView(discord.ui.View):
                 self.bot.prefix_cache.pop(self.guild.id, None)
 
             embed = ModdyResponse.success(
-                "Clé supprimée",
-                f"<:done:1398729525277229066> La clé `{selected}` a été supprimée"
+                "Key removed",
+                f"<:done:1398729525277229066> The key `{selected}` has been removed"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class ChangePrefixModal(discord.ui.Modal, title="Changer le préfixe"):
+class ChangePrefixModal(discord.ui.Modal, title="Change prefix"):
     """Modal pour changer le préfixe du serveur"""
 
     def __init__(self, bot, guild, author: discord.User):
@@ -1451,7 +1451,7 @@ class ChangePrefixModal(discord.ui.Modal, title="Changer le préfixe"):
         self.author = author
 
     prefix_input = discord.ui.TextInput(
-        label="Nouveau préfixe",
+        label="New prefix",
         placeholder="Ex: !, ?, //, >>",
         max_length=10,
         min_length=1,
@@ -1468,19 +1468,19 @@ class ChangePrefixModal(discord.ui.Modal, title="Changer le préfixe"):
             self.bot.prefix_cache.pop(self.guild.id, None)
 
             embed = ModdyResponse.success(
-                "Préfixe changé",
-                f"<:done:1398729525277229066> Le préfixe de **{self.guild.name}** est maintenant `{new_prefix}`"
+                "Prefix changed",
+                f"<:done:1398729525277229066> **{self.guild.name}**'s prefix is now `{new_prefix}`"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class AddTagModal(discord.ui.Modal, title="Ajouter un tag"):
+class AddTagModal(discord.ui.Modal, title="Add a tag"):
     """Modal pour ajouter un tag"""
 
     def __init__(self, bot, guild, author: discord.User):
@@ -1490,16 +1490,16 @@ class AddTagModal(discord.ui.Modal, title="Ajouter un tag"):
         self.author = author
 
     tag_name = discord.ui.TextInput(
-        label="Nom du tag",
+        label="Tag name",
         placeholder="Ex: rules, help, info",
         max_length=50,
         required=True
     )
 
     tag_content = discord.ui.TextInput(
-        label="Contenu du tag",
+        label="Tag content",
         style=discord.TextStyle.paragraph,
-        placeholder="Le contenu qui sera affiché quand le tag est utilisé",
+        placeholder="Content to be displayed when the tag is used",
         max_length=2000,
         required=True
     )
@@ -1517,14 +1517,14 @@ class AddTagModal(discord.ui.Modal, title="Ajouter un tag"):
             await self.bot.db.update_guild_data(self.guild.id, 'tags', tags)
 
             embed = ModdyResponse.success(
-                "Tag ajouté",
-                f"<:done:1398729525277229066> Le tag `{self.tag_name.value}` a été créé"
+                "Tag added",
+                f"<:done:1398729525277229066> The tag `{self.tag_name.value}` has been created"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1552,7 +1552,7 @@ class RemoveTagView(discord.ui.View):
             )
 
         self.select = discord.ui.Select(
-            placeholder="Choisissez un tag à supprimer",
+            placeholder="Choose a tag to remove",
             options=options
         )
         self.select.callback = self.select_callback
@@ -1575,14 +1575,14 @@ class RemoveTagView(discord.ui.View):
             await self.bot.db.update_guild_data(self.guild.id, 'tags', tags)
 
             embed = ModdyResponse.success(
-                "Tag supprimé",
-                f"<:done:1398729525277229066> Le tag `{selected}` a été supprimé"
+                "Tag removed",
+                f"<:done:1398729525277229066> The tag `{selected}` has been removed"
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1599,13 +1599,13 @@ class FeatureToggleView(discord.ui.View):
 
         # Features disponibles
         all_features = {
-            'welcome_message': 'Messages de bienvenue',
-            'auto_roles': 'Rôles automatiques',
-            'logging': 'Logs des actions',
-            'anti_spam': 'Protection anti-spam',
-            'auto_mod': 'Modération automatique',
-            'level_system': 'Système de niveaux',
-            'custom_commands': 'Commandes personnalisées',
+            'welcome_message': 'Welcome messages',
+            'auto_roles': 'Auto roles',
+            'logging': 'Action logs',
+            'anti_spam': 'Anti-spam protection',
+            'auto_mod': 'Auto moderation',
+            'level_system': 'Level system',
+            'custom_commands': 'Custom commands',
             'starboard': 'Starboard'
         }
 
@@ -1642,18 +1642,18 @@ class FeatureToggleView(discord.ui.View):
 
             # Feedback
             await interaction.response.send_message(
-                f"<:done:1398729525277229066> Feature **{interaction.data['component']['label']}** {'activée' if not current_state else 'désactivée'}!",
+                f"<:done:1398729525277229066> Feature **{interaction.data['component']['label']}** {'enabled' if not current_state else 'disabled'}!",
                 ephemeral=True
             )
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
 
-class ResetGuildConfirmModal(discord.ui.Modal, title="Réinitialiser le serveur"):
+class ResetGuildConfirmModal(discord.ui.Modal, title="Reset server"):
     """Modal de confirmation pour reset serveur"""
 
     def __init__(self, bot, guild, author: discord.User):
@@ -1663,15 +1663,15 @@ class ResetGuildConfirmModal(discord.ui.Modal, title="Réinitialiser le serveur"
         self.author = author
 
     confirm_text = discord.ui.TextInput(
-        label="Tapez le nom du serveur pour confirmer",
-        placeholder="Nom exact du serveur",
+        label="Type the server name to confirm",
+        placeholder="Exact server name",
         max_length=100,
         required=True
     )
 
     reason = discord.ui.TextInput(
-        label="Raison de la réinitialisation",
-        placeholder="Pourquoi réinitialiser ce serveur ?",
+        label="Reason for reset",
+        placeholder="Why reset this server?",
         max_length=200,
         required=True
     )
@@ -1679,7 +1679,7 @@ class ResetGuildConfirmModal(discord.ui.Modal, title="Réinitialiser le serveur"
     async def on_submit(self, interaction: discord.Interaction):
         if self.confirm_text.value != self.guild.name:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Confirmation incorrecte. Vous devez taper exactement : `{self.guild.name}`",
+                f"<:undone:1398729502028333218> Incorrect confirmation. You must type exactly: `{self.guild.name}`",
                 ephemeral=True
             )
             return
@@ -1692,7 +1692,7 @@ class ResetGuildConfirmModal(discord.ui.Modal, title="Réinitialiser le serveur"
             for attr in list(guild_data['attributes'].keys()):
                 await self.bot.db.set_attribute(
                     'guild', self.guild.id, attr, None,
-                    self.author.id, f"Reset complet : {self.reason.value}"
+                    self.author.id, f"Complete reset: {self.reason.value}"
                 )
 
             # Réinitialise la data
@@ -1707,14 +1707,14 @@ class ResetGuildConfirmModal(discord.ui.Modal, title="Réinitialiser le serveur"
             self.bot.prefix_cache.pop(self.guild.id, None)
 
             embed = ModdyResponse.success(
-                "Serveur réinitialisé",
-                f"<:done:1398729525277229066> Toutes les données de **{self.guild.name}** ont été supprimées."
+                "Server reset",
+                f"<:done:1398729525277229066> All data for **{self.guild.name}** has been deleted."
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Erreur : {str(e)}",
+                f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
 
@@ -1731,13 +1731,13 @@ class BackButtonView(discord.ui.View):
         """Vérifie que c'est un développeur"""
         if not self.parent_view.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
-                "<:undone:1398729502028333218> Cette action est réservée aux développeurs.",
+                "<:undone:1398729502028333218> This action is reserved for developers.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Retour", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Back", emoji="<:back:1401600847733067806>", style=discord.ButtonStyle.secondary)
     async def back(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Retour au menu principal"""
         self.parent_view.guild_data = await self.parent_view.bot.db.get_guild(self.parent_view.guild.id)
@@ -1765,13 +1765,13 @@ class ConfirmView(discord.ui.View):
         super().__init__(timeout=30)
         self.value = None
 
-    @discord.ui.button(label="Confirmer", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = True
         self.stop()
 
-    @discord.ui.button(label="Annuler", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = False

@@ -30,13 +30,13 @@ class AttributeCommands(commands.Cog):
         """Gère les attributs utilisateurs"""
 
         if not self.bot.db:
-            await ctx.send("❌ Base de données non connectée")
+            await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
             return
 
         if not action:
             # Affiche l'aide
             embed = discord.Embed(
-                title="Gestion des attributs",
+                title="<:manageuser:1398729745293774919> Gestion des attributs",
                 description=(
                     "**Utilisation :**\n"
                     "`attr get @user` - Voir les attributs d'un utilisateur\n"
@@ -59,7 +59,7 @@ class AttributeCommands(commands.Cog):
             user_data = await self.bot.db.get_user(target.id)
 
             embed = discord.Embed(
-                title=f"Attributs de {target}",
+                title=f"<:label:1398729473649676440> Attributs de {target}",
                 color=COLORS["info"]
             )
 
@@ -71,7 +71,7 @@ class AttributeCommands(commands.Cog):
 
             # Ajoute les infos de la BDD
             embed.add_field(
-                name="Informations",
+                name="<:info:1401614681440784477> Informations",
                 value=(
                     f"**ID :** `{target.id}`\n"
                     f"**Créé :** <t:{int(user_data.get('created_at', datetime.now()).timestamp())}:R>\n"
@@ -84,7 +84,7 @@ class AttributeCommands(commands.Cog):
 
         elif action.lower() == "set":
             if not target or not attr_name:
-                await ctx.send("❌ Usage: `attr set @user ATTRIBUT valeur`")
+                await ctx.send("<:undone:1398729502028333218> Usage: `attr set @user ATTRIBUT valeur`")
                 return
 
             # Convertit la valeur
@@ -117,7 +117,7 @@ class AttributeCommands(commands.Cog):
 
         elif action.lower() == "remove":
             if not target or not attr_name:
-                await ctx.send("❌ Usage: `attr remove @user ATTRIBUT`")
+                await ctx.send("<:undone:1398729502028333218> Usage: `attr remove @user ATTRIBUT`")
                 return
 
             try:
@@ -145,18 +145,18 @@ class AttributeCommands(commands.Cog):
                 # Récupère les utilisateurs avec des attributs
                 async with self.bot.db.pool.acquire() as conn:
                     rows = await conn.fetch("""
-                                            SELECT user_id, attributes
-                                            FROM users
-                                            WHERE attributes != '{}'::jsonb
+                        SELECT user_id, attributes
+                        FROM users
+                        WHERE attributes != '{}'::jsonb
                         LIMIT 20
-                                            """)
+                    """)
 
                 if not rows:
-                    await ctx.send("Aucun utilisateur avec des attributs")
+                    await ctx.send("<:info:1401614681440784477> Aucun utilisateur avec des attributs")
                     return
 
                 embed = discord.Embed(
-                    title="Utilisateurs avec attributs",
+                    title="<:user:1398729712204779571> Utilisateurs avec attributs",
                     color=COLORS["info"]
                 )
 
@@ -181,18 +181,18 @@ class AttributeCommands(commands.Cog):
                 await ctx.send(embed=embed)
 
             except Exception as e:
-                await ctx.send(f"❌ Erreur : {str(e)}")
+                await ctx.send(f"<:undone:1398729502028333218> Erreur : {str(e)}")
 
     @commands.command(name="fixdev", aliases=["devfix"])
     async def fix_developers(self, ctx):
         """Force l'ajout de l'attribut DEVELOPER"""
         if not self.bot.db:
-            await ctx.send("❌ Base de données non connectée")
+            await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
             return
 
         embed = discord.Embed(
-            title="Mise à jour des développeurs",
-            description="Attribution du statut DEVELOPER...",
+            title="<:settings:1398729549323440208> Mise à jour des développeurs",
+            description="<:loading:1395047662092550194> Attribution du statut DEVELOPER...",
             color=COLORS["warning"]
         )
         msg = await ctx.send(embed=embed)
@@ -205,15 +205,14 @@ class AttributeCommands(commands.Cog):
                 # Crée l'utilisateur s'il n'existe pas
                 await self.bot.db.get_user(dev_id)
 
-                # Définit l'attribut
+                # Définit l'attribut DEVELOPER (True dans le nouveau système)
                 await self.bot.db.set_attribute(
                     'user', dev_id, 'DEVELOPER', True,
                     ctx.author.id, "Commande fixdev"
                 )
 
                 # Vérifie
-                user_data = await self.bot.db.get_user(dev_id)
-                if user_data['attributes'].get('DEVELOPER'):
+                if await self.bot.db.has_attribute('user', dev_id, 'DEVELOPER'):
                     success.append(dev_id)
                 else:
                     errors.append((dev_id, "Attribut non défini"))
@@ -227,14 +226,14 @@ class AttributeCommands(commands.Cog):
 
         if success:
             embed.add_field(
-                name="✅ Succès",
+                name="<:done:1398729525277229066> Succès",
                 value="\n".join([f"<@{uid}>" for uid in success]),
                 inline=True
             )
 
         if errors:
             embed.add_field(
-                name="❌ Erreurs",
+                name="<:undone:1398729502028333218> Erreurs",
                 value="\n".join([f"<@{uid}>: {err}" for uid, err in errors]),
                 inline=True
             )
