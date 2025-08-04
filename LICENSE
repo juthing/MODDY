@@ -1,21 +1,71 @@
-MIT License
+# Software License Agreement for Moddy
 
-Copyright (c) 2025 Jules 
+Copyright (c) 2025 Jules (juthing). All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Terms and Conditions
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This license agreement governs the use, modification, and distribution of the Moddy source code and associated documentation files (the "Software").
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+### 1. Grant of License
+
+Subject to the terms and conditions of this License, the copyright holder hereby grants you a limited, non-exclusive, non-transferable, revocable license to use the Software solely for personal, non-commercial purposes.
+
+### 2. Permitted Uses
+
+2.1. **Personal Use**
+   - You may use the Software for personal, non-commercial purposes only
+   - You may modify the Software for your own personal use
+   - Any use of the Software must include clear and visible attribution to the original author
+
+2.2. **Limited Code Reuse**
+   - You may incorporate portions of the Software (not exceeding 100 lines per file) into your own projects
+   - Such incorporation must include attribution stating "Code adapted from Moddy by juthing"
+   - You must include a hyperlink to the original repository where technically feasible
+
+### 3. Restrictions
+
+3.1. **Commercial Use Prohibition**
+   - The Software may not be used for any commercial purpose
+   - You may not sell, rent, lease, or sublicense the Software
+   - You may not use the Software in any commercial product or service
+
+3.2. **Distribution Limitations**
+   - You may not distribute the Software in whole or substantial part
+   - You may not create public forks without explicit written permission from the copyright holder
+   - You may not represent yourself as the original author of the Software
+
+3.3. **No Derivative Works**
+   - You may not create derivative works based on the Software for public distribution
+
+### 4. Attribution Requirements
+
+Any permitted use of the Software must include the following attribution:
+```
+Moddy - Copyright (c) 2025 juthing
+Original source: https://github.com/juthing/moddy
+Used under custom license - See original repository
+```
+
+### 5. Right of Revocation
+
+The copyright holder reserves the right to revoke this license and demand cessation of use and removal of the Software or any portion thereof, for any reason or no reason, with seven (7) days written notice. Upon receipt of such notice, you must immediately comply with the removal request.
+
+### 6. Disclaimer of Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+### 7. Limitation of Liability
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+### 8. Governing Law
+
+This License shall be governed by and construed in accordance with the laws of France, without regard to its conflict of law provisions.
+
+### 9. Entire Agreement
+
+This License constitutes the entire agreement between the parties with respect to the Software licensed hereunder and supersedes all prior or contemporaneous understandings regarding such subject matter.
+
+### 10. Contact Information
+
+For commercial licensing inquiries or other questions regarding this license, please contact the copyright holder through the repository's issue tracker or associated contact methods.
