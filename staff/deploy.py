@@ -536,7 +536,7 @@ class GitHubCredentialsModal(discord.ui.Modal, title="Authentification GitHub"):
                 await interaction.edit_original_response(embed=error_embed)
 
         except Exception as e:
-            # IMPORTANT: Restaure l'URL en cas d'erreur
+            # IMPORTANT: Restaure l'URL en cas d'erreurb
             try:
                 subprocess.run(
                     ["git", "remote", "set-url", "origin", current_url],
