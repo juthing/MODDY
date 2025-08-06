@@ -51,6 +51,9 @@ class PreferencesView(discord.ui.View):
                 "back": "Retour",
                 "save": "Enregistrer",
                 "cancel": "Annuler",
+                "language_button": "Langue",
+                "privacy_button": "Confidentialité",
+                "notification_button": "Notifications",
 
                 # Messages
                 "preferences_saved": "Vos préférences ont été enregistrées",
@@ -58,7 +61,12 @@ class PreferencesView(discord.ui.View):
                 "server_notifications": "Notifications serveurs",
                 "moddy_notifications": "Messages de l'équipe Moddy",
                 "server_notif_desc": "Sanctions, messages des serveurs",
-                "moddy_notif_desc": "Annonces, mises à jour, informations importantes"
+                "moddy_notif_desc": "Annonces, mises à jour, informations importantes",
+
+                # Titres des pages
+                "language_title": "<:translate:1398720130950627600> Paramètres de langue",
+                "privacy_title": "<:person_off:1401600620284219412> Paramètres de confidentialité",
+                "notification_title": "<:notifications:1402261437493022775> Paramètres de notifications"
             },
             "EN": {
                 # Titles
@@ -84,6 +92,9 @@ class PreferencesView(discord.ui.View):
                 "back": "Back",
                 "save": "Save",
                 "cancel": "Cancel",
+                "language_button": "Language",
+                "privacy_button": "Privacy",
+                "notification_button": "Notifications",
 
                 # Messages
                 "preferences_saved": "Your preferences have been saved",
@@ -91,7 +102,12 @@ class PreferencesView(discord.ui.View):
                 "server_notifications": "Server notifications",
                 "moddy_notifications": "Moddy team messages",
                 "server_notif_desc": "Sanctions, server messages",
-                "moddy_notif_desc": "Announcements, updates, important information"
+                "moddy_notif_desc": "Announcements, updates, important information",
+
+                # Page titles
+                "language_title": "<:translate:1398720130950627600> Language settings",
+                "privacy_title": "<:person_off:1401600620284219412> Privacy settings",
+                "notification_title": "<:notifications:1402261437493022775> Notification settings"
             }
         }
 
@@ -572,13 +588,17 @@ class Preferences(commands.Cog):
             error_text = (
                 "<:undone:1398729502028333218> Base de données non disponible / Database unavailable"
             )
-            await interaction.response.send_message(error_text, ephemeral=True)
+            # Vérifie si déjà répondu
+            if not interaction.response.is_done():
+                await interaction.response.send_message(error_text, ephemeral=True)
+            else:
+                await interaction.followup.send(error_text, ephemeral=True)
             return
 
         # Attend un peu pour laisser le système de langue faire son travail
         await asyncio.sleep(0.1)
 
-        # Vérifie si l'interaction a déjà été répondue
+        # Vérifie si l'interaction a déjà été répondue (par le système de langue)
         if interaction.response.is_done():
             # Le système de langue a demandé la sélection, on attend qu'il finisse
             # et on affiche les préférences après
@@ -596,7 +616,12 @@ class Preferences(commands.Cog):
                 # Envoie en followup
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
                 return
-            except:
+            except Exception as e:
+                error_embed = ModdyResponse.error(
+                    "Erreur / Error",
+                    f"Impossible de récupérer vos données / Unable to retrieve your data\n`{str(e)}`"
+                )
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
                 return
 
         # Récupère les données utilisateur
@@ -604,19 +629,33 @@ class Preferences(commands.Cog):
             user_data = await self.bot.db.get_user(interaction.user.id)
             lang = user_data['attributes'].get('LANG', 'EN')
         except Exception as e:
-            error_embed = ModdyResponse.error(
-                "Erreur / Error",
-                f"Impossible de récupérer vos données / Unable to retrieve your data\n`{str(e)}`"
-            )
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            # IMPORTANT: Vérifie si l'interaction a déjà été répondue avant d'envoyer l'erreur
+            if not interaction.response.is_done():
+                error_embed = ModdyResponse.error(
+                    "Erreur / Error",
+                    f"Impossible de récupérer vos données / Unable to retrieve your data\n`{str(e)}`"
+                )
+                await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            else:
+                # Si déjà répondu, utilise followup
+                error_embed = ModdyResponse.error(
+                    "Erreur / Error",
+                    f"Impossible de récupérer vos données / Unable to retrieve your data\n`{str(e)}`"
+                )
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
             return
 
         # Crée la vue et l'embed
         view = PreferencesView(self.bot, interaction.user, user_data, lang)
         embed = view.create_main_embed()
 
-        # Envoie la réponse (toujours en ephemeral pour les préférences)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        # IMPORTANT: Vérifie si l'interaction a déjà été répondue
+        if not interaction.response.is_done():
+            # Envoie la réponse (toujours en ephemeral pour les préférences)
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        else:
+            # Si déjà répondu (par le système de langue), utilise followup
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(
         name="prefs",

@@ -251,13 +251,17 @@ class ModdyDatabase:
                 return {
                     'user_id': user_id,
                     'attributes': {},
-                    'data': {}
+                    'data': {},
+                    'created_at': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
                 }
 
             return {
                 'user_id': row['user_id'],
-                'attributes': json.loads(row['attributes']),
-                'data': json.loads(row['data'])
+                'attributes': json.loads(row['attributes']) if row['attributes'] else {},
+                'data': json.loads(row['data']) if row['data'] else {},
+                'created_at': row.get('created_at', datetime.now(timezone.utc)),
+                'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
 
     async def get_guild(self, guild_id: int) -> Dict[str, Any]:
@@ -277,13 +281,17 @@ class ModdyDatabase:
                 return {
                     'guild_id': guild_id,
                     'attributes': {},
-                    'data': {}
+                    'data': {},
+                    'created_at': datetime.now(timezone.utc),
+                    'updated_at': datetime.now(timezone.utc)
                 }
 
             return {
                 'guild_id': row['guild_id'],
-                'attributes': json.loads(row['attributes']),
-                'data': json.loads(row['data'])
+                'attributes': json.loads(row['attributes']) if row['attributes'] else {},
+                'data': json.loads(row['data']) if row['data'] else {},
+                'created_at': row.get('created_at', datetime.now(timezone.utc)),
+                'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
 
     async def set_attribute(self, entity_type: str, entity_id: int,
@@ -310,7 +318,12 @@ class ModdyDatabase:
                 entity_id
             )
 
-            old_attributes = json.loads(row['attributes']) if row and row['attributes'] else {}
+            # CORRECTION ICI : Gère proprement le cas où attributes est None
+            if row and row['attributes']:
+                old_attributes = json.loads(row['attributes'])
+            else:
+                old_attributes = {}
+
             old_value = old_attributes.get(attribute)
 
             # Met à jour l'attribut selon le nouveau système
