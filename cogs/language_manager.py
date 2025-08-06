@@ -55,6 +55,8 @@ class LanguageManager(commands.Cog):
         self.bot = bot
         self.lang_cache = {}  # Cache pour éviter trop de requêtes DB
         self.pending_interactions = {}  # Stocke les interactions en attente
+        # Dictionnaire pour stocker les langues des interactions en cours
+        self.interaction_languages = {}
 
         # Textes multilingues
         self.texts = {
@@ -95,6 +97,21 @@ class LanguageManager(commands.Cog):
             except:
                 return None
         return None
+
+    def get_interaction_language(self, interaction: discord.Interaction) -> Optional[str]:
+        """Récupère la langue stockée pour une interaction"""
+        return self.interaction_languages.get(interaction.id)
+
+    def set_interaction_language(self, interaction: discord.Interaction, lang: str):
+        """Stocke la langue pour une interaction"""
+        self.interaction_languages[interaction.id] = lang
+        # Nettoie les vieilles entrées après 5 minutes
+        asyncio.create_task(self._cleanup_interaction_language(interaction.id))
+
+    async def _cleanup_interaction_language(self, interaction_id: str):
+        """Nettoie la langue d'une interaction après 5 minutes"""
+        await asyncio.sleep(300)  # 5 minutes
+        self.interaction_languages.pop(interaction_id, None)
 
     async def set_user_language(self, user_id: int, lang: str, set_by: int = None):
         """Définit la langue d'un utilisateur"""
@@ -216,8 +233,8 @@ class LanguageManager(commands.Cog):
 
             if selected_lang:
                 # La langue a été sélectionnée, on peut continuer
-                # Ajoute la langue au contexte de l'interaction
-                interaction.user_lang = selected_lang
+                # Stocke la langue dans notre dictionnaire
+                self.set_interaction_language(interaction, selected_lang)
 
                 # Log l'action
                 if log_cog := self.bot.get_cog("LoggingSystem"):
@@ -240,8 +257,8 @@ class LanguageManager(commands.Cog):
             if interaction.user.id in self.pending_interactions:
                 del self.pending_interactions[interaction.user.id]
         else:
-            # L'utilisateur a déjà une langue, on l'ajoute au contexte
-            interaction.user_lang = user_lang
+            # L'utilisateur a déjà une langue, on la stocke
+            self.set_interaction_language(interaction, user_lang)
 
     @commands.command(name="changelang", aliases=["cl", "lang"])
     async def change_language(self, ctx, lang: str = None):
@@ -289,26 +306,25 @@ class LanguageManager(commands.Cog):
             import itertools
             self.lang_cache = dict(itertools.islice(self.lang_cache.items(), 500))
 
+        # Nettoie aussi la langue de l'interaction
+        self.interaction_languages.pop(interaction.id, None)
 
-# Extension des commandes slash pour supporter la langue
-def language_aware_command(**kwargs):
-    """Décorateur pour rendre une commande slash consciente de la langue"""
 
-    def decorator(func):
-        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            # Récupère la langue de l'utilisateur
-            lang = getattr(interaction, 'user_lang', 'EN')
+# Fonction helper pour récupérer la langue d'une interaction
+def get_user_lang(interaction: discord.Interaction, bot) -> str:
+    """Récupère la langue de l'utilisateur pour une interaction"""
+    # Essaye de récupérer depuis le manager
+    if lang_manager := bot.get_cog("LanguageManager"):
+        lang = lang_manager.get_interaction_language(interaction)
+        if lang:
+            return lang
 
-            # Passe la langue à la fonction
-            return await func(self, interaction, *args, lang=lang, **kwargs)
+        # Si pas trouvé dans l'interaction, cherche dans le cache
+        if interaction.user.id in lang_manager.lang_cache:
+            return lang_manager.lang_cache[interaction.user.id]
 
-        # Copie les attributs de la fonction originale
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__ = func.__doc__
-
-        return wrapper
-
-    return decorator
+    # Par défaut, retourne EN
+    return "EN"
 
 
 async def setup(bot):
