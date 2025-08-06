@@ -41,6 +41,13 @@ DB_POOL_MIN_SIZE: int = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
 DB_POOL_MAX_SIZE: int = int(os.getenv("DB_POOL_MAX_SIZE", "10"))
 
 # =============================================================================
+# API KEYS
+# =============================================================================
+
+# DeepL API pour les traductions
+DEEPL_API_KEY: str = os.getenv("DEEPL_API_KEY", "")
+
+# =============================================================================
 # PARAMÈTRES DU BOT
 # =============================================================================
 
@@ -149,6 +156,9 @@ def validate_config():
     if not DATABASE_URL:
         print("⚠️ DATABASE_URL non configurée - Mode sans base de données")
 
+    if not DEEPL_API_KEY:
+        print("⚠️ DEEPL_API_KEY non configurée - Commande translate désactivée")
+
     if DEBUG:
         print("🔧 Mode DEBUG activé")
 
@@ -173,6 +183,7 @@ if __name__ == "__main__":
     print("\n📋 Configuration actuelle :")
     print(f"  TOKEN: {'✅ Configuré' if TOKEN else '❌ Manquant'}")
     print(f"  DATABASE_URL: {'✅ Configuré' if DATABASE_URL else '⚠️ Non configuré'}")
+    print(f"  DEEPL_API_KEY: {'✅ Configuré' if DEEPL_API_KEY else '⚠️ Non configuré'}")
     print(f"  DEBUG: {DEBUG}")
     print(f"  DEFAULT_PREFIX: {DEFAULT_PREFIX}")
     print(f"  DEVELOPER_IDS: {DEVELOPER_IDS or 'Auto-détection'}")
