@@ -106,9 +106,9 @@ class TranslateView(discord.ui.View):
 
         # Message de chargement
         if self.lang == "FR":
-            loading_text = f"<:loading:1395047662092550194> Traduction en cours..."
+            loading_text = "<a:loading:1395047662092550194>"
         else:
-            loading_text = f"<:loading:1395047662092550194> Translating..."
+            loading_text = "<a:loading:1395047662092550194>"
 
         await interaction.response.defer()
 
@@ -132,7 +132,7 @@ class TranslateView(discord.ui.View):
                 self.clear_items()
                 self.add_item(self.create_select())
 
-                await interaction.edit_original_response(embed=embed, view=self)
+                await interaction.edit_original_response(content=None, embed=embed, view=self)
             else:
                 if self.lang == "FR":
                     error_msg = "<:undone:1398729502028333218> Erreur lors de la traduction"
@@ -159,15 +159,11 @@ class Translate(commands.Cog):
                 "to_desc": "Langue de destination",
                 "incognito_desc": "Rendre la réponse visible uniquement pour vous",
                 "translating": "Traduction en cours...",
-                "from_lang": "Langue détectée",
-                "to_lang": "Traduit en",
-                "translation_title": "Traduction",
                 "error_title": "Erreur de traduction",
                 "error_api": "Impossible de contacter l'API de traduction",
                 "error_rate_limit": "Limite atteinte ! Maximum 20 traductions par minute. Réessayez dans {} secondes",
                 "error_too_long": "Le texte est trop long (maximum 3000 caractères)",
-                "error_no_text": "Aucun texte fourni à traduire",
-                "characters": "caractères"
+                "error_no_text": "Aucun texte fourni à traduire"
             },
             "EN": {
                 "description": "Translate text to another language",
@@ -175,15 +171,11 @@ class Translate(commands.Cog):
                 "to_desc": "Target language",
                 "incognito_desc": "Make response visible only to you",
                 "translating": "Translating...",
-                "from_lang": "Detected language",
-                "to_lang": "Translated to",
-                "translation_title": "Translation",
                 "error_title": "Translation error",
                 "error_api": "Unable to contact translation API",
                 "error_rate_limit": "Rate limit reached! Maximum 20 translations per minute. Try again in {} seconds",
                 "error_too_long": "Text is too long (maximum 3000 characters)",
-                "error_no_text": "No text provided to translate",
-                "characters": "characters"
+                "error_no_text": "No text provided to translate"
             }
         }
 
@@ -225,6 +217,44 @@ class Translate(commands.Cog):
             "LT": {"FR": "Lituanien", "EN": "Lithuanian"}
         }
 
+        # Map des codes vers les emojis de drapeaux
+        self.language_flags = {
+            "EN": "🇬🇧",
+            "EN-US": "🇺🇸",
+            "EN-GB": "🇬🇧",
+            "FR": "🇫🇷",
+            "DE": "🇩🇪",
+            "ES": "🇪🇸",
+            "IT": "🇮🇹",
+            "PT": "🇵🇹",
+            "PT-PT": "🇵🇹",
+            "PT-BR": "🇧🇷",
+            "NL": "🇳🇱",
+            "PL": "🇵🇱",
+            "RU": "🇷🇺",
+            "JA": "🇯🇵",
+            "ZH": "🇨🇳",
+            "KO": "🇰🇷",
+            "TR": "🇹🇷",
+            "SV": "🇸🇪",
+            "DA": "🇩🇰",
+            "NO": "🇳🇴",
+            "FI": "🇫🇮",
+            "EL": "🇬🇷",
+            "CS": "🇨🇿",
+            "RO": "🇷🇴",
+            "HU": "🇭🇺",
+            "UK": "🇺🇦",
+            "BG": "🇧🇬",
+            "AR": "🇸🇦",
+            "ID": "🇮🇩",
+            "SK": "🇸🇰",
+            "SL": "🇸🇮",
+            "ET": "🇪🇪",
+            "LV": "🇱🇻",
+            "LT": "🇱🇹"
+        }
+
     def get_text(self, lang: str, key: str) -> str:
         """Récupère un texte traduit"""
         return self.texts.get(lang, self.texts["EN"]).get(key, key)
@@ -240,6 +270,10 @@ class Translate(commands.Cog):
             return self.language_names[base_code].get(lang, code)
         else:
             return code
+
+    def get_language_flag(self, code: str) -> str:
+        """Récupère l'emoji drapeau pour une langue"""
+        return self.language_flags.get(code, self.language_flags.get(code.split('-')[0], "🌐"))
 
     def sanitize_mentions(self, text: str, guild: Optional[discord.Guild]) -> str:
         """Remplace les mentions par du texte sans ping"""
@@ -366,35 +400,24 @@ class Translate(commands.Cog):
             return None
 
     def create_translation_embed(self, original: str, translated: str, from_lang: str, to_lang: str, user_lang: str) -> discord.Embed:
-        """Crée l'embed de traduction"""
+        """Crée l'embed de traduction épuré"""
+        # Récupère les drapeaux et noms de langues
+        from_flag = self.get_language_flag(from_lang)
+        to_flag = self.get_language_flag(to_lang)
+        from_name = self.get_language_name(from_lang, "EN")  # Toujours en anglais pour la cohérence
+        to_name = self.get_language_name(to_lang, "EN")
+
+        # Crée l'embed minimal
         embed = discord.Embed(
-            title=f"<:translate:1398720130950627600> {self.get_text(user_lang, 'translation_title')}",
+            description=f"**<:translate:1398720130950627600> {from_flag} `{from_name}` → {to_flag} `{to_name}`**\n**```\n{translated}\n```**",
             color=COLORS["primary"]
         )
 
-        # Texte original
-        original_display = original[:1000] + "..." if len(original) > 1000 else original
-        embed.add_field(
-            name=f"{self.get_text(user_lang, 'from_lang')}: {self.get_language_name(from_lang, user_lang)}",
-            value=f"```\n{original_display}\n```",
-            inline=False
-        )
-
-        # Texte traduit
-        translated_display = translated[:1000] + "..." if len(translated) > 1000 else translated
-        embed.add_field(
-            name=f"{self.get_text(user_lang, 'to_lang')}: {self.get_language_name(to_lang, user_lang)}",
-            value=f"```\n{translated_display}\n```",
-            inline=False
-        )
-
-        # Footer avec le nombre de caractères
+        # Footer avec logo DeepL
         embed.set_footer(
-            text=f"{len(original)} {self.get_text(user_lang, 'characters')} • DeepL API",
-            icon_url="https://www.deepl.com/img/logo/DeepL_Logo_darkBlue_v2.svg"
+            text="DeepL API",
+            icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTeYqaNIE-QOQvuSATg-I-_iFNt0dMgHAbs_g&s"
         )
-
-        embed.timestamp = datetime.utcnow()
 
         return embed
 
@@ -473,8 +496,7 @@ class Translate(commands.Cog):
         sanitized_text = self.sanitize_mentions(text, interaction.guild)
 
         # Message de chargement
-        loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
-        await interaction.response.send_message(embed=loading_embed, ephemeral=ephemeral)
+        await interaction.response.send_message("<a:loading:1395047662092550194>", ephemeral=ephemeral)
 
         # Détecte la langue source
         source_lang = await self.detect_language(sanitized_text)
@@ -502,7 +524,7 @@ class Translate(commands.Cog):
                 interaction.user
             )
 
-            await interaction.edit_original_response(embed=embed, view=view)
+            await interaction.edit_original_response(content=None, embed=embed, view=view)
 
         else:
             # Erreur de traduction
@@ -510,7 +532,7 @@ class Translate(commands.Cog):
                 self.get_text(lang, "error_title"),
                 self.get_text(lang, "error_api")
             )
-            await interaction.edit_original_response(embed=error_embed)
+            await interaction.edit_original_response(content=None, embed=error_embed)
 
 
 async def setup(bot):
