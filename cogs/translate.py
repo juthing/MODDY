@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import asyncio
 
 from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
+from utils.incognito import add_incognito_option, get_incognito_setting
 from config import COLORS, DEEPL_API_KEY
 
 
@@ -433,6 +434,7 @@ class Translate(commands.Cog):
         app_commands.Choice(name="🇺🇦 Українська", value="UK"),
         app_commands.Choice(name="🇧🇬 Български", value="BG")
     ])
+    @add_incognito_option()
     async def translate_command(
         self,
         interaction: discord.Interaction,
@@ -442,41 +444,86 @@ class Translate(commands.Cog):
     ):
         """Commande principale de traduction"""
 
-        # === BLOC INCOGNITO - Gestion manuelle ===
-        if incognito is None and self.bot.db:
-            try:
-                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
-                ephemeral = True if user_pref is None else user_pref
-            except:
-                ephemeral = True
-        else:
-            ephemeral = incognito if incognito is not None else True
-        # === FIN DU BLOC INCOGNITO ===
+        # IMPORTANT : Attend un peu pour laisser le système de langue faire son travail
+        await asyncio.sleep(0.1)
 
-        # === RÉCUPÉRATION DE LA LANGUE - NOUVELLE MÉTHODE ===
-        # Importe la fonction helper du cog LanguageManager
-        try:
-            lang_manager = self.bot.get_cog("LanguageManager")
-            if lang_manager:
-                # Utilise la méthode pour récupérer la langue depuis le dictionnaire interne
-                lang = lang_manager.get_interaction_language(interaction)
-                if not lang:
-                    # Fallback : vérifie directement dans la DB
-                    if self.bot.db:
-                        lang = await self.bot.db.get_attribute('user', interaction.user.id, 'LANG')
-                    if not lang:
-                        lang = 'EN'  # Fallback par défaut
+        # Vérifie si l'interaction a déjà été répondue (par le système de langue)
+        if interaction.response.is_done():
+            # Le système de langue a demandé la sélection, on attend qu'il finisse
+            # et on exécute la traduction après
+            await asyncio.sleep(2)  # Attend que l'utilisateur choisisse sa langue
+
+            # Récupère la langue mise à jour
+            lang = 'EN'  # Fallback par défaut
+            if self.bot.db:
+                try:
+                    user_lang = await self.bot.db.get_attribute('user', interaction.user.id, 'LANG')
+                    if user_lang:
+                        lang = user_lang
+                except:
+                    pass
+
+            # Récupère le mode ephemeral
+            if incognito is None and self.bot.db:
+                try:
+                    user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                    ephemeral = True if user_pref is None else user_pref
+                except:
+                    ephemeral = True
             else:
-                # Si le cog n'est pas chargé, récupère depuis la DB
-                if self.bot.db:
-                    lang = await self.bot.db.get_attribute('user', interaction.user.id, 'LANG')
-                    if not lang:
-                        lang = 'EN'
-                else:
-                    lang = 'EN'
-        except:
-            lang = 'EN'  # Fallback en cas d'erreur
-        # === FIN RÉCUPÉRATION LANGUE ===
+                ephemeral = incognito if incognito is not None else True
+
+            # Vérifie la limite de taux
+            can_use, remaining = await self.check_rate_limit(interaction.user.id)
+            if not can_use:
+                error_embed = ModdyResponse.error(
+                    self.get_text(lang, "error_title"),
+                    self.get_text(lang, "error_rate_limit").format(remaining)
+                )
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+                return
+
+            # Continue avec la traduction via followup
+            loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
+            msg = await interaction.followup.send(embed=loading_embed, ephemeral=ephemeral)
+
+            # Exécute la traduction
+            sanitized_text = self.sanitize_mentions(text, interaction.guild)
+            source_lang = await self.detect_language(sanitized_text)
+            translated = await self.translate_text(sanitized_text, to.value)
+
+            if translated and source_lang:
+                embed = self.create_translation_embed(
+                    sanitized_text,
+                    translated,
+                    source_lang,
+                    to.value,
+                    lang
+                )
+                view = TranslateView(
+                    self.bot,
+                    sanitized_text,
+                    source_lang,
+                    to.value,
+                    lang,
+                    interaction.user
+                )
+                await msg.edit(embed=embed, view=view)
+            else:
+                error_embed = ModdyResponse.error(
+                    self.get_text(lang, "error_title"),
+                    self.get_text(lang, "error_api")
+                )
+                await msg.edit(embed=error_embed)
+
+            return
+
+        # Si l'interaction n'a pas encore été répondue, on continue normalement
+        # Récupère la langue de l'utilisateur
+        lang = getattr(interaction, 'user_lang', 'EN')
+
+        # Récupère le mode ephemeral
+        ephemeral = get_incognito_setting(interaction)
 
         # Vérifie la limite de taux (20 par minute par utilisateur)
         can_use, remaining = await self.check_rate_limit(interaction.user.id)
