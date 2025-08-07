@@ -1325,6 +1325,8 @@ class ResetConfirmModal(discord.ui.Modal, title="Reset user"):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         try:
             user_data = await self.bot.db.get_user(self.user.id)
 
@@ -1336,7 +1338,7 @@ class ResetConfirmModal(discord.ui.Modal, title="Reset user"):
 
             async with self.bot.db.pool.acquire() as conn:
                 await conn.execute("""
-                    UPDATE users 
+                    UPDATE users
                     SET data = '{}'::jsonb, updated_at = NOW()
                     WHERE user_id = $1
                 """, self.user.id)
@@ -1345,10 +1347,10 @@ class ResetConfirmModal(discord.ui.Modal, title="Reset user"):
                 "User reset",
                 f"<:done:1398729525277229066> All data for {self.user.mention} has been deleted."
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"<:undone:1398729502028333218> Error: {str(e)}",
                 ephemeral=True
             )
