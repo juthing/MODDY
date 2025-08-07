@@ -5,7 +5,7 @@ Style moderne avec couleurs élégantes
 
 import discord
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ModdyColors:
@@ -95,7 +95,8 @@ class ModdyEmbed:
             embed.set_image(url=image)
 
         if timestamp:
-            embed.timestamp = datetime.utcnow()
+            # Utilise un datetime timezone-aware pour éviter les avertissements
+            embed.timestamp = datetime.now(timezone.utc)
 
         return embed
 
@@ -197,7 +198,7 @@ def format_diagnostic_embed(data: dict) -> discord.Embed:
     embed = discord.Embed(
         title="Diagnostic Système",
         color=ModdyColors.PRIMARY,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)
     )
 
     # Section Discord API
