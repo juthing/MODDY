@@ -243,18 +243,16 @@ class ModdyDatabase:
             )
 
             if not row:
-                # Crée l'utilisateur s'il n'existe pas
+                # Crée l'utilisateur s'il n'existe pas, gère la concurrence
                 await conn.execute(
-                    "INSERT INTO users (user_id) VALUES ($1)",
+                    "INSERT INTO users (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING",
                     user_id
                 )
-                return {
-                    'user_id': user_id,
-                    'attributes': {},
-                    'data': {},
-                    'created_at': datetime.now(timezone.utc),
-                    'updated_at': datetime.now(timezone.utc)
-                }
+                # Re-fetch pour être sûr d'avoir les données
+                row = await conn.fetchrow(
+                    "SELECT * FROM users WHERE user_id = $1",
+                    user_id
+                )
 
             return {
                 'user_id': row['user_id'],
@@ -273,18 +271,16 @@ class ModdyDatabase:
             )
 
             if not row:
-                # Crée le serveur s'il n'existe pas
+                # Crée le serveur s'il n'existe pas, gère la concurrence
                 await conn.execute(
-                    "INSERT INTO guilds (guild_id) VALUES ($1)",
+                    "INSERT INTO guilds (guild_id) VALUES ($1) ON CONFLICT (guild_id) DO NOTHING",
                     guild_id
                 )
-                return {
-                    'guild_id': guild_id,
-                    'attributes': {},
-                    'data': {},
-                    'created_at': datetime.now(timezone.utc),
-                    'updated_at': datetime.now(timezone.utc)
-                }
+                # Re-fetch pour être sûr d'avoir les données
+                row = await conn.fetchrow(
+                    "SELECT * FROM guilds WHERE guild_id = $1",
+                    guild_id
+                )
 
             return {
                 'guild_id': row['guild_id'],
