@@ -1,138 +1,134 @@
+"""
+Configuration de Moddy pour Railway
+Les variables sont récupérées directement depuis l'environnement Railway
+"""
+
 import os
 import sys
 from pathlib import Path
 from typing import List, Optional
-from dotenv import load_dotenv
-
-# Charge le fichier .env
-env_path = Path(__file__).parent / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
-    print(f"✅ Fichier .env chargé depuis {env_path}")
-else:
-    print("⚠️ Fichier .env non trouvé - Utilisation des variables d'environnement système")
 
 # =============================================================================
 # CONFIGURATION DISCORD
 # =============================================================================
 
-# Token du bot (obligatoire)
-TOKEN: str = os.getenv("DISCORD_TOKEN", "")
+# Token du bot (obligatoire) - Variable Railway: DISCORD_TOKEN
+TOKEN: str = os.environ.get("DISCORD_TOKEN", "")
 
 # Préfixe par défaut pour les commandes
-DEFAULT_PREFIX: str = os.getenv("DEFAULT_PREFIX", "!")
+DEFAULT_PREFIX: str = os.environ.get("DEFAULT_PREFIX", "!")
 
 # Mode debug
-DEBUG: bool = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes", "on")
+DEBUG: bool = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes", "on")
 
 # IDs des développeurs (optionnel, le bot récupère depuis l'API Discord)
-dev_ids_str = os.getenv("DEVELOPER_IDS", "")
+dev_ids_str = os.environ.get("DEVELOPER_IDS", "")
 DEVELOPER_IDS: List[int] = [int(id.strip()) for id in dev_ids_str.split(",") if id.strip()]
 
 # =============================================================================
 # BASE DE DONNÉES
 # =============================================================================
 
-# URL de connexion Neon PostgreSQL
-DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+# URL de connexion Neon PostgreSQL - Variable Railway: DATABASE_URL
+DATABASE_URL: Optional[str] = os.environ.get("DATABASE_URL")
 
 # Pool de connexions
-DB_POOL_MIN_SIZE: int = int(os.getenv("DB_POOL_MIN_SIZE", "1"))
-DB_POOL_MAX_SIZE: int = int(os.getenv("DB_POOL_MAX_SIZE", "10"))
+DB_POOL_MIN_SIZE: int = int(os.environ.get("DB_POOL_MIN_SIZE", "1"))
+DB_POOL_MAX_SIZE: int = int(os.environ.get("DB_POOL_MAX_SIZE", "10"))
 
 # =============================================================================
 # API KEYS
 # =============================================================================
 
-# DeepL API pour les traductions
-DEEPL_API_KEY: str = os.getenv("DEEPL_API_KEY", "")
+# DeepL API pour les traductions - Variable Railway: DEEPL_API_KEY
+DEEPL_API_KEY: str = os.environ.get("DEEPL_API_KEY", "")
 
 # =============================================================================
 # PARAMÈTRES DU BOT
 # =============================================================================
 
 # Intervalle de mise à jour du statut (en minutes)
-STATUS_UPDATE_INTERVAL: int = int(os.getenv("STATUS_UPDATE_INTERVAL", "10"))
+STATUS_UPDATE_INTERVAL: int = int(os.environ.get("STATUS_UPDATE_INTERVAL", "10"))
 
 # Intervalle de vérification des rappels (en secondes)
-REMINDER_CHECK_INTERVAL: int = int(os.getenv("REMINDER_CHECK_INTERVAL", "60"))
+REMINDER_CHECK_INTERVAL: int = int(os.environ.get("REMINDER_CHECK_INTERVAL", "60"))
 
 # Taille maximale du cache de préfixes
-PREFIX_CACHE_SIZE: int = int(os.getenv("PREFIX_CACHE_SIZE", "1000"))
+PREFIX_CACHE_SIZE: int = int(os.environ.get("PREFIX_CACHE_SIZE", "1000"))
 
 # Timeout des commandes (en secondes)
-COMMAND_TIMEOUT: int = int(os.getenv("COMMAND_TIMEOUT", "60"))
+COMMAND_TIMEOUT: int = int(os.environ.get("COMMAND_TIMEOUT", "60"))
 
 # =============================================================================
 # LIMITES ET SÉCURITÉ
 # =============================================================================
 
 # Nombre max de rappels par utilisateur
-MAX_REMINDERS_PER_USER: int = int(os.getenv("MAX_REMINDERS_PER_USER", "25"))
-
-# Nombre max de tags par serveur
-MAX_TAGS_PER_GUILD: int = int(os.getenv("MAX_TAGS_PER_GUILD", "100"))
+MAX_REMINDERS_PER_USER: int = int(os.environ.get("MAX_REMINDERS_PER_USER", "10"))
 
 # Longueur max d'un tag
-MAX_TAG_LENGTH: int = int(os.getenv("MAX_TAG_LENGTH", "2000"))
+MAX_TAG_LENGTH: int = int(os.environ.get("MAX_TAG_LENGTH", "2000"))
 
-# Cooldown global des commandes (en secondes)
-GLOBAL_COOLDOWN: int = int(os.getenv("GLOBAL_COOLDOWN", "3"))
-
-# =============================================================================
-# EMOJIS ET APPARENCE
-# =============================================================================
-
-# Emojis utilisés dans le bot (désactivés pour un design épuré)
-EMOJIS = {
-    "success": "",
-    "error": "",
-    "warning": "",
-    "info": "",
-    "loading": "",
-    "arrow": "",
-    "bot": "",
-    "developer": "",
-    "reminder": "",
-    "tag": "",
-    "server": "",
-    "user": "",
-    "stats": "",
-    "ping": "",
-    "help": "",
-    "settings": ""
-}
-
-# Couleurs pour les embeds (couleurs modernes)
-COLORS = {
-    "primary": 0x5865F2,      # Blurple Discord moderne
-    "success": 0x23A55A,      # Vert moderne Discord
-    "error": 0xF23F43,        # Rouge moderne Discord
-    "warning": 0xF0B232,      # Jaune doré élégant
-    "info": 0x5865F2,         # Bleu info
-    "developer": 0x1E1F22     # Gris foncé Discord
-}
+# Nombre max de tags par serveur
+MAX_TAGS_PER_GUILD: int = int(os.environ.get("MAX_TAGS_PER_GUILD", "50"))
 
 # =============================================================================
-# CHEMINS ET FICHIERS
+# CHEMINS DU PROJET
 # =============================================================================
 
-# Dossier racine du projet
+# Racine du projet
 ROOT_DIR: Path = Path(__file__).parent
 
-# Dossiers importants
+# Dossiers principaux
 COGS_DIR: Path = ROOT_DIR / "cogs"
 STAFF_DIR: Path = ROOT_DIR / "staff"
-LOGS_DIR: Path = ROOT_DIR / "logs"
 
-# Créer le dossier logs s'il n'existe pas
-LOGS_DIR.mkdir(exist_ok=True)
-
-# Fichier de log
-LOG_FILE: Path = LOGS_DIR / "moddy.log"
+# Fichier de logs
+LOG_FILE: Path = ROOT_DIR / "moddy.log"
 
 # =============================================================================
-# VALIDATION
+# COULEURS DU BOT
+# =============================================================================
+
+COLORS = {
+    "primary": 0x5865F2,  # Bleu Discord
+    "success": 0x57F287,  # Vert
+    "warning": 0xFEE75C,  # Jaune
+    "error": 0xED4245,  # Rouge
+    "info": 0x5865F2,  # Bleu
+    "neutral": 0x99AAB5  # Gris
+}
+
+# =============================================================================
+# EMOJIS PERSONNALISÉS
+# =============================================================================
+
+EMOJIS = {
+    # Status
+    "done": "<:done:1398729525277229066>",
+    "undone": "<:undone:1398729502028333218>",
+    "loading": "<a:loading:1395047662092550194>",
+
+    # Icônes
+    "settings": "<:settings:1398729549323440208>",
+    "info": "<:info:1398729537201930270>",
+    "warning": "<:warning:1398729560895422505>",
+    "error": "<:error:1398729514099335228>",
+
+    # Actions
+    "add": "<:add:1398729490724679720>",
+    "remove": "<:remove:1398729478435393598>",
+    "edit": "<:edit:1398729467756752906>",
+
+    # Bot
+    "moddy": "<:moddy:1398729456117551207>",
+    "developer": "<:developer:1398729444520325202>",
+    "staff": "<:staff:1398729432759476245>"
+}
+
+
+# =============================================================================
+# VALIDATION DE LA CONFIGURATION
 # =============================================================================
 
 def validate_config():
@@ -141,7 +137,7 @@ def validate_config():
 
     # Token obligatoire
     if not TOKEN:
-        errors.append("❌ TOKEN Discord manquant dans le fichier .env")
+        errors.append("❌ DISCORD_TOKEN manquant dans les variables d'environnement Railway")
 
     # Vérifier que les dossiers existent
     if not COGS_DIR.exists():
@@ -161,6 +157,7 @@ def validate_config():
 
     if DEBUG:
         print("🔧 Mode DEBUG activé")
+        print("🚂 Environnement Railway détecté")
 
     # Si erreurs critiques, arrêter
     if errors:
@@ -168,7 +165,8 @@ def validate_config():
             print(error)
         sys.exit(1)
 
-    print("✅ Configuration validée")
+    print("✅ Configuration validée pour Railway")
+
 
 # Valider au chargement du module
 if __name__ != "__main__":
@@ -180,8 +178,8 @@ if __name__ != "__main__":
 
 if __name__ == "__main__":
     # Pour tester la config : python config.py
-    print("\n📋 Configuration actuelle :")
-    print(f"  TOKEN: {'✅ Configuré' if TOKEN else '❌ Manquant'}")
+    print("\n🚂 Configuration Railway actuelle :")
+    print(f"  DISCORD_TOKEN: {'✅ Configuré' if TOKEN else '❌ Manquant'}")
     print(f"  DATABASE_URL: {'✅ Configuré' if DATABASE_URL else '⚠️ Non configuré'}")
     print(f"  DEEPL_API_KEY: {'✅ Configuré' if DEEPL_API_KEY else '⚠️ Non configuré'}")
     print(f"  DEBUG: {DEBUG}")
@@ -192,3 +190,14 @@ if __name__ == "__main__":
     print(f"  COGS_DIR: {COGS_DIR}")
     print(f"  STAFF_DIR: {STAFF_DIR}")
     print(f"  LOG_FILE: {LOG_FILE}")
+
+    # Affiche toutes les variables d'environnement Railway (pour debug)
+    if DEBUG:
+        print(f"\n🔍 Variables d'environnement Railway détectées :")
+        railway_vars = [k for k in os.environ.keys() if
+                        'RAILWAY' in k or 'DISCORD' in k or 'DATABASE' in k or 'DEEPL' in k]
+        for var in sorted(railway_vars):
+            value = os.environ.get(var)
+            if 'TOKEN' in var or 'KEY' in var or 'PASSWORD' in var:
+                value = '***' if value else 'Non défini'
+            print(f"  {var}: {value}")
