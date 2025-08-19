@@ -24,10 +24,10 @@ if sys.version_info < (3, 11):
     sys.exit(1)
 
 # Configure le logging de base
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# )
 
 
 async def main():
