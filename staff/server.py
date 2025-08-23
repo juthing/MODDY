@@ -1122,7 +1122,7 @@ class ModifyGuildAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Current value: {value}"
+                    description="Current value: " + str(value)
                 )
             )
 
@@ -1158,7 +1158,7 @@ class RemoveGuildAttributeView(discord.ui.View):
                 discord.SelectOption(
                     label=attr,
                     value=attr,
-                    description=f"Value: {value}",
+                    description="Value: " + str(value),
                     emoji="<:undone:1398729502028333218>"
                 )
             )
