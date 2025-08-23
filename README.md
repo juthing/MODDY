@@ -23,9 +23,8 @@ Moddy offers a variety of functionalities:
 
 ## Technical Information
 
-**Moddy** is developed in **Python** using [`discord.py`](https://github.com/Rapptz/discord.py), relies on **PostgreSQL** as its database, and is hosted on an **Ubuntu VPS**.  
-Its modular structure makes it easy to maintain and extend with new features.
-
+**Moddy** is developed in **Python** using [`discord.py`](https://github.com/Rapptz/discord.py), relies on **PostgreSQL** as its database, and is hosted on [**Railway**
+](https://railway.com/)
 ## License & Contribution
 
 This project is licensed under **CC BY-NC-SA 4.0 International** — non-commercial use with required attribution.  
