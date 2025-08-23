@@ -16,6 +16,50 @@ import traceback
 from config import COLORS
 
 
+class ConsoleColors:
+    """Codes de couleur ANSI pour la console"""
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+    BLACK = "\033[30m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+
+
+class ColoredFormatter(logging.Formatter):
+    """
+    Formatter de log qui ajoute des couleurs en fonction du niveau
+    """
+    LOG_COLORS = {
+        logging.DEBUG: ConsoleColors.CYAN,
+        logging.INFO: ConsoleColors.GREEN,
+        logging.WARNING: ConsoleColors.YELLOW,
+        logging.ERROR: ConsoleColors.RED,
+        logging.CRITICAL: ConsoleColors.BOLD + ConsoleColors.RED,
+    }
+
+    def format(self, record):
+        """Formate le log avec des couleurs"""
+        # Copie du record pour ne pas modifier l'original
+        record_copy = logging.makeLogRecord(record.__dict__)
+
+        # Couleur pour le niveau
+        level_color = self.LOG_COLORS.get(record_copy.levelno, ConsoleColors.WHITE)
+
+        # Ajoute la couleur au nom du niveau
+        record_copy.levelname = f"{level_color}{record_copy.levelname}{ConsoleColors.RESET}"
+
+        # Formate le message complet
+        message = super().format(record_copy)
+        return message
+
+
 class ConsoleLogger(commands.Cog):
     """Redirige tous les logs de la console vers Discord"""
 
@@ -76,25 +120,25 @@ class ConsoleLogger(commands.Cog):
 
     def setup_logging(self):
         """Configure le système de logging pour capturer tout"""
-        # Crée notre handler personnalisé
-        discord_handler = DiscordLogHandler(self)
-
-        # Ne log que INFO et plus (pas DEBUG)
-        discord_handler.setLevel(logging.INFO)
-
-        # Format des logs
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%H:%M:%S'
-        )
-        discord_handler.setFormatter(formatter)
-
-        # Ajoute le handler au logger root
         root_logger = logging.getLogger()
-        root_logger.addHandler(discord_handler)
+        root_logger.handlers.clear()  # Supprime les anciens handlers
+        root_logger.setLevel(logging.INFO)  # Niveau global
 
-        # Met le niveau global à INFO pour éviter le spam de DEBUG
-        root_logger.setLevel(logging.INFO)
+        # --- Handler pour la console (coloré) ---
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        console_formatter = ColoredFormatter(console_format, datefmt='%H:%M:%S')
+        console_handler.setFormatter(console_formatter)
+        console_handler.setLevel(logging.INFO)  # Log INFO et plus
+        root_logger.addHandler(console_handler)
+
+        # --- Handler pour Discord (via le cog) ---
+        discord_handler = DiscordLogHandler(self)
+        discord_format = '%(name)s - %(levelname)s - %(message)s'
+        discord_formatter = logging.Formatter(discord_format)
+        discord_handler.setFormatter(discord_formatter)
+        discord_handler.setLevel(logging.INFO)
+        root_logger.addHandler(discord_handler)
 
         # Redirige stdout et stderr
         sys.stdout = ConsoleCapture(self, 'stdout')
