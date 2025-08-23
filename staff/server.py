@@ -674,7 +674,7 @@ class GuildActionsView(discord.ui.View):
 
         except Exception as e:
             await interaction.response.send_message(
-                f"<:undone:1398729502028333218> Error: {str(e)}",
+                f"Error: {str(e)}",
                 ephemeral=True
             )
 

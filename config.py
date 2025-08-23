@@ -96,7 +96,8 @@ COLORS = {
     "warning": 0xFEE75C,  # Jaune
     "error": 0xED4245,  # Rouge
     "info": 0x5865F2,  # Bleu
-    "neutral": 0x99AAB5  # Gris
+    "neutral": 0x99AAB5,  # Gris
+    "developer": 0x9B59B6 # Violet
 }
 
 # =============================================================================
