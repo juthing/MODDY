@@ -60,6 +60,12 @@ class ColoredFormatter(logging.Formatter):
         return message
 
 
+class InfoFilter(logging.Filter):
+    """Filtre pour ne garder que les logs INFO et DEBUG"""
+    def filter(self, record):
+        return record.levelno <= logging.INFO
+
+
 class ConsoleLogger(commands.Cog):
     """Redirige tous les logs de la console vers Discord"""
 
@@ -124,13 +130,22 @@ class ConsoleLogger(commands.Cog):
         root_logger.handlers.clear()  # Supprime les anciens handlers
         root_logger.setLevel(logging.INFO)  # Niveau global
 
-        # --- Handler pour la console (coloré) ---
-        console_handler = logging.StreamHandler(sys.stdout)
         console_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         console_formatter = ColoredFormatter(console_format, datefmt='%H:%M:%S')
-        console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(logging.INFO)  # Log INFO et plus
-        root_logger.addHandler(console_handler)
+
+        # --- Handler pour stdout (INFO et en dessous) ---
+        info_handler = logging.StreamHandler(sys.stdout)
+        info_handler.setFormatter(console_formatter)
+        info_handler.setLevel(logging.INFO)
+        info_handler.addFilter(InfoFilter())
+        root_logger.addHandler(info_handler)
+
+        # --- Handler pour stderr (WARNING et au-dessus) ---
+        error_handler = logging.StreamHandler(sys.stderr)
+        error_handler.setFormatter(console_formatter)
+        error_handler.setLevel(logging.WARNING)
+        root_logger.addHandler(error_handler)
+
 
         # --- Handler pour Discord (via le cog) ---
         discord_handler = DiscordLogHandler(self)
