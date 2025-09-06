@@ -35,8 +35,7 @@ class JishakuCommand(commands.Cog):
 
     async def cog_check(self, ctx):
         """Vérifie que l'utilisateur est l'owner du bot"""
-        app_info = await self.bot.application_info()
-        return ctx.author.id == app_info.owner.id
+        return ctx.author.id == 1164597199594852395
 
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
         """Gestionnaire d'erreur local pour les commandes Jishaku."""
