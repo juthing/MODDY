@@ -22,3 +22,10 @@ colorama>=0.4.6 ; platform_system=="Windows"
 # flake8>=6.0.0
 # pytest>=7.0.0
 # pytest-asyncio>=0.21.0
+
+# jsk webhook
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+redis[hiredis]==5.0.1
+pydantic==2.9.2
+python-multipart==0.0.9
