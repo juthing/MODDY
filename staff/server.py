@@ -1692,7 +1692,7 @@ class ResetGuildConfirmModal(discord.ui.Modal, title="Reset server"):
             for attr in list(guild_data['attributes'].keys()):
                 await self.bot.db.set_attribute(
                     'guild', self.guild.id, attr, None,
-                    self.author.id, f"Complete reset: {self.reason.value}"
+                    self.author.id, "Complete reset: " + self.reason.value
                 )
 
             # Réinitialise la data
