@@ -192,6 +192,12 @@ class ModdyDatabase:
     async def cache_guild_info(self, guild_id: int, info: Dict[str, Any],
                                source: UpdateSource = UpdateSource.API_CALL):
         """Met en cache les informations d'un serveur"""
+        # Crée une copie des données pour la sérialisation JSON
+        # afin de ne pas modifier le dictionnaire original.
+        serializable_info = info.copy()
+        if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
+            serializable_info['created_at'] = serializable_info['created_at'].isoformat()
+
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
@@ -211,9 +217,9 @@ class ModdyDatabase:
                 info.get('icon_url'),
                 info.get('features', []),
                 info.get('member_count'),
-                info.get('created_at'),
+                info.get('created_at'),  # Garde le datetime pour la colonne TIMESTAMP
                 source.value,
-                json.dumps(info)
+                json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
             )
 
     async def get_cached_guild(self, guild_id: int, max_age_days: int = 7) -> Optional[Dict[str, Any]]:
