@@ -1026,12 +1026,14 @@ class TagManagementView(discord.ui.View):
         config = self.parent_view.guild_data['data'].get('config', {})
 
         if config:
+            welcome_channel_str = f'<#{config.get("welcome_channel")}>' if config.get("welcome_channel") else 'Not defined'
+            log_channel_str = f'<#{config.get("log_channel")}>' if config.get("log_channel") else 'Not defined'
             embed.add_field(
                 name="<:settings:1398729549323440208> Settings",
                 value=(
                     f"**Prefix:** `{config.get('prefix', '!')}`\n"
-                    f"**Welcome channel:** {f'<#{config["welcome_channel"]}>' if config.get('welcome_channel') else 'Not defined'}\n"
-                    f"**Log channel:** {f'<#{config["log_channel"]}>' if config.get('log_channel') else 'Not defined'}"
+                    f"**Welcome channel:** {welcome_channel_str}\n"
+                    f"**Log channel:** {log_channel_str}"
                 ),
                 inline=False
             )
