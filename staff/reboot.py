@@ -31,7 +31,7 @@ class Reboot(commands.Cog):
         """Vérifie que l'utilisateur est développeur"""
         return self.bot.is_developer(ctx.author.id)
 
-    @commands.command(name="reboot", aliases=["restart", "reload"])
+    @commands.command(name="reboot", aliases=["restart"])
     async def reboot(self, ctx):
         """Redémarre le bot automatiquement"""
 
