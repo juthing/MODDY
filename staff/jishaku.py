@@ -38,6 +38,15 @@ class JishakuCommand(commands.Cog):
         app_info = await self.bot.application_info()
         return ctx.author.id == app_info.owner.id
 
+    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        """Gestionnaire d'erreur local pour les commandes Jishaku."""
+        if isinstance(error, commands.CheckFailure):
+            embed = ModdyResponse.error(
+                "Accès Refusé",
+                "Cette commande est strictement réservée au propriétaire du bot pour des raisons de sécurité."
+            )
+            await ctx.send(embed=embed)
+
     def cleanup_code(self, content: str) -> str:
         """Nettoie le code des balises markdown"""
         # Enlève les ```py\n``` et ```
@@ -156,18 +165,6 @@ class JishakuCommand(commands.Cog):
         jsk return len(bot.guilds)
         jsk await ctx.send("Test")
         """
-
-        # Vérifie qu'on est bien l'owner (double vérification)
-        app_info = await self.bot.application_info()
-        if ctx.author.id != app_info.owner.id:
-            # Réaction d'erreur, pas de message
-            try:
-                await ctx.message.add_reaction("<:undone:1398729502028333218>")
-            except:
-                pass
-            return
-
-        # Si pas de code fourni
         if not code:
             embed = discord.Embed(
                 title="<:terminal:1398729532193853592> Jishaku",
@@ -249,16 +246,6 @@ class JishakuCommand(commands.Cog):
         Exécute une commande shell/système
         Owner only
         """
-
-        # Vérifie qu'on est bien l'owner
-        app_info = await self.bot.application_info()
-        if ctx.author.id != app_info.owner.id:
-            try:
-                await ctx.message.add_reaction("<:undone:1398729502028333218>")
-            except:
-                pass
-            return
-
         if not command:
             embed = discord.Embed(
                 title="<:terminal:1398729532193853592> Shell",
@@ -333,16 +320,6 @@ class JishakuCommand(commands.Cog):
         Charge ou recharge un module Python
         Owner only
         """
-
-        # Vérifie qu'on est bien l'owner
-        app_info = await self.bot.application_info()
-        if ctx.author.id != app_info.owner.id:
-            try:
-                await ctx.message.add_reaction("<:undone:1398729502028333218>")
-            except:
-                pass
-            return
-
         if not module:
             # Liste les modules chargés
             modules_list = [m for m in sys.modules.keys() if 'moddy' in m.lower() or 'cogs' in m or 'staff' in m]
@@ -373,16 +350,6 @@ class JishakuCommand(commands.Cog):
         Exécute une requête SQL directe
         Owner only - DANGEREUX
         """
-
-        # Vérifie qu'on est bien l'owner
-        app_info = await self.bot.application_info()
-        if ctx.author.id != app_info.owner.id:
-            try:
-                await ctx.message.add_reaction("<:undone:1398729502028333218>")
-            except:
-                pass
-            return
-
         if not self.bot.db:
             await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
             return
