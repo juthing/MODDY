@@ -1,6 +1,6 @@
 """
-Système centralisé pour les embeds épurés
-Style moderne avec couleurs élégantes
+Centralized system for clean embeds.
+Modern style with elegant colors.
 """
 
 import discord
@@ -9,24 +9,24 @@ from datetime import datetime, timezone
 
 
 class ModdyColors:
-    """Palette de couleurs modernes et élégantes"""
+    """Modern and elegant color palette."""
 
-    # Couleurs principales
-    PRIMARY = 0x5865F2  # Blurple Discord moderne
-    SUCCESS = 0x23A55A  # Vert moderne Discord
-    WARNING = 0xF0B232  # Jaune doré élégant
-    ERROR = 0xF23F43  # Rouge moderne Discord
-    INFO = 0x5865F2  # Bleu info
+    # Primary colors
+    PRIMARY = 0x5865F2  # Modern Discord Blurple
+    SUCCESS = 0x23A55A  # Modern Discord Green
+    WARNING = 0xF0B232  # Elegant golden yellow
+    ERROR = 0xF23F43  # Modern Discord Red
+    INFO = 0x5865F2  # Info blue
 
-    # Couleurs secondaires
-    DARK = 0x1E1F22  # Fond sombre Discord
-    LIGHT = 0x313338  # Gris clair Discord
-    ACCENT = 0x7289DA  # Bleu accent
-    PURPLE = 0x9B59B6  # Violet élégant
-    TEAL = 0x11806A  # Turquoise moderne
-    PINK = 0xE91E63  # Rose moderne
+    # Secondary colors
+    DARK = 0x1E1F22  # Discord dark background
+    LIGHT = 0x313338  # Discord light grey
+    ACCENT = 0x7289DA  # Accent blue
+    PURPLE = 0x9B59B6  # Elegant purple
+    TEAL = 0x11806A  # Modern teal
+    PINK = 0xE91E63  # Modern pink
 
-    # Gradients (utiliser la première couleur)
+    # Gradients (use the first color)
     GRADIENT_BLUE = 0x3498DB
     GRADIENT_GREEN = 0x2ECC71
     GRADIENT_ORANGE = 0xE67E22
@@ -34,7 +34,7 @@ class ModdyColors:
 
 
 class ModdyEmbed:
-    """Classe pour créer des embeds standardisés épurés"""
+    """Class to create standardized and clean embeds."""
 
     @staticmethod
     def create(
@@ -49,20 +49,20 @@ class ModdyEmbed:
             timestamp: bool = False
     ) -> discord.Embed:
         """
-        Crée un embed épuré avec style moderne
+        Creates a clean embed with a modern style.
 
         Args:
-            title: Titre de l'embed
-            description: Description principale
-            color: Couleur (utilise ModdyColors)
-            fields: Liste de tuples (name, value, inline)
-            footer: Texte du footer
-            author: Dict avec name, icon_url
-            thumbnail: URL de la miniature
-            image: URL de l'image
-            timestamp: Si True, ajoute un timestamp
+            title: The title of the embed.
+            description: The main description.
+            color: The color (uses ModdyColors).
+            fields: A list of tuples (name, value, inline).
+            footer: The footer text.
+            author: A dict with name, icon_url.
+            thumbnail: The URL of the thumbnail.
+            image: The URL of the image.
+            timestamp: If True, adds a timestamp.
         """
-        # Couleur par défaut subtile
+        # Subtle default color
         if color is None:
             color = ModdyColors.LIGHT
 
@@ -95,30 +95,30 @@ class ModdyEmbed:
             embed.set_image(url=image)
 
         if timestamp:
-            # Utilise un datetime timezone-aware pour éviter les avertissements
+            # Use a timezone-aware datetime to avoid warnings
             embed.timestamp = datetime.now(timezone.utc)
 
         return embed
 
     @staticmethod
     def minimal(description: str, color: int = ModdyColors.LIGHT) -> discord.Embed:
-        """Crée un embed minimal avec juste une description"""
+        """Creates a minimal embed with just a description."""
         return discord.Embed(description=description, color=color)
 
     @staticmethod
     def field_block(title: str, fields: Dict[str, Any], color: int = ModdyColors.PRIMARY) -> discord.Embed:
-        """Crée un embed avec des champs organisés"""
+        """Creates an embed with organized fields."""
         embed = discord.Embed(title=title, color=color)
 
         for name, value in fields.items():
-            # Formater automatiquement les valeurs
+            # Automatically format values
             if isinstance(value, (int, float)):
                 formatted_value = f"`{value}`"
             elif isinstance(value, bool):
-                formatted_value = "✓" if value else "✗"
+                formatted_value = "<:done:1398729525277229066>" if value else "<:undone:1398729502028333218>"
             else:
                 formatted_value = str(value)
-                # Mettre les valeurs dynamiques entre backticks
+                # Put dynamic values in backticks
                 if not formatted_value.startswith("`"):
                     formatted_value = f"`{formatted_value}`"
 
@@ -128,13 +128,13 @@ class ModdyEmbed:
 
 
 class ModdyResponse:
-    """Templates de réponses standardisées avec style moderne"""
+    """Standardized response templates with a modern style."""
 
     @staticmethod
     def success(title: str, description: str, footer: Optional[str] = None) -> discord.Embed:
-        """Message de succès avec couleur verte moderne"""
+        """Success message with a modern green color."""
         embed = ModdyEmbed.create(
-            title=title,
+            title=f"<:done:1398729525277229066> {title}",
             description=description,
             color=ModdyColors.SUCCESS,
             footer=footer
@@ -143,9 +143,9 @@ class ModdyResponse:
 
     @staticmethod
     def error(title: str, description: str, footer: Optional[str] = None) -> discord.Embed:
-        """Message d'erreur avec couleur rouge moderne"""
+        """Error message with a modern red color."""
         embed = ModdyEmbed.create(
-            title=title,
+            title=f"<:undone:1398729502028333218> {title}",
             description=description,
             color=ModdyColors.ERROR,
             footer=footer
@@ -154,7 +154,7 @@ class ModdyResponse:
 
     @staticmethod
     def warning(title: str, description: str, footer: Optional[str] = None) -> discord.Embed:
-        """Message d'avertissement avec couleur jaune dorée"""
+        """Warning message with a golden yellow color."""
         embed = ModdyEmbed.create(
             title=title,
             description=description,
@@ -165,7 +165,7 @@ class ModdyResponse:
 
     @staticmethod
     def info(title: str, description: str = None, fields: List[tuple] = None) -> discord.Embed:
-        """Message d'information avec couleur bleue"""
+        """Information message with a blue color."""
         return ModdyEmbed.create(
             title=title,
             description=description,
@@ -174,16 +174,16 @@ class ModdyResponse:
         )
 
     @staticmethod
-    def loading(message: str = "Chargement en cours...") -> discord.Embed:
-        """Message de chargement épuré"""
+    def loading(message: str = "Loading...") -> discord.Embed:
+        """Clean loading message."""
         return ModdyEmbed.minimal(
-            description=message,
+            description=f"<:loading:1395047662092550194> {message}",
             color=ModdyColors.LIGHT
         )
 
     @staticmethod
     def confirm(title: str, description: str, footer: str = None) -> discord.Embed:
-        """Message de confirmation avec couleur subtile"""
+        """Confirmation message with a subtle color."""
         return ModdyEmbed.create(
             title=title,
             description=description,
@@ -193,47 +193,47 @@ class ModdyResponse:
 
 
 def format_diagnostic_embed(data: dict) -> discord.Embed:
-    """Formate un embed de diagnostic avec style moderne"""
+    """Formats a diagnostic embed with a modern style."""
 
     embed = discord.Embed(
-        title="Diagnostic Système",
+        title="<:settings:1398729549323440208> System Diagnostic",
         color=ModdyColors.PRIMARY,
         timestamp=datetime.now(timezone.utc)
     )
 
-    # Section Discord API
-    api_status = "En ligne" if data['api_latency'] < 200 else "Dégradé"
+    # Discord API Section
+    api_status = "Online" if data['api_latency'] < 200 else "Degraded"
     embed.add_field(
         name="Discord API",
         value=f"**{api_status}**\n"
-              f"Latence: `{data['api_latency']}ms`\n"
+              f"Latency: `{data['api_latency']}ms`\n"
               f"Gateway: `v{data['discord_version']}`",
         inline=True
     )
 
-    # Section Bot
-    msg_status = "Optimal" if data['message_latency'] < 100 else "Normal" if data['message_latency'] < 200 else "Lent"
+    # Bot Section
+    msg_status = "Optimal" if data['message_latency'] < 100 else "Normal" if data['message_latency'] < 200 else "Slow"
     embed.add_field(
         name="Bot",
         value=f"**{msg_status}**\n"
-              f"Réponse: `{data['message_latency']}ms`\n"
+              f"Response: `{data['message_latency']}ms`\n"
               f"Uptime: `{data['uptime']}`",
         inline=True
     )
 
-    # Section Base de données
+    # Database Section
     embed.add_field(
-        name="Base de données",
+        name="Database",
         value=f"**{data['db_status']}**\n"
-              f"Latence: {data['db_latency']}\n"
+              f"Latency: {data['db_latency']}\n"
               f"Type: PostgreSQL",
         inline=True
     )
 
-    # Ligne vide pour la mise en page
+    # Empty line for layout
     embed.add_field(name="\u200b", value="\u200b", inline=False)
 
-    # Section Performance
+    # Performance Section
     embed.add_field(
         name="Performance",
         value=f"CPU: `{data['cpu_percent']}%`\n"
@@ -242,18 +242,18 @@ def format_diagnostic_embed(data: dict) -> discord.Embed:
         inline=True
     )
 
-    # Section Statistiques
+    # Statistics Section
     embed.add_field(
-        name="Statistiques",
-        value=f"Serveurs: `{data['guilds']}`\n"
-              f"Utilisateurs: `{data['users']}`\n"
-              f"Commandes: `{data['commands']}`",
+        name="Statistics",
+        value=f"Servers: `{data['guilds']}`\n"
+              f"Users: `{data['users']}`\n"
+              f"Commands: `{data['commands']}`",
         inline=True
     )
 
-    # Section Système
+    # System Section
     embed.add_field(
-        name="Système",
+        name="System",
         value=f"OS: `{data['os']}`\n"
               f"Python: `{data['python_version']}`\n"
               f"Node: `{data['node']}`",
@@ -262,7 +262,7 @@ def format_diagnostic_embed(data: dict) -> discord.Embed:
 
     if 'author' in data:
         embed.set_footer(
-            text=f"Demandé par {data['author']}",
+            text=f"Requested by {data['author']}",
             icon_url=data.get('author_icon')
         )
 
@@ -270,16 +270,16 @@ def format_diagnostic_embed(data: dict) -> discord.Embed:
 
 
 def format_commands_embed(commands_by_cog: dict) -> discord.Embed:
-    """Formate un embed pour la liste des commandes"""
+    """Formats an embed for the command list."""
     embed = discord.Embed(
-        title="Commandes Disponibles",
-        description="Liste complète des commandes du bot",
+        title="<:commands:1401610449136648283> Available Commands",
+        description="Complete list of the bot's commands.",
         color=ModdyColors.PRIMARY
     )
 
     for cog_name, commands_list in commands_by_cog.items():
         if commands_list:
-            # Limiter à 1024 caractères par field
+            # Limit to 1024 characters per field
             value = "\n".join(commands_list)[:1024]
             embed.add_field(
                 name=f"**{cog_name}**",
@@ -290,14 +290,14 @@ def format_commands_embed(commands_by_cog: dict) -> discord.Embed:
     return embed
 
 
-# Fonction helper pour créer rapidement des embeds
+# Helper function to quickly create simple embeds
 def quick_embed(
         content: str,
         color: int = ModdyColors.PRIMARY,
         title: str = None,
         footer: str = None
 ) -> discord.Embed:
-    """Crée rapidement un embed simple"""
+    """Quickly creates a simple embed."""
     return ModdyEmbed.create(
         title=title,
         description=content,
@@ -306,7 +306,7 @@ def quick_embed(
     )
 
 
-# Export des couleurs pour usage direct
+# Export colors for direct use
 COLORS = {
     "primary": ModdyColors.PRIMARY,
     "success": ModdyColors.SUCCESS,
