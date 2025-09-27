@@ -1,63 +1,52 @@
 """
-Gestionnaire de base de données PostgreSQL pour Moddy
-Base de données locale sur le VPS
+database.py - Gestion de la base de données PostgreSQL pour Moddy
+Corrige le problème de timezone lors de cache_guild_info
 """
 
-import asyncpg
 import json
+import asyncpg
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Union
 from enum import Enum
-import logging
-
-logger = logging.getLogger('moddy.database')
+from utils.logger import logger
 
 
 class UpdateSource(Enum):
-    """Sources de mise à jour des données"""
+    """Sources possibles pour les mises à jour du cache"""
     BOT_JOIN = "bot_join"
     USER_PROFILE = "user_profile"
     API_CALL = "api_call"
     MANUAL = "manual"
-    SCHEDULED = "scheduled"
 
 
 class ModdyDatabase:
-    """Gestionnaire principal de la base de données"""
-
     def __init__(self, database_url: str = None):
-        self.pool: Optional[asyncpg.Pool] = None
-        self.database_url = database_url or "postgresql://moddy:password@localhost/moddy"
+        self.database_url = database_url or "postgresql://localhost/moddy"
+        self.pool = None
 
     async def connect(self):
-        """Établit la connexion à la base de données"""
+        """Établit la connexion avec la base de données"""
         try:
             self.pool = await asyncpg.create_pool(
                 self.database_url,
                 min_size=5,
                 max_size=20,
-                command_timeout=60,
-                server_settings={
-                    'application_name': 'Moddy Bot',
-                    'jit': 'off'
-                }
+                command_timeout=60
             )
-            logger.info("✅ Base de données PostgreSQL connectée")
-
-            # Initialise les tables
-            await self._init_tables()
-
+            await self.init_tables()
+            logger.info("✅ Pool de connexion BDD établi")
         except Exception as e:
-            logger.error(f"❌ Erreur connexion PostgreSQL: {e}")
+            logger.error(f"❌ Erreur connexion BDD : {e}")
             raise
 
     async def close(self):
-        """Ferme la connexion"""
+        """Ferme le pool de connexions"""
         if self.pool:
             await self.pool.close()
+            logger.info("Pool de connexion BDD fermé")
 
-    async def _init_tables(self):
-        """Crée les tables si elles n'existent pas"""
+    async def init_tables(self):
+        """Initialise les tables si elles n'existent pas"""
         async with self.pool.acquire() as conn:
             # Table des erreurs
             await conn.execute("""
@@ -191,12 +180,20 @@ class ModdyDatabase:
 
     async def cache_guild_info(self, guild_id: int, info: Dict[str, Any],
                                source: UpdateSource = UpdateSource.API_CALL):
-        """Met en cache les informations d'un serveur"""
+        """Met en cache les informations d'un serveur avec gestion correcte des timezones"""
         # Crée une copie des données pour la sérialisation JSON
-        # afin de ne pas modifier le dictionnaire original.
         serializable_info = info.copy()
-        if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
-            serializable_info['created_at'] = serializable_info['created_at'].isoformat()
+        
+        # Gère le datetime pour la colonne TIMESTAMP PostgreSQL
+        created_at = info.get('created_at')
+        if created_at:
+            # Si c'est un datetime avec timezone, le convertit en naive (sans timezone)
+            if hasattr(created_at, 'tzinfo') and created_at.tzinfo is not None:
+                created_at = created_at.replace(tzinfo=None)
+            
+            # Pour le JSONB, on garde en format ISO string
+            if isinstance(created_at, datetime):
+                serializable_info['created_at'] = created_at.isoformat()
 
         async with self.pool.acquire() as conn:
             await conn.execute("""
@@ -217,7 +214,7 @@ class ModdyDatabase:
                 info.get('icon_url'),
                 info.get('features', []),
                 info.get('member_count'),
-                info.get('created_at'),  # Garde le datetime pour la colonne TIMESTAMP
+                created_at,  # Utilise le datetime converti (sans timezone)
                 source.value,
                 json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
             )
@@ -296,96 +293,65 @@ class ModdyDatabase:
                 'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
 
-    async def set_attribute(self, entity_type: str, entity_id: int,
-                            attribute: str, value: Optional[Union[str, bool]],
-                            changed_by: int, reason: str = None):
-        """Définit un attribut pour un utilisateur ou serveur
-
-        Pour les attributs booléens : si value est True, on stocke juste l'attribut
-        Pour les attributs avec valeur : on stocke la valeur (ex: LANG=FR)
-        Si value est None, on supprime l'attribut
-        """
-        table = 'users' if entity_type == 'user' else 'guilds'
+    async def set_attribute(self, entity_type: str, entity_id: int, attribute: str,
+                           value: Any, changed_by: int, reason: str = None):
+        """Définit un attribut pour un utilisateur ou serveur avec audit trail"""
+        table = "users" if entity_type == "user" else "guilds"
+        id_column = "user_id" if entity_type == "user" else "guild_id"
 
         async with self.pool.acquire() as conn:
-            # S'assure que l'entité existe d'abord
-            if entity_type == 'user':
-                await self.get_user(entity_id)
-            else:
-                await self.get_guild(entity_id)
-
             # Récupère l'ancienne valeur
-            row = await conn.fetchrow(
-                f"SELECT attributes FROM {table} WHERE {entity_type}_id = $1",
-                entity_id
-            )
+            old_value_row = await conn.fetchrow(f"""
+                SELECT attributes->>$1 as old_value FROM {table}
+                WHERE {id_column} = $2
+            """, attribute, entity_id)
 
-            # CORRECTION ICI : Gère proprement le cas où attributes est None
-            if row and row['attributes']:
-                old_attributes = json.loads(row['attributes'])
+            old_value = old_value_row['old_value'] if old_value_row else None
+
+            # Met à jour l'attribut
+            if value is False or value is None:
+                # Supprime l'attribut si False ou None
+                await conn.execute(f"""
+                    UPDATE {table}
+                    SET attributes = attributes - $1,
+                        updated_at = NOW()
+                    WHERE {id_column} = $2
+                """, attribute, entity_id)
             else:
-                old_attributes = {}
+                # Ajoute/modifie l'attribut
+                await conn.execute(f"""
+                    UPDATE {table}
+                    SET attributes = jsonb_set(attributes, $1, $2, true),
+                        updated_at = NOW()
+                    WHERE {id_column} = $3
+                """, 
+                    f'{{{attribute}}}',
+                    json.dumps(value),
+                    entity_id
+                )
 
-            old_value = old_attributes.get(attribute)
-
-            # Met à jour l'attribut selon le nouveau système
-            if value is None:
-                # Supprime l'attribut
-                if attribute in old_attributes:
-                    del old_attributes[attribute]
-            elif value is True:
-                # Pour les booléens True, on stocke juste la clé sans valeur
-                old_attributes[attribute] = True
-            elif value is False:
-                # Pour les booléens False, on supprime l'attribut
-                if attribute in old_attributes:
-                    del old_attributes[attribute]
-            else:
-                # Pour les autres valeurs (string, int, etc), on stocke la valeur
-                old_attributes[attribute] = value
-
-            # Sauvegarde
-            await conn.execute(f"""
-                UPDATE {table} 
-                SET attributes = $1::jsonb, updated_at = NOW()
-                WHERE {entity_type}_id = $2
-            """, json.dumps(old_attributes), entity_id)
-
-            # Log le changement
+            # Enregistre le changement dans l'audit trail
             await conn.execute("""
                 INSERT INTO attribute_changes (entity_type, entity_id, attribute_name,
-                                               old_value, new_value, changed_by, reason)
+                                              old_value, new_value, changed_by, reason)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             """,
-                entity_type, entity_id, attribute,
+                entity_type,
+                entity_id,
+                attribute,
                 str(old_value) if old_value is not None else None,
-                str(value) if value is not None else None,
-                changed_by, reason
+                str(value) if value not in [False, None] else None,
+                changed_by,
+                reason
             )
 
-    async def has_attribute(self, entity_type: str, entity_id: int, attribute: str) -> bool:
-        """Vérifie si une entité a un attribut spécifique"""
-        entity = await self.get_user(entity_id) if entity_type == 'user' else await self.get_guild(entity_id)
-        return attribute in entity['attributes']
-
-    async def get_attribute(self, entity_type: str, entity_id: int, attribute: str) -> Any:
-        """Récupère la valeur d'un attribut
-
-        Retourne True pour les attributs booléens présents
-        Retourne la valeur pour les attributs avec valeur
-        Retourne None si l'attribut n'existe pas
-        """
-        entity = await self.get_user(entity_id) if entity_type == 'user' else await self.get_guild(entity_id)
-        return entity['attributes'].get(attribute)
-
-    # ================ GESTION DE LA DATA ================
-
     async def update_user_data(self, user_id: int, path: str, value: Any):
-        """Met à jour une partie spécifique de la data utilisateur"""
+        """Met à jour une donnée spécifique dans le JSON data d'un utilisateur"""
+        # Convertit le chemin en format PostgreSQL
+        path_parts = path.split('.')
+        json_path = '{' + ','.join(path_parts) + '}'
+
         async with self.pool.acquire() as conn:
-            # Utilise jsonb_set pour mettre à jour un chemin spécifique
-            path_parts = path.split('.')
-            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
                 UPDATE users 
                 SET data = jsonb_set(data, $1, $2, true),
@@ -398,10 +364,11 @@ class ModdyDatabase:
             )
 
     async def update_guild_data(self, guild_id: int, path: str, value: Any):
-        """Met à jour une partie spécifique de la data serveur"""
+        """Met à jour une donnée spécifique dans le JSON data d'un serveur"""
+        path_parts = path.split('.')
+        json_path = '{' + ','.join(path_parts) + '}'
+        
         async with self.pool.acquire() as conn:
-            path_parts = path.split('.')
-            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
                 UPDATE guilds 
                 SET data = jsonb_set(data, $1, $2, true),
@@ -416,20 +383,14 @@ class ModdyDatabase:
     # ================ REQUÊTES UTILES ================
 
     async def get_users_with_attribute(self, attribute: str, value: Any = None) -> List[int]:
-        """Récupère tous les utilisateurs ayant un attribut spécifique
-
-        Si value est None, cherche juste la présence de l'attribut
-        Si value est fournie, cherche cette valeur spécifique
-        """
+        """Récupère tous les utilisateurs ayant un attribut spécifique"""
         async with self.pool.acquire() as conn:
             if value is None:
-                # Cherche juste la présence de l'attribut
                 rows = await conn.fetch("""
                     SELECT user_id FROM users 
                     WHERE attributes ? $1
                 """, attribute)
             else:
-                # Cherche une valeur spécifique
                 rows = await conn.fetch("""
                     SELECT user_id FROM users 
                     WHERE attributes @> $1
@@ -472,20 +433,17 @@ class ModdyDatabase:
                 count = await conn.fetchval(f"SELECT COUNT(*) FROM {table}")
                 stats[table] = count
 
-            # Statistiques spécifiques avec le nouveau système
-            # Compte les utilisateurs ayant l'attribut BETA (peu importe la valeur)
+            # Statistiques spécifiques
             stats['beta_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'BETA'
             """)
 
-            # Compte les utilisateurs ayant l'attribut PREMIUM
             stats['premium_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'PREMIUM'
             """)
 
-            # Compte les utilisateurs blacklistés (ayant l'attribut BLACKLISTED)
             stats['blacklisted_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'BLACKLISTED'
