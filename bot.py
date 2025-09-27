@@ -21,7 +21,7 @@ from config import (
     DEVELOPER_IDS,
     COLORS
 )
-from database import setup_database, UpdateSource
+from database import setup_database, db
 
 logger = logging.getLogger('moddy')
 
@@ -160,52 +160,51 @@ class ModdyBot(commands.Bot):
             await error_cog.on_command_error(fake_ctx, error)
         else:
             # Fallback si le système n'est pas chargé
-            logger.error(f"Erreur slash command: {error}")
-            try:
-                if interaction.response.is_done():
-                    await interaction.followup.send(
-                        "❌ Une erreur est survenue.",
-                        ephemeral=True
-                    )
-                else:
-                    await interaction.response.send_message(
-                        "❌ Une erreur est survenue.",
-                        ephemeral=True
-                    )
-            except:
-                pass
+            logger.error(f"Erreur slash command: {error}", exc_info=error)
 
     async def fetch_dev_team(self):
         """Récupère l'équipe de développement depuis Discord"""
         try:
             app_info = await self.application_info()
 
-            # Si le bot appartient à une équipe
             if app_info.team:
-                self._dev_team_ids = {member.id for member in app_info.team.members}
-                logger.info(f"🔧 Équipe de développement : {len(self._dev_team_ids)} membres")
-            # Sinon, c'est juste le propriétaire
+                # Filtre pour ne garder que les vrais utilisateurs (pas les bots)
+                self._dev_team_ids = {
+                    member.id for member in app_info.team.members
+                    if not member.bot and member.id != app_info.id
+                }
+                logger.info(f"✅ Équipe de dev : {len(self._dev_team_ids)} membres")
+                logger.info(f"   IDs: {list(self._dev_team_ids)}")
             else:
                 self._dev_team_ids = {app_info.owner.id}
-                logger.info(f"🔧 Propriétaire : {app_info.owner}")
+                logger.info(f"✅ Propriétaire : {app_info.owner} ({app_info.owner.id})")
 
-            # Ajoute aussi les IDs manuels depuis la config
-            self._dev_team_ids.update(DEVELOPER_IDS)
+            # Ajoute aussi les IDs depuis la config
+            if DEVELOPER_IDS:
+                self._dev_team_ids.update(DEVELOPER_IDS)
+                logger.info(f"   + IDs depuis config: {DEVELOPER_IDS}")
 
         except Exception as e:
-            logger.error(f"Erreur récupération équipe dev : {e}")
-            # Utilise seulement les IDs de la config en cas d'erreur
-            self._dev_team_ids = set(DEVELOPER_IDS)
+            logger.error(f"❌ Erreur lors de la récupération de l'équipe : {e}")
+            # Fallback sur les IDs dans config si disponibles
+            if DEVELOPER_IDS:
+                self._dev_team_ids = set(DEVELOPER_IDS)
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la récupération de l'équipe : {e}")
+            # Fallback sur les IDs dans config si disponibles
+            if DEVELOPER_IDS:
+                self._dev_team_ids = set(DEVELOPER_IDS)
 
     def is_developer(self, user_id: int) -> bool:
         """Vérifie si un utilisateur est développeur"""
         return user_id in self._dev_team_ids
 
-    async def get_prefix(self, bot, message: discord.Message):
+    async def get_prefix(self, message: discord.Message):
         """Récupère le préfixe pour un message"""
-        # Les commandes staff acceptent la mention
+        # En MP, utilise le préfixe par défaut
         if not message.guild:
-            return [f'<@{self.user.id}> ', f'<@!{self.user.id}> ']
+            return [DEFAULT_PREFIX, f'<@{self.user.id}> ', f'<@!{self.user.id}> ']
 
         # Vérifie le cache
         guild_id = message.guild.id
@@ -321,31 +320,98 @@ class ModdyBot(commands.Bot):
     async def on_ready(self):
         """Appelé quand le bot est prêt"""
         logger.info(f"✅ {self.user} est connecté !")
-        logger.info(f"   → ID : {self.user.id}")
-        logger.info(f"   → Serveurs : {len(self.guilds)}")
-        logger.info(f"   → Utilisateurs : {len(self.users)}")
-        logger.info(f"   → Mode : {'DEBUG' if DEBUG else 'PRODUCTION'}")
+        logger.info(f"📊 {len(self.guilds)} serveurs | {len(self.users)} utilisateurs")
+        logger.info(f"🏓 Latence : {round(self.latency * 1000)}ms")
 
+        # Met à jour les attributs DEVELOPER maintenant que self.user est disponible
+        if self.db and self._dev_team_ids:
+            logger.info(f"📝 Mise à jour automatique des attributs DEVELOPER...")
+            for dev_id in self._dev_team_ids:
+                try:
+                    # Récupère ou crée l'utilisateur
+                    await self.db.get_user(dev_id)
+
+                    # Définit l'attribut DEVELOPER (True = présent dans le système simplifié)
+                    await self.db.set_attribute(
+                        'user', dev_id, 'DEVELOPER', True,
+                        self.user.id, "Auto-détection au démarrage"
+                    )
+                    logger.info(f"✅ Attribut DEVELOPER défini pour {dev_id}")
+
+                except Exception as e:
+                    logger.error(f"❌ Erreur attribut DEVELOPER pour {dev_id}: {e}")
+
+        # Stats de la BDD si connectée
         if self.db:
-            logger.info(f"   → BDD : ✓ Connectée")
-        else:
-            logger.warning(f"   → BDD : ✗ Non connectée")
+            try:
+                stats = await self.db.get_stats()
+                logger.info(f"📊 BDD: {stats['users']} users, {stats['guilds']} guilds, {stats['errors']} errors")
+            except:
+                pass
 
     async def on_guild_join(self, guild: discord.Guild):
         """Quand le bot rejoint un serveur"""
         logger.info(f"➕ Nouveau serveur : {guild.name} ({guild.id})")
-        logger.info(f"   → Membres : {guild.member_count}")
-        logger.info(f"   → Propriétaire : {guild.owner} ({guild.owner.id if guild.owner else 'Inconnu'})")
 
-        # Cache automatique dans la BDD
+        # Vérifie si le propriétaire du serveur est blacklisté
         if self.db:
             try:
+                if await self.db.has_attribute('user', guild.owner_id, 'BLACKLISTED'):
+                    logger.warning(f"⚠️ Tentative d'ajout par utilisateur blacklisté: {guild.owner_id}")
+
+                    # Envoie un message au propriétaire si possible
+                    try:
+                        embed = discord.Embed(
+                            description=(
+                                "<:blacklist:1401596864784777363> You cannot add Moddy to servers while blacklisted.\n"
+                                "<:blacklist:1401596864784777363> Vous ne pouvez pas ajouter Moddy à des serveurs en étant blacklisté."
+                            ),
+                            color=COLORS["error"]
+                        )
+                        embed.set_footer(text=f"ID: {guild.owner_id}")
+
+                        # Crée le bouton
+                        view = discord.ui.View()
+                        view.add_item(discord.ui.Button(
+                            label="Unblacklist request",
+                            url="https://moddy.app/unbl_request",
+                            style=discord.ButtonStyle.link
+                        ))
+
+                        await guild.owner.send(embed=embed, view=view)
+                    except:
+                        pass
+
+                    # Quitte le serveur
+                    await guild.leave()
+
+                    # Log l'action
+                    if log_cog := self.get_cog("LoggingSystem"):
+                        await log_cog.log_critical(
+                            title="Ajout Bloqué - Utilisateur Blacklisté",
+                            description=(
+                                f"**Serveur:** {guild.name} (`{guild.id}`)\n"
+                                f"**Propriétaire:** {guild.owner} (`{guild.owner_id}`)\n"
+                                f"**Membres:** {guild.member_count}\n"
+                                f"**Action:** Bot a quitté automatiquement"
+                            ),
+                            ping_dev=False
+                        )
+
+                    return
+
+                # Si pas blacklisté, continue normalement
+                # Crée l'entrée du serveur
+                await self.db.get_guild(guild.id)  # Crée si n'existe pas
+
+                # Cache les informations du serveur
+                from database import UpdateSource
                 guild_info = {
                     'name': guild.name,
-                    'icon_url': guild.icon.url if guild.icon else None,
+                    'icon_url': str(guild.icon.url) if guild.icon else None,
                     'features': guild.features,
                     'member_count': guild.member_count,
-                    'created_at': guild.created_at  # Le datetime avec timezone, database.py le gérera
+                    'created_at': guild.created_at
                 }
                 await self.db.cache_guild_info(guild.id, guild_info, UpdateSource.BOT_JOIN)
 
@@ -391,83 +457,59 @@ class ModdyBot(commands.Bot):
         statuses = [
             ("watching", f"{len(self.guilds)} serveurs"),
             ("playing", "/help"),
-            ("listening", "vos commandes"),
-            ("watching", f"{len(self.users)} utilisateurs")
+            ("watching", "les modérateurs"),
+            ("playing", f"avec {len(self.users)} utilisateurs")
         ]
 
+        # Ajoute des statuts spéciaux si connecté à la BDD
+        if self.db:
+            try:
+                stats = await self.db.get_stats()
+                if stats.get('beta_users', 0) > 0:
+                    statuses.append(("playing", f"en beta avec {stats['beta_users']} testeurs"))
+            except:
+                pass
+
+        # Choix aléatoire
         import random
-        status_type, status_name = random.choice(statuses)
+        activity_type, name = random.choice(statuses)
 
-        activity_type = getattr(discord.ActivityType, status_type)
-        activity = discord.Activity(type=activity_type, name=status_name)
+        activity = discord.Activity(
+            type=getattr(discord.ActivityType, activity_type),
+            name=name
+        )
 
-        await self.change_presence(activity=activity)
+        try:
+            await self.change_presence(activity=activity)
+        except (AttributeError, ConnectionError):
+            # Ignorer si on est en train de fermer
+            pass
+        except Exception as e:
+            logger.error(f"Erreur changement de statut : {e}")
 
     @status_update.before_loop
     async def before_status_update(self):
-        """Attend que le bot soit prêt avant de démarrer la boucle"""
+        """Attendre que le bot soit prêt avant de démarrer la tâche"""
         await self.wait_until_ready()
 
     async def close(self):
         """Fermeture propre du bot"""
-        logger.info("🔄 Fermeture du bot...")
+        logger.info("🔄 Fermeture en cours...")
 
-        # Arrête les tâches
-        self.status_update.cancel()
+        # Arrête les tâches AVANT de fermer
+        if self.status_update.is_running():
+            self.status_update.cancel()
+
+        # Attendre un peu pour que les tâches se terminent
+        await asyncio.sleep(0.1)
 
         # Ferme la connexion BDD
         if self.db:
             await self.db.close()
 
-        # Appelle la méthode parent
+        # Ferme proprement le client HTTP
+        if hasattr(self, 'http') and self.http and hasattr(self.http, '_HTTPClient__session'):
+            await self.http._HTTPClient__session.close()
+
+        # Ferme le bot
         await super().close()
-
-    # ========== Méthodes utilitaires ==========
-
-    def get_uptime(self) -> str:
-        """Retourne l'uptime formaté du bot"""
-        delta = datetime.now(timezone.utc) - self.launch_time
-        days = delta.days
-        hours, remainder = divmod(delta.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        parts = []
-        if days > 0:
-            parts.append(f"{days}j")
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0:
-            parts.append(f"{minutes}m")
-        if seconds > 0 or not parts:
-            parts.append(f"{seconds}s")
-
-        return " ".join(parts)
-
-    async def get_or_fetch_user(self, user_id: int) -> Optional[discord.User]:
-        """Récupère un utilisateur depuis le cache ou l'API"""
-        user = self.get_user(user_id)
-        if not user:
-            try:
-                user = await self.fetch_user(user_id)
-            except:
-                pass
-        return user
-
-    async def get_or_fetch_guild(self, guild_id: int) -> Optional[discord.Guild]:
-        """Récupère un serveur depuis le cache ou l'API"""
-        guild = self.get_guild(guild_id)
-        if not guild:
-            try:
-                guild = await self.fetch_guild(guild_id)
-            except:
-                pass
-        return guild
-
-    async def invalidate_prefix_cache(self, guild_id: int):
-        """Invalide le cache de préfixe pour un serveur"""
-        self.prefix_cache.pop(guild_id, None)
-        logger.debug(f"Cache de préfixe invalidé pour le serveur {guild_id}")
-
-
-# Instance globale du bot (pour certains cogs qui en ont besoin)
-bot = None
