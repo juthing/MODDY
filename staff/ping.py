@@ -1,7 +1,7 @@
 """
-Commande ping pour développeurs
-Affiche des informations détaillées sur le statut du bot
-Style épuré sans emojis système
+Ping command for developers.
+Displays detailed information about the bot's status.
+Clean style without system emojis.
 """
 
 import discord
@@ -13,7 +13,7 @@ import psutil
 from datetime import datetime, timezone
 from typing import Optional
 
-# Import du système d'embeds épuré
+# Import the clean embed system
 import sys
 from pathlib import Path
 
@@ -23,35 +23,35 @@ from config import COLORS
 
 
 class StaffDiagnostic(commands.Cog):
-    """Commandes de diagnostic pour développeurs"""
+    """Diagnostic commands for developers."""
 
     def __init__(self, bot):
         self.bot = bot
 
     async def cog_check(self, ctx):
-        """Vérifie que l'utilisateur est développeur"""
+        """Checks if the user is a developer."""
         return self.bot.is_developer(ctx.author.id)
 
     @commands.command(name="diag", aliases=["diagnostic", "sysinfo"])
     async def diagnostic(self, ctx):
-        """Affiche le statut détaillé du bot"""
+        """Displays the detailed status of the bot."""
 
-        # Message de chargement
-        loading_embed = ModdyResponse.loading("Diagnostic en cours...")
+        # Loading message
+        loading_embed = ModdyResponse.loading("Running diagnostic...")
         msg = await ctx.send(embed=loading_embed)
 
-        # Mesure de la latence du message
+        # Measure message latency
         start_time = time.perf_counter()
 
-        # Tests de latence
+        # Latency tests
         api_latency = round(self.bot.latency * 1000, 2)
 
-        # Latence du message
+        # Message latency
         end_time = time.perf_counter()
         message_latency = round((end_time - start_time) * 1000, 2)
 
-        # Test de la base de données
-        db_status = "Non connectée"
+        # Database test
+        db_status = "Not Connected"
         db_latency = "N/A"
 
         if self.bot.db_pool:
@@ -61,11 +61,11 @@ class StaffDiagnostic(commands.Cog):
                     await conn.fetchval("SELECT 1")
                 db_end = time.perf_counter()
                 db_latency = f"`{round((db_end - db_start) * 1000, 2)}ms`"
-                db_status = "Opérationnelle"
+                db_status = "Operational"
             except Exception as e:
-                db_status = f"Erreur : `{type(e).__name__}`"
+                db_status = f"Error: `{type(e).__name__}`"
 
-        # Informations système
+        # System information
         process = psutil.Process()
         memory_usage = process.memory_info().rss / 1024 / 1024  # MB
         cpu_percent = process.cpu_percent(interval=0.1)
@@ -76,7 +76,7 @@ class StaffDiagnostic(commands.Cog):
         minutes, seconds = divmod(remainder, 60)
         uptime_str = f"{hours}h {minutes}m {seconds}s"
 
-        # Données pour l'embed
+        # Data for the embed
         diagnostic_data = {
             'api_latency': api_latency,
             'message_latency': message_latency,
@@ -96,17 +96,17 @@ class StaffDiagnostic(commands.Cog):
             'author': str(ctx.author)
         }
 
-        # Créer l'embed de diagnostic
+        # Create the diagnostic embed
         embed = format_diagnostic_embed(diagnostic_data)
 
-        # Créer la vue avec les boutons
+        # Create the view with buttons
         view = DiagnosticView(self.bot, ctx.author)
 
         await msg.edit(embed=embed, view=view)
 
     @commands.command(name="ping", aliases=["p"])
     async def fast_ping(self, ctx):
-        """Ping rapide sans détails"""
+        """Quick ping without details."""
         start = time.perf_counter()
         msg = await ctx.send("Pong!")
         end = time.perf_counter()
@@ -117,7 +117,7 @@ class StaffDiagnostic(commands.Cog):
 
 
 class DiagnosticView(discord.ui.View):
-    """Vue avec boutons pour le diagnostic"""
+    """View with buttons for the diagnostic."""
 
     def __init__(self, bot, author):
         super().__init__(timeout=60)
@@ -125,47 +125,47 @@ class DiagnosticView(discord.ui.View):
         self.author = author
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Vérifie que seul l'auteur peut utiliser les boutons"""
+        """Checks that only the author can use the buttons."""
         if interaction.user != self.author:
             await interaction.response.send_message(
-                "Seul l'auteur de la commande peut utiliser ces boutons.",
+                "Only the command author can use these buttons.",
                 ephemeral=True
             )
             return False
         return True
 
-    @discord.ui.button(label="Rafraîchir", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Refresh", style=discord.ButtonStyle.primary)
     async def refresh(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Rafraîchit les statistiques"""
-        await interaction.response.send_message("Rafraîchissement...", ephemeral=True)
+        """Refreshes the statistics."""
+        await interaction.response.send_message("Refreshing...", ephemeral=True)
 
-        # Relance la commande
+        # Rerun the command
         ctx = await self.bot.get_context(interaction.message)
         ctx.author = self.author
         await self.bot.get_command("diag").invoke(ctx)
 
-    @discord.ui.button(label="Collecter les déchets", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Garbage Collect", style=discord.ButtonStyle.secondary)
     async def garbage_collect(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Force le garbage collector Python"""
+        """Forces the Python garbage collector."""
         import gc
         collected = gc.collect()
         await interaction.response.send_message(
-            f"Garbage collector exécuté : `{collected}` objets libérés",
+            f"Garbage collector run: `{collected}` objects freed.",
             ephemeral=True
         )
 
     @discord.ui.button(label="Logs", style=discord.ButtonStyle.secondary)
     async def show_logs(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Affiche les derniers logs"""
+        """Displays the latest logs."""
         from config import LOG_FILE
 
         if LOG_FILE.exists():
             with open(LOG_FILE, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
-                last_logs = ''.join(lines[-10:])  # 10 dernières lignes
+                last_logs = ''.join(lines[-10:])  # 10 last lines
 
             embed = discord.Embed(
-                title="Derniers logs",
+                title="Latest Logs",
                 description=f"```\n{last_logs[-1900:]}\n```",
                 color=COLORS["developer"]
             )
@@ -176,13 +176,13 @@ class DiagnosticView(discord.ui.View):
             )
         else:
             await interaction.response.send_message(
-                "Aucun fichier de log trouvé",
+                "No log file found.",
                 ephemeral=True
             )
 
-    @discord.ui.button(label="Fermer", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Close", style=discord.ButtonStyle.danger)
     async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Ferme le diagnostic"""
+        """Closes the diagnostic."""
         await interaction.response.defer()
         await interaction.delete_original_response()
         self.stop()
