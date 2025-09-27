@@ -71,7 +71,7 @@ class ModdyDatabase:
                     user_id BIGINT,
                     guild_id BIGINT,
                     command VARCHAR(100),
-                    timestamp TIMESTAMP DEFAULT NOW(),
+                    timestamp TIMESTAMPTZ DEFAULT NOW(),
                     context JSONB DEFAULT '{}'::jsonb
                 )
             """)
@@ -92,8 +92,8 @@ class ModdyDatabase:
                     icon_url TEXT,
                     features TEXT[],
                     member_count INTEGER,
-                    created_at TIMESTAMP,
-                    last_updated TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMPTZ,
+                    last_updated TIMESTAMPTZ DEFAULT NOW(),
                     update_source VARCHAR(50),
                     raw_data JSONB DEFAULT '{}'::jsonb
                 )
@@ -109,8 +109,8 @@ class ModdyDatabase:
                     user_id BIGINT PRIMARY KEY,
                     attributes JSONB DEFAULT '{}'::jsonb,
                     data JSONB DEFAULT '{}'::jsonb,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
 
@@ -124,8 +124,8 @@ class ModdyDatabase:
                     guild_id BIGINT PRIMARY KEY,
                     attributes JSONB DEFAULT '{}'::jsonb,
                     data JSONB DEFAULT '{}'::jsonb,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
                 )
             """)
 
@@ -143,7 +143,7 @@ class ModdyDatabase:
                     old_value TEXT,
                     new_value TEXT,
                     changed_by BIGINT,
-                    changed_at TIMESTAMP DEFAULT NOW(),
+                    changed_at TIMESTAMPTZ DEFAULT NOW(),
                     reason TEXT
                 )
             """)
