@@ -195,6 +195,12 @@ class ModdyDatabase:
         # Crée une copie des données pour la sérialisation JSON
         # afin de ne pas modifier le dictionnaire original.
         serializable_info = info.copy()
+        created_at_dt = info.get('created_at')
+
+        # Correction du fuseau horaire pour 'created_at'
+        if isinstance(created_at_dt, datetime) and created_at_dt.tzinfo is None:
+            created_at_dt = created_at_dt.replace(tzinfo=timezone.utc)
+
         if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
             serializable_info['created_at'] = serializable_info['created_at'].isoformat()
 
@@ -217,7 +223,7 @@ class ModdyDatabase:
                 info.get('icon_url'),
                 info.get('features', []),
                 info.get('member_count'),
-                info.get('created_at'),  # Garde le datetime pour la colonne TIMESTAMP
+                created_at_dt,  # Utilise le datetime corrigé
                 source.value,
                 json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
             )
