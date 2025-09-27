@@ -1,6 +1,6 @@
 """
-Système Incognito pour les commandes slash de Moddy
-Permet aux utilisateurs de contrôler la visibilité de leurs réponses
+Incognito system for Moddy's slash commands
+Allows users to control the visibility of their responses
 """
 
 import discord
@@ -11,49 +11,49 @@ import functools
 
 def add_incognito_option(default_value: bool = True):
     """
-    Décorateur qui ajoute l'option incognito à une commande slash
+    Decorator that adds the incognito option to a slash command
 
     Args:
-        default_value: Valeur par défaut si pas de préférence utilisateur
+        default_value: Default value if no user preference is set
     """
 
     def decorator(func):
-        # Wrapper qui ajoute le paramètre incognito
+        # Wrapper that adds the incognito parameter
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, incognito: Optional[bool] = None, **kwargs):
-            # IMPORTANT : Si incognito n'est pas spécifié explicitement dans la commande
-            # on vérifie la préférence utilisateur
+            # IMPORTANT: If incognito is not specified explicitly in the command
+            # we check the user's preference
             if incognito is None:
-                # Vérifie d'abord l'attribut utilisateur pour la préférence par défaut
+                # First, check the user attribute for the default preference
                 if hasattr(self, 'bot') and self.bot.db:
                     try:
-                        # Récupère la préférence DEFAULT_INCOGNITO
+                        # Get the DEFAULT_INCOGNITO preference
                         user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
 
-                        # Si l'utilisateur a une préférence définie
+                        # If the user has a defined preference
                         if user_pref is not None:
-                            # Si DEFAULT_INCOGNITO est False, on veut que les messages soient publics par défaut
+                            # If DEFAULT_INCOGNITO is False, we want messages to be public by default
                             incognito = user_pref
                         else:
-                            # Pas de préférence définie, on utilise la valeur par défaut
+                            # No preference defined, use the default value
                             incognito = default_value
                     except Exception as e:
-                        # En cas d'erreur, on utilise la valeur par défaut
+                        # In case of an error, use the default value
                         import logging
                         logger = logging.getLogger('moddy')
-                        logger.error(f"Erreur récupération préférence incognito: {e}")
+                        logger.error(f"Error getting incognito preference: {e}")
                         incognito = default_value
                 else:
                     incognito = default_value
 
-            # Stocke la valeur incognito dans l'interaction pour que la commande puisse l'utiliser
+            # Store the incognito value in the interaction so the command can use it
             interaction.extras = getattr(interaction, 'extras', {})
             interaction.extras['incognito'] = incognito
 
-            # Appelle la fonction originale
+            # Call the original function
             return await func(self, interaction, *args, **kwargs)
 
-        # Ajoute le paramètre incognito aux annotations
+        # Add the incognito parameter to the annotations
         wrapper.__annotations__ = func.__annotations__.copy()
         wrapper.__annotations__['incognito'] = Optional[bool]
 
@@ -64,16 +64,16 @@ def add_incognito_option(default_value: bool = True):
 
 def get_incognito_setting(interaction: discord.Interaction) -> bool:
     """
-    Récupère le réglage incognito depuis l'interaction
+    Gets the incognito setting from the interaction
 
     Args:
-        interaction: L'interaction Discord
+        interaction: The Discord interaction
 
     Returns:
-        bool: True si ephemeral (privé), False si public
+        bool: True if ephemeral (private), False if public
     """
     return interaction.extras.get('incognito', True) if hasattr(interaction, 'extras') else True
 
 
-# Export des fonctions principales
+# Export of the main functions
 __all__ = ['add_incognito_option', 'get_incognito_setting']

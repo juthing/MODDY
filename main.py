@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Moddy - Script de lancement avec services intégrés
-Lance le bot Discord et tous les services associés (webhook JSK, etc.)
+Moddy - Startup script with integrated services
+Launches the Discord bot and all associated services (JSK webhook, etc.)
 """
 
 import asyncio
@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any
 import signal
 import atexit
 
-# Windows : fix pour les couleurs
+# Windows: color fix
 if sys.platform == "win32":
     try:
         import colorama
@@ -25,48 +25,48 @@ if sys.platform == "win32":
     except ImportError:
         pass
 
-# Vérifie la version de Python
+# Checking Python version
 if sys.version_info < (3, 11):
-    print("❌ Python 3.11+ est requis !")
+    print("❌ Python 3.11+ is required!")
     sys.exit(1)
 
 
 class ServiceManager:
-    """Gestionnaire des services Moddy (webhook JSK, etc.)"""
+    """Moddy Service Manager (JSK webhook, etc.)"""
 
     def __init__(self):
         self.services: Dict[str, Dict[str, Any]] = {}
         self.logger = logging.getLogger('moddy.services')
         self.running = True
 
-        # S'assure de tout nettoyer à la fin
+        # Ensures everything is cleaned up on exit
         atexit.register(self.cleanup)
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
-        """Gère les signaux d'arrêt."""
-        self.logger.info("📍 Signal d'arrêt reçu, fermeture des services...")
+        """Handles shutdown signals."""
+        self.logger.info("📍 Shutdown signal received, closing services...")
         self.cleanup()
 
     def start_service(self, name: str, command: list, health_check_url: Optional[str] = None):
         """
-        Démarre un service en subprocess avec redirection des logs.
+        Starts a service in a subprocess with log redirection.
 
         Args:
-            name: Nom du service
-            command: Commande à exécuter
-            health_check_url: URL pour vérifier que le service est prêt
+            name: Service name
+            command: Command to execute
+            health_check_url: URL to check if the service is ready
         """
         if name in self.services and self.services[name].get('process'):
             if self.services[name]['process'].poll() is None:
-                self.logger.info(f"✅ {name} déjà actif")
+                self.logger.info(f"✅ {name} is already active")
                 return True
 
         try:
-            self.logger.info(f"🚀 Démarrage du service {name}...")
+            self.logger.info(f"🚀 Starting service {name}...")
 
-            # Lance le processus
+            # Starts the process
             process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
@@ -77,7 +77,7 @@ class ServiceManager:
                 cwd=Path(__file__).parent
             )
 
-            # Thread pour lire et afficher les logs
+            # Thread to read and display logs
             log_thread = threading.Thread(
                 target=self._stream_logs,
                 args=(name, process),
@@ -92,32 +92,32 @@ class ServiceManager:
                 'health_check_url': health_check_url
             }
 
-            # Attendre que le service soit prêt
+            # Waiting for the service to be ready
             if health_check_url:
                 if self._wait_for_service(name, health_check_url):
-                    self.logger.info(f"✅ {name} opérationnel")
+                    self.logger.info(f"✅ {name} is operational")
                     return True
                 else:
-                    self.logger.error(f"❌ {name} n'a pas démarré correctement")
+                    self.logger.error(f"❌ {name} did not start correctly")
                     self.stop_service(name)
                     return False
             else:
-                # Pas de health check, on assume que c'est bon après un délai
+                # No health check, assuming it's okay after a delay
                 time.sleep(2)
                 if process.poll() is None:
-                    self.logger.info(f"✅ {name} lancé (pas de health check)")
+                    self.logger.info(f"✅ {name} launched (no health check)")
                     return True
                 else:
-                    self.logger.error(f"❌ {name} s'est arrêté immédiatement")
+                    self.logger.error(f"❌ {name} stopped immediately")
                     return False
 
         except Exception as e:
-            self.logger.error(f"❌ Erreur démarrage {name}: {e}")
+            self.logger.error(f"❌ Error starting {name}: {e}")
             return False
 
     def _stream_logs(self, service_name: str, process: subprocess.Popen):
         """
-        Lit et affiche les logs d'un service en temps réel.
+        Reads and displays logs from a service in real time.
         """
         logger = logging.getLogger(f'moddy.services.{service_name}')
 
@@ -128,10 +128,10 @@ class ServiceManager:
                     if not line:
                         break
 
-                    # Nettoie et affiche la ligne
+                    # Cleans and displays the line
                     line = line.strip()
                     if line:
-                        # Détermine le niveau de log
+                        # Determines the log level
                         if 'ERROR' in line or 'CRITICAL' in line or '❌' in line:
                             logger.error(line)
                         elif 'WARNING' in line or 'WARN' in line or '⚠️' in line:
@@ -141,19 +141,19 @@ class ServiceManager:
                         else:
                             logger.info(line)
 
-                # Vérifie si le processus est toujours actif
+                # Checks if the process is still active
                 if process.poll() is not None:
                     if self.running:
-                        logger.warning(f"⚠️ {service_name} s'est arrêté (code: {process.returncode})")
+                        logger.warning(f"⚠️ {service_name} has stopped (code: {process.returncode})")
                     break
 
         except Exception as e:
             if self.running:
-                logger.error(f"Erreur lecture logs: {e}")
+                logger.error(f"Error reading logs: {e}")
 
     def _wait_for_service(self, name: str, health_check_url: str, timeout: int = 10) -> bool:
         """
-        Attend qu'un service soit prêt en vérifiant son endpoint de santé.
+        Waits for a service to be ready by checking its health endpoint.
         """
         import urllib.request
         import urllib.error
@@ -169,14 +169,14 @@ class ServiceManager:
                 time.sleep(0.5)
                 continue
 
-            # Vérifie que le processus est toujours actif
+            # Checks if the process is still active
             if name in self.services and self.services[name]['process'].poll() is not None:
                 return False
 
         return False
 
     def stop_service(self, name: str):
-        """Arrête un service proprement."""
+        """Stops a service cleanly."""
         if name not in self.services:
             return
 
@@ -185,23 +185,23 @@ class ServiceManager:
             process = service['process']
 
             if process.poll() is None:
-                self.logger.info(f"⏹️  Arrêt du service {name}...")
+                self.logger.info(f"⏹️  Stopping service {name}...")
 
-                # Essaie d'arrêter proprement
+                # Trying to stop cleanly
                 process.terminate()
                 try:
                     process.wait(timeout=5)
-                    self.logger.info(f"✅ {name} arrêté proprement")
+                    self.logger.info(f"✅ {name} stopped cleanly")
                 except subprocess.TimeoutExpired:
-                    # Force l'arrêt
-                    self.logger.warning(f"⚠️ Force l'arrêt de {name}")
+                    # Forcing stop
+                    self.logger.warning(f"⚠️ Forcing stop of {name}")
                     process.kill()
                     process.wait()
 
             del self.services[name]
 
     def restart_service(self, name: str):
-        """Redémarre un service."""
+        """Restarts a service."""
         if name in self.services:
             service_info = self.services[name].copy()
             self.stop_service(name)
@@ -213,13 +213,13 @@ class ServiceManager:
             )
 
     def cleanup(self):
-        """Arrête tous les services."""
+        """Stops all services."""
         self.running = False
         for name in list(self.services.keys()):
             self.stop_service(name)
 
     def get_status(self) -> Dict[str, str]:
-        """Retourne le statut de tous les services."""
+        """Returns the status of all services."""
         status = {}
         for name, service in self.services.items():
             if service.get('process'):
@@ -232,22 +232,22 @@ class ServiceManager:
         return status
 
 
-# Instance globale du gestionnaire de services
+# Global instance of the service manager
 service_manager = ServiceManager()
 
 
 def setup_logging():
-    """Configure le système de logging unifié."""
+    """Configures the unified logging system."""
 
-    # Format des logs
+    # Log format
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     date_format = '%Y-%m-%d %H:%M:%S'
 
-    # Handler console avec couleurs
+    # Console handler with colors
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
 
-    # Formateur personnalisé avec couleurs (si disponible)
+    # Custom formatter with colors (if available)
     try:
         from colorlog import ColoredFormatter
         colored_format = '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -265,7 +265,7 @@ def setup_logging():
     except ImportError:
         console_handler.setFormatter(logging.Formatter(log_format, date_format))
 
-    # Handler fichier
+    # File handler
     log_dir = Path(__file__).parent / 'logs'
     log_dir.mkdir(exist_ok=True)
 
@@ -276,13 +276,13 @@ def setup_logging():
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(log_format, date_format))
 
-    # Configuration du logger racine
+    # Root logger configuration
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
-    # Réduit le bruit de certains modules
+    # Reduces noise from certain modules
     logging.getLogger('discord').setLevel(logging.WARNING)
     logging.getLogger('discord.http').setLevel(logging.WARNING)
     logging.getLogger('asyncio').setLevel(logging.WARNING)
@@ -291,16 +291,16 @@ def setup_logging():
 
 
 async def start_services():
-    """Démarre tous les services nécessaires avant le bot."""
+    """Starts all necessary services before the bot."""
     logger = logging.getLogger('moddy')
 
-    # Vérifie si le webhook JSK doit être lancé
+    # Checks if the JSK webhook should be launched
     if os.environ.get('ENABLE_JSK_WEBHOOK', 'true').lower() == 'true':
-        # Vérifie si le module existe
+        # Checks if the module exists
         jsk_webhook_path = Path(__file__).parent / 'services' / 'jsk_webhook.py'
 
         if jsk_webhook_path.exists():
-            # Lance le webhook JSK
+            # Launches the JSK webhook
             jsk_port = os.environ.get('JSK_WEBHOOK_PORT', '8100')
             success = service_manager.start_service(
                 'JSK-Webhook',
@@ -309,58 +309,58 @@ async def start_services():
             )
 
             if not success:
-                logger.warning("⚠️ Le webhook JSK n'a pas pu démarrer, mais le bot continue")
+                logger.warning("⚠️ The JSK webhook could not be started, but the bot will continue")
         else:
-            logger.info("ℹ️ Module webhook JSK non trouvé, skip")
+            logger.info("ℹ️ JSK webhook module not found, skipping")
 
-    # Ici on peut ajouter d'autres services si besoin
-    # service_manager.start_service('autre-service', [...])
+    # Other services can be added here if needed
+    # service_manager.start_service('other-service', [...])
 
-    # Affiche le statut des services
+    # Displays the status of services
     status = service_manager.get_status()
     if status:
-        logger.info("📊 Statut des services:")
+        logger.info("📊 Services status:")
         for name, state in status.items():
             logger.info(f"  • {name}: {state}")
 
 
 async def main():
-    """Lance le bot et tous les services."""
+    """Launches the bot and all services."""
 
-    # Configure le logging
+    # Configuring logging
     logger = setup_logging()
-    logger.info("🔧 Initialisation de Moddy...")
+    logger.info("🔧 Initializing Moddy...")
 
     try:
-        # Démarre les services externes
+        # Starting external services
         await start_services()
 
-        # Import ici pour avoir les erreurs après le logging
+        # Import here to get errors after logging
         from bot import ModdyBot
         from config import TOKEN
 
         if not TOKEN:
-            logger.error("❌ Token Discord manquant ! Vérifiez votre fichier .env")
+            logger.error("❌ Discord token missing! Check your .env file")
             return
 
-        # Crée le bot avec référence au service manager
+        # Creates the bot with a reference to the service manager
         bot = ModdyBot()
-        bot.service_manager = service_manager  # Ajoute la référence
+        bot.service_manager = service_manager  # Adds the reference
 
-        # Ajoute une commande pour gérer les services (pour les devs)
+        # Adds a command to manage services (for devs)
         @bot.command(name='services')
         async def services_command(ctx):
-            """Affiche le statut des services (dev only)."""
+            """Displays the status of services (dev only)."""
             if not bot.is_developer(ctx.author.id):
                 return
 
             status = service_manager.get_status()
             if not status:
-                await ctx.send("📭 Aucun service actif")
+                await ctx.send("📭 No active services")
                 return
 
             embed = discord.Embed(
-                title="📊 Statut des services",
+                title="📊 Services Status",
                 color=discord.Color.blue()
             )
 
@@ -371,15 +371,15 @@ async def main():
 
         @bot.command(name='restart-service')
         async def restart_service_command(ctx, service_name: str):
-            """Redémarre un service spécifique (dev only)."""
+            """Restarts a specific service (dev only)."""
             if not bot.is_developer(ctx.author.id):
                 return
 
             if service_name not in service_manager.services:
-                await ctx.send(f"❌ Service '{service_name}' introuvable")
+                await ctx.send(f"❌ Service '{service_name}' not found")
                 return
 
-            await ctx.send(f"🔄 Redémarrage de {service_name}...")
+            await ctx.send(f"🔄 Restarting {service_name}...")
             service_manager.restart_service(service_name)
             await asyncio.sleep(3)
 
@@ -387,38 +387,38 @@ async def main():
             state = status.get(service_name, "Unknown")
             await ctx.send(f"Service {service_name}: {state}")
 
-        # Lance le bot
-        logger.info("🚀 Démarrage du bot Discord...")
+        # Starts the bot
+        logger.info("🚀 Starting Discord bot...")
         await bot.start(TOKEN)
 
     except ImportError as e:
-        logger.error(f"❌ Erreur d'import : {e}")
-        logger.error("Vérifiez que bot.py et config.py existent.")
+        logger.error(f"❌ Import error: {e}")
+        logger.error("Check that bot.py and config.py exist.")
         sys.exit(1)
     except KeyboardInterrupt:
-        logger.info("⏹️ Arrêt demandé")
+        logger.info("⏹️ Shutdown requested")
     except RuntimeError as e:
         if "Session is closed" in str(e):
-            logger.info("🔄 Fermeture pour redémarrage")
+            logger.info("🔄 Closing for restart")
         else:
-            logger.error(f"❌ Erreur runtime : {e}")
+            logger.error(f"❌ Runtime error: {e}")
     except Exception as e:
-        logger.error(f"❌ Erreur fatale : {e}", exc_info=True)
+        logger.error(f"❌ Fatal error: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        # Nettoie les services
-        logger.info("🧹 Nettoyage des services...")
+        # Cleaning up services
+        logger.info("🧹 Cleaning up services...")
         service_manager.cleanup()
 
 
 if __name__ == "__main__":
     try:
-        # Importe discord pour la commande services
+        # Imports discord for the services command
         import discord
 
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n👋 À bientôt !")
+        print("\n👋 Goodbye!")
     finally:
-        # S'assure que tout est bien nettoyé
+        # Ensures everything is properly cleaned up
         service_manager.cleanup()

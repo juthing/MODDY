@@ -30,7 +30,7 @@ class ModdyDatabase:
         self.database_url = database_url or "postgresql://moddy:password@localhost/moddy"
 
     async def connect(self):
-        """Établit la connexion à la base de données"""
+        """Establishes the database connection"""
         try:
             self.pool = await asyncpg.create_pool(
                 self.database_url,
@@ -42,24 +42,24 @@ class ModdyDatabase:
                     'jit': 'off'
                 }
             )
-            logger.info("✅ Base de données PostgreSQL connectée")
+            logger.info("✅ PostgreSQL database connected")
 
-            # Initialise les tables
+            # Initialize tables
             await self._init_tables()
 
         except Exception as e:
-            logger.error(f"❌ Erreur connexion PostgreSQL: {e}")
+            logger.error(f"❌ PostgreSQL connection error: {e}")
             raise
 
     async def close(self):
-        """Ferme la connexion"""
+        """Closes the connection"""
         if self.pool:
             await self.pool.close()
 
     async def _init_tables(self):
-        """Crée les tables si elles n'existent pas"""
+        """Creates tables if they do not exist"""
         async with self.pool.acquire() as conn:
-            # Table des erreurs
+            # Errors table
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS errors (
                     error_code VARCHAR(8) PRIMARY KEY,
