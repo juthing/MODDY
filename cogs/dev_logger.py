@@ -1,6 +1,6 @@
 """
-Système de logging pour les commandes développeur
-Enregistre toutes les utilisations de commandes staff dans un canal dédié
+Logging system for developer commands
+Records all uses of staff commands in a dedicated channel
 """
 
 import discord
@@ -14,20 +14,20 @@ from config import COLORS
 
 
 class DevCommandLogger(commands.Cog):
-    """Logger automatique pour toutes les commandes dev"""
+    """Automatic logger for all dev commands"""
 
     def __init__(self, bot):
         self.bot = bot
-        self.log_channel_id = 1394323753701212291  # Canal de logs dev
-        self.command_stats = {}  # Statistiques d'utilisation
+        self.log_channel_id = 1394323753701212291  # Dev logs channel
+        self.command_stats = {}  # Usage statistics
 
     async def get_log_channel(self) -> Optional[discord.TextChannel]:
-        """Récupère le canal de logs"""
+        """Gets the log channel"""
         return self.bot.get_channel(self.log_channel_id)
 
     def is_dev_command(self, ctx: commands.Context) -> bool:
-        """Vérifie si c'est une commande dev"""
-        # Vérifie si le cog est dans le dossier staff
+        """Checks if it's a dev command"""
+        # Checks if the cog is in the staff folder
         if ctx.command and ctx.command.cog:
             cog_module = ctx.command.cog.__module__
             return cog_module.startswith('staff.')
@@ -41,78 +41,78 @@ class DevCommandLogger(commands.Cog):
             execution_time: float = 0.0,
             additional_info: Dict[str, Any] = None
     ):
-        """Log l'exécution d'une commande dev"""
+        """Logs the execution of a dev command"""
         channel = await self.get_log_channel()
         if not channel:
             return
 
-        # Détermine la couleur selon le résultat
+        # Determine the color based on the result
         if success:
             color = COLORS["success"]
-            status = "✅ Succès"
+            status = "✅ Success"
         else:
             color = COLORS["error"]
-            status = "❌ Échec"
+            status = "❌ Failure"
 
-        # Crée l'embed principal
+        # Create the main embed
         embed = discord.Embed(
-            title=f"Commande Dev : `{ctx.command.name}`",
+            title=f"Dev Command: `{ctx.command.name}`",
             color=color,
             timestamp=datetime.now(timezone.utc)
         )
 
-        # Informations sur l'utilisateur
+        # User information
         embed.add_field(
-            name="👤 Utilisateur",
+            name="👤 User",
             value=f"{ctx.author.mention}\n`{ctx.author}` (`{ctx.author.id}`)",
             inline=True
         )
 
-        # Informations sur le lieu d'exécution
+        # Information about the execution location
         if ctx.guild:
-            location = f"**Serveur :** {ctx.guild.name}\n**Canal :** {ctx.channel.mention}"
+            location = f"**Server:** {ctx.guild.name}\n**Channel:** {ctx.channel.mention}"
         else:
             location = "**DM**"
 
         embed.add_field(
-            name="📍 Lieu",
+            name="📍 Location",
             value=location,
             inline=True
         )
 
-        # Statut et temps d'exécution
+        # Status and execution time
         embed.add_field(
-            name="📊 Statut",
-            value=f"{status}\n**Temps :** `{execution_time:.2f}s`",
+            name="📊 Status",
+            value=f"{status}\n**Time:** `{execution_time:.2f}s`",
             inline=True
         )
 
-        # Commande complète
-        # Masquer les tokens ou infos sensibles
+        # Full command
+        # Mask tokens or sensitive info
         command_text = ctx.message.content
         if "token" in command_text.lower() or "secret" in command_text.lower():
-            # Masque les parties sensibles
+            # Mask sensitive parts
             words = command_text.split()
             for i, word in enumerate(words):
-                if len(word) > 20 and not word.startswith("<@"):  # Probablement un token
+                if len(word) > 20 and not word.startswith("<@"):  # Probably a token
                     words[i] = f"{word[:6]}...{word[-4:]}"
             command_text = " ".join(words)
 
         embed.add_field(
-            name="💬 Commande",
+            name="💬 Command",
             value=f"```\n{command_text[:500]}\n```",
             inline=False
         )
 
-        # Arguments de la commande
+        # Command arguments
         if ctx.args or ctx.kwargs:
             args_str = ""
-            if len(ctx.args) > 2:  # Ignore self et ctx
-                args_list = [repr(arg) for arg in ctx.args[2:]]  # Skip self et ctx
-                args_str += f"**Args :** {', '.join(args_list[:5])}\n"
+            if len(ctx.args) > 2:  # Ignore self and ctx
+                args_list = [repr(arg) for arg in ctx.args[2:]]  # Skip self and ctx
+                args_str += f"**Args:** {', '.join(args_list[:5])}\n"
             if ctx.kwargs:
                 kwargs_list = [f"{k}={repr(v)}" for k, v in list(ctx.kwargs.items())[:5]]
-                args_str += f"**Kwargs :** {', '.join(kwargs_list)}"
+                args_str += f"**Kwargs:** {', '.join(kwargs_list)}"
 
             if args_str:
                 embed.add_field(
@@ -121,63 +121,63 @@ class DevCommandLogger(commands.Cog):
                     inline=False
                 )
 
-        # Erreur si échec
+        # Error if failure
         if error:
-            error_details = f"**Type :** `{type(error).__name__}`\n"
-            error_details += f"**Message :** {str(error)[:200]}"
+            error_details = f"**Type:** `{type(error).__name__}`\n"
+            error_details += f"**Message:** {str(error)[:200]}"
 
-            # Traceback court pour les erreurs graves
+            # Short traceback for serious errors
             if not isinstance(error, (commands.CommandError, commands.CheckFailure)):
                 tb_lines = traceback.format_exception(type(error), error, error.__traceback__)
                 tb_short = '\n'.join(tb_lines[-3:])[:500]
                 error_details += f"\n```py\n{tb_short}\n```"
 
             embed.add_field(
-                name="⚠️ Erreur",
+                name="⚠️ Error",
                 value=error_details,
                 inline=False
             )
 
-        # Informations additionnelles
+        # Additional information
         if additional_info:
             info_str = "\n".join([f"**{k}:** {v}" for k, v in list(additional_info.items())[:5]])
             embed.add_field(
-                name="ℹ️ Infos supplémentaires",
+                name="ℹ️ Additional Info",
                 value=info_str[:1024],
                 inline=False
             )
 
-        # Footer avec des stats
+        # Footer with stats
         command_count = self.command_stats.get(ctx.command.name, 0) + 1
         self.command_stats[ctx.command.name] = command_count
         embed.set_footer(
-            text=f"Utilisation #{command_count} • Module: {ctx.command.cog.__class__.__name__}",
+            text=f"Usage #{command_count} • Module: {ctx.command.cog.__class__.__name__}",
             icon_url=ctx.author.display_avatar.url
         )
 
-        # Envoie le log
+        # Send the log
         try:
             await channel.send(embed=embed)
         except Exception as e:
-            print(f"Erreur lors de l'envoi du log: {e}")
+            print(f"Error sending log: {e}")
 
     @commands.Cog.listener()
     async def on_command(self, ctx: commands.Context):
-        """Appelé quand une commande commence"""
+        """Called when a command starts"""
         if self.is_dev_command(ctx):
-            # Stocke le temps de début
+            # Store the start time
             ctx.command_start_time = datetime.now()
 
     @commands.Cog.listener()
     async def on_command_completion(self, ctx: commands.Context):
-        """Appelé quand une commande se termine avec succès"""
+        """Called when a command successfully completes"""
         if self.is_dev_command(ctx):
-            # Calcule le temps d'exécution
+            # Calculate execution time
             execution_time = 0.0
             if hasattr(ctx, 'command_start_time'):
                 execution_time = (datetime.now() - ctx.command_start_time).total_seconds()
 
-            # Log le succès
+            # Log the success
             await self.log_command_execution(
                 ctx=ctx,
                 success=True,
@@ -186,14 +186,14 @@ class DevCommandLogger(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        """Appelé quand une commande échoue"""
+        """Called when a command fails"""
         if self.is_dev_command(ctx):
-            # Calcule le temps d'exécution
+            # Calculate execution time
             execution_time = 0.0
             if hasattr(ctx, 'command_start_time'):
                 execution_time = (datetime.now() - ctx.command_start_time).total_seconds()
 
-            # Log l'échec
+            # Log the failure
             await self.log_command_execution(
                 ctx=ctx,
                 success=False,
@@ -203,33 +203,33 @@ class DevCommandLogger(commands.Cog):
 
 
 class LoggingSystem(commands.Cog):
-    """Système de logging manuel pour les commandes dev"""
+    """Manual logging system for dev commands"""
 
     def __init__(self, bot):
         self.bot = bot
         self.log_channel_id = 1394323753701212291
 
     async def log_command(self, ctx: commands.Context, action: str, details: Dict[str, Any] = None):
-        """Log manuel pour des actions spécifiques"""
+        """Manual log for specific actions"""
         channel = self.bot.get_channel(self.log_channel_id)
         if not channel:
             return
 
         embed = discord.Embed(
-            title=f"🔧 Action Dev : {action}",
+            title=f"🔧 Dev Action: {action}",
             color=COLORS["info"],
             timestamp=datetime.now(timezone.utc)
         )
 
         embed.add_field(
-            name="Utilisateur",
+            name="User",
             value=f"{ctx.author.mention} (`{ctx.author.id}`)",
             inline=True
         )
 
         if ctx.guild:
             embed.add_field(
-                name="Serveur",
+                name="Server",
                 value=f"{ctx.guild.name}",
                 inline=True
             )
@@ -253,7 +253,7 @@ class LoggingSystem(commands.Cog):
             pass
 
     async def log_critical(self, title: str, description: str, ping_dev: bool = True):
-        """Log pour les événements critiques"""
+        """Log for critical events"""
         channel = self.bot.get_channel(self.log_channel_id)
         if not channel:
             return
@@ -267,10 +267,10 @@ class LoggingSystem(commands.Cog):
 
         content = None
         if ping_dev:
-            # Ping le premier dev de l'équipe
+            # Ping the first dev of the team
             if self.bot._dev_team_ids:
                 dev_id = next(iter(self.bot._dev_team_ids))
-                content = f"<@{dev_id}> Alerte critique !"
+                content = f"<@{dev_id}> Critical alert!"
 
         try:
             await channel.send(content=content, embed=embed)
@@ -279,7 +279,7 @@ class LoggingSystem(commands.Cog):
 
 
 async def setup(bot):
-    # Charge d'abord le logger automatique
+    # First, load the automatic logger
     await bot.add_cog(DevCommandLogger(bot))
-    # Puis le système de logging manuel
+    # Then, the manual logging system
     await bot.add_cog(LoggingSystem(bot))

@@ -1,6 +1,6 @@
 """
-Système de gestion de langue pour Moddy
-Intercepte les interactions et vérifie/définit la langue de l'utilisateur
+Language management system for Moddy
+Intercepts interactions and checks/sets the user's language
 """
 
 import discord
@@ -12,7 +12,7 @@ from config import COLORS
 
 
 class LanguageSelectView(discord.ui.View):
-    """Vue pour sélectionner la langue préférée"""
+    """View to select the preferred language"""
 
     def __init__(self, user_id: int):
         super().__init__(timeout=60)
@@ -21,7 +21,7 @@ class LanguageSelectView(discord.ui.View):
 
     @discord.ui.button(label="Français", emoji="🇫🇷", style=discord.ButtonStyle.primary)
     async def french_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Sélectionne le français"""
+        """Selects French"""
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(
                 "Cette sélection n'est pas pour vous.",
@@ -35,7 +35,7 @@ class LanguageSelectView(discord.ui.View):
 
     @discord.ui.button(label="English", emoji="🇬🇧", style=discord.ButtonStyle.primary)
     async def english_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Sélectionne l'anglais"""
+        """Selects English"""
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(
                 "This selection is not for you.",
@@ -49,16 +49,16 @@ class LanguageSelectView(discord.ui.View):
 
 
 class LanguageManager(commands.Cog):
-    """Gère la langue des utilisateurs pour toutes les interactions"""
+    """Manages user language for all interactions"""
 
     def __init__(self, bot):
         self.bot = bot
-        self.lang_cache = {}  # Cache pour éviter trop de requêtes DB
-        self.pending_interactions = {}  # Stocke les interactions en attente
-        # Dictionnaire pour stocker les langues des interactions en cours
+        self.lang_cache = {}  # Cache to avoid too many DB requests
+        self.pending_interactions = {}  # Stores pending interactions
+        # Dictionary to store the languages of ongoing interactions
         self.interaction_languages = {}
 
-        # Textes multilingues
+        # Multilingual texts
         self.texts = {
             "FR": {
                 "welcome": "Bienvenue sur Moddy !",
@@ -79,16 +79,16 @@ class LanguageManager(commands.Cog):
         }
 
     def get_text(self, lang: str, key: str) -> str:
-        """Récupère un texte dans la langue appropriée"""
+        """Gets a text in the appropriate language"""
         return self.texts.get(lang, self.texts["EN"]).get(key, key)
 
     async def get_user_language(self, user_id: int) -> Optional[str]:
-        """Récupère la langue d'un utilisateur (avec cache)"""
-        # Vérifie le cache d'abord
+        """Gets a user's language (with cache)"""
+        # Check the cache first
         if user_id in self.lang_cache:
             return self.lang_cache[user_id]
 
-        # Sinon vérifie la DB
+        # Otherwise, check the DB
         if self.bot.db:
             try:
                 lang = await self.bot.db.get_attribute('user', user_id, 'LANG')
@@ -99,41 +99,41 @@ class LanguageManager(commands.Cog):
         return None
 
     def get_interaction_language(self, interaction: discord.Interaction) -> Optional[str]:
-        """Récupère la langue stockée pour une interaction"""
+        """Gets the stored language for an interaction"""
         return self.interaction_languages.get(interaction.id)
 
     def set_interaction_language(self, interaction: discord.Interaction, lang: str):
-        """Stocke la langue pour une interaction"""
+        """Stores the language for an interaction"""
         self.interaction_languages[interaction.id] = lang
-        # Nettoie les vieilles entrées après 5 minutes
+        # Clean up old entries after 5 minutes
         asyncio.create_task(self._cleanup_interaction_language(interaction.id))
 
     async def _cleanup_interaction_language(self, interaction_id: str):
-        """Nettoie la langue d'une interaction après 5 minutes"""
+        """Cleans up an interaction's language after 5 minutes"""
         await asyncio.sleep(300)  # 5 minutes
         self.interaction_languages.pop(interaction_id, None)
 
     async def set_user_language(self, user_id: int, lang: str, set_by: int = None):
-        """Définit la langue d'un utilisateur"""
+        """Sets a user's language"""
         if self.bot.db:
             try:
                 await self.bot.db.set_attribute(
                     'user', user_id, 'LANG', lang,
-                    set_by or user_id, "Langue sélectionnée par l'utilisateur"
+                    set_by or user_id, "User-selected language"
                 )
-                # Met à jour le cache
+                # Update the cache
                 self.lang_cache[user_id] = lang
                 return True
             except Exception as e:
                 import logging
                 logger = logging.getLogger('moddy')
-                logger.error(f"Erreur définition langue: {e}")
+                logger.error(f"Error setting language: {e}")
                 return False
         return False
 
     async def prompt_language_selection(self, interaction: discord.Interaction) -> Optional[str]:
-        """Demande à l'utilisateur de choisir sa langue"""
-        # Crée l'embed bilingue
+        """Asks the user to choose their language"""
+        # Create the bilingual embed
         embed = discord.Embed(
             title="Language Selection / Sélection de la langue",
             description=(
@@ -145,10 +145,10 @@ class LanguageManager(commands.Cog):
             color=COLORS["info"]
         )
 
-        # Crée la vue avec les boutons
+        # Create the view with the buttons
         view = LanguageSelectView(interaction.user.id)
 
-        # Envoie le message
+        # Send the message
         try:
             if interaction.response.is_done():
                 msg = await interaction.followup.send(embed=embed, view=view, ephemeral=True)
@@ -156,15 +156,15 @@ class LanguageManager(commands.Cog):
                 await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 msg = await interaction.original_response()
 
-            # Attend la sélection
+            # Wait for the selection
             await view.wait()
 
             if view.selected_lang:
-                # Sauvegarde la langue
+                # Save the language
                 success = await self.set_user_language(interaction.user.id, view.selected_lang)
 
                 if success:
-                    # Message de confirmation
+                    # Confirmation message
                     confirm_embed = discord.Embed(
                         description=self.get_text(view.selected_lang, "language_set"),
                         color=COLORS["success"]
@@ -177,7 +177,7 @@ class LanguageManager(commands.Cog):
 
                     return view.selected_lang
                 else:
-                    # Erreur lors de la sauvegarde
+                    # Error while saving
                     error_embed = discord.Embed(
                         description="Error saving language preference / Erreur lors de la sauvegarde",
                         color=COLORS["error"]
@@ -202,41 +202,41 @@ class LanguageManager(commands.Cog):
         except Exception as e:
             import logging
             logger = logging.getLogger('moddy')
-            logger.error(f"Erreur sélection langue: {e}")
+            logger.error(f"Error during language selection: {e}")
             return None
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
-        """Intercepte toutes les interactions pour vérifier la langue"""
-        # Ignore les interactions du bot lui-même
+        """Intercepts all interactions to check the language"""
+        # Ignore interactions from the bot itself
         if interaction.user.bot:
             return
 
-        # Ignore les interactions qui ne sont pas des commandes
+        # Ignore interactions that are not commands
         if interaction.type != discord.InteractionType.application_command:
             return
 
-        # Ignore les commandes de développeur (elles restent en anglais)
+        # Ignore developer commands (they remain in English)
         if hasattr(interaction.command, 'module') and 'staff' in str(interaction.command.module):
             return
 
-        # Vérifie si l'utilisateur a une langue définie
+        # Check if the user has a defined language
         user_lang = await self.get_user_language(interaction.user.id)
 
         if not user_lang:
-            # L'utilisateur n'a pas de langue définie, on lui demande
-            # Stocke l'interaction originale
+            # The user does not have a defined language, we ask them
+            # Store the original interaction
             self.pending_interactions[interaction.user.id] = interaction
 
-            # Demande la langue
+            # Ask for the language
             selected_lang = await self.prompt_language_selection(interaction)
 
             if selected_lang:
-                # La langue a été sélectionnée, on peut continuer
-                # Stocke la langue dans notre dictionnaire
+                # The language has been selected, we can continue
+                # Store the language in our dictionary
                 self.set_interaction_language(interaction, selected_lang)
 
-                # Log l'action
+                # Log the action
                 if log_cog := self.bot.get_cog("LoggingSystem"):
                     await log_cog.log_command(
                         type('obj', (object,), {
@@ -248,21 +248,21 @@ class LanguageManager(commands.Cog):
                         {"language": selected_lang, "first_interaction": True}
                     )
             else:
-                # Erreur ou timeout, on arrête l'interaction
+                # Error or timeout, we stop the interaction
                 if interaction.user.id in self.pending_interactions:
                     del self.pending_interactions[interaction.user.id]
                 return
 
-            # Nettoie
+            # Clean up
             if interaction.user.id in self.pending_interactions:
                 del self.pending_interactions[interaction.user.id]
         else:
-            # L'utilisateur a déjà une langue, on la stocke
+            # The user already has a language, we store it
             self.set_interaction_language(interaction, user_lang)
 
     @commands.command(name="changelang", aliases=["cl", "lang"])
     async def change_language(self, ctx, lang: str = None):
-        """Change la langue de l'utilisateur (commande texte)"""
+        """Changes the user's language (text command)"""
         if not lang:
             current_lang = await self.get_user_language(ctx.author.id)
 
@@ -280,13 +280,13 @@ class LanguageManager(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        # Valide la langue
+        # Validate the language
         lang = lang.upper()
         if lang not in ["FR", "EN"]:
             await ctx.send("<:undone:1398729502028333218> Invalid language / Langue invalide. Use `FR` or `EN`.")
             return
 
-        # Change la langue
+        # Change the language
         success = await self.set_user_language(ctx.author.id, lang, ctx.author.id)
 
         if success:
@@ -299,31 +299,31 @@ class LanguageManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_app_command_completion(self, interaction: discord.Interaction, command):
-        """Nettoie le cache périodiquement après les commandes"""
-        # Nettoie le cache si trop grand
+        """Cleans the cache periodically after commands"""
+        # Clean the cache if it's too large
         if len(self.lang_cache) > 1000:
-            # Garde seulement les 500 derniers
+            # Keep only the last 500
             import itertools
             self.lang_cache = dict(itertools.islice(self.lang_cache.items(), 500))
 
-        # Nettoie aussi la langue de l'interaction
+        # Also clean the interaction's language
         self.interaction_languages.pop(interaction.id, None)
 
 
-# Fonction helper pour récupérer la langue d'une interaction
+# Helper function to get the language of an interaction
 def get_user_lang(interaction: discord.Interaction, bot) -> str:
-    """Récupère la langue de l'utilisateur pour une interaction"""
-    # Essaye de récupérer depuis le manager
+    """Gets the user's language for an interaction"""
+    # Try to get from the manager
     if lang_manager := bot.get_cog("LanguageManager"):
         lang = lang_manager.get_interaction_language(interaction)
         if lang:
             return lang
 
-        # Si pas trouvé dans l'interaction, cherche dans le cache
+        # If not found in the interaction, search the cache
         if interaction.user.id in lang_manager.lang_cache:
             return lang_manager.lang_cache[interaction.user.id]
 
-    # Par défaut, retourne EN
+    # By default, return EN
     return "EN"
 
 

@@ -1,7 +1,7 @@
 """
-Commande Jishaku pour Moddy
-Exécution de code Python pour debug avancé
-OWNER ONLY - Même les développeurs n'ont pas accès
+Jishaku command for Moddy
+Advanced Python code execution for debugging
+OWNER ONLY - Not even developers have access
 """
 
 import discord
@@ -26,33 +26,33 @@ from config import COLORS
 
 
 class JishakuCommand(commands.Cog):
-    """Commande Jishaku pour l'owner uniquement"""
+    """Jishaku command for the owner only"""
 
     def __init__(self, bot):
         self.bot = bot
         self._last_result = None
-        self.sessions = {}  # Stockage des sessions par utilisateur
+        self.sessions = {}  # Storage of sessions per user
 
     async def cog_check(self, ctx):
-        """Vérifie que l'utilisateur est l'owner du bot"""
+        """Checks if the user is the bot owner"""
         return ctx.author.id == 1164597199594852395
 
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        """Gestionnaire d'erreur local pour les commandes Jishaku."""
+        """Local error handler for Jishaku commands."""
         if isinstance(error, commands.CheckFailure):
             embed = ModdyResponse.error(
-                "Accès Refusé",
-                "Cette commande est strictement réservée au propriétaire du bot pour des raisons de sécurité."
+                "Access Denied",
+                "This command is strictly reserved for the bot owner for security reasons."
             )
             await ctx.send(embed=embed)
 
     def cleanup_code(self, content: str) -> str:
-        """Nettoie le code des balises markdown"""
-        # Enlève les ```py\n``` et ```
+        """Cleans the code of markdown tags"""
+        # Removes ```py\n``` and ```
         if content.startswith('```') and content.endswith('```'):
             content = '\n'.join(content.split('\n')[1:-1])
 
-        # Enlève les `py` au début si présent
+        # Removes `py` at the beginning if present
         content = content.strip('` \n')
         if content.startswith('py\n'):
             content = content[3:]
@@ -62,15 +62,15 @@ class JishakuCommand(commands.Cog):
         return content
 
     def get_syntax_error(self, e: SyntaxError) -> str:
-        """Formate une erreur de syntaxe"""
+        """Formats a syntax error"""
         if e.text is None:
             return f'```py\n{e.__class__.__name__}: {e}\n```'
         return f'```py\n{e.text}{"^":>{e.offset}}\n{e.__class__.__name__}: {e}```'
 
     async def run_code(self, ctx, code: str, *, add_return: bool = True) -> Optional[Any]:
-        """Exécute du code Python dans un environnement contrôlé"""
+        """Executes Python code in a controlled environment"""
 
-        # Variables d'environnement pour le code
+        # Environment variables for the code
         env = {
             'bot': self.bot,
             'ctx': ctx,
@@ -85,19 +85,19 @@ class JishakuCommand(commands.Cog):
             'asyncio': asyncio,
         }
 
-        # Ajoute les imports courants
+        # Add common imports
         env.update(globals())
 
-        # Nettoie le code
+        # Clean the code
         code = self.cleanup_code(code)
         stdout = io.StringIO()
 
-        # Prépare le code pour l'exécution
+        # Prepare the code for execution
         to_compile = f'async def func():\n{textwrap.indent(code, "  ")}'
 
-        # Essaye d'ajouter un return automatique si nécessaire
+        # Try to add an automatic return if necessary
         if add_return:
-            # Trouve la dernière ligne non vide
+            # Find the last non-empty line
             lines = code.split('\n')
             last_line_idx = -1
             for i in range(len(lines) - 1, -1, -1):
@@ -107,12 +107,12 @@ class JishakuCommand(commands.Cog):
 
             if last_line_idx >= 0:
                 last_line = lines[last_line_idx].strip()
-                # Vérifie si c'est une expression qui peut être retournée
+                # Check if it is an expression that can be returned
                 if not any(last_line.startswith(kw) for kw in
                            ['return', 'raise', 'pass', 'break', 'continue',
                             'if ', 'for ', 'while ', 'with ', 'def ', 'class ',
                             'try:', 'except:', 'finally:', 'elif ', 'else:']):
-                    # Ajoute return devant la dernière ligne
+                    # Add return before the last line
                     indent = len(lines[last_line_idx]) - len(lines[last_line_idx].lstrip())
                     lines[last_line_idx] = ' ' * indent + 'return ' + last_line
                     code = '\n'.join(lines)
@@ -135,11 +135,11 @@ class JishakuCommand(commands.Cog):
         else:
             value = stdout.getvalue()
 
-            # Stocke le résultat pour la prochaine exécution
+            # Store the result for the next execution
             if ret is not None:
                 self._last_result = ret
 
-            # Prépare la sortie
+            # Prepare the output
             if ret is None:
                 if value:
                     return f'```py\n{value}\n```'
@@ -151,15 +151,15 @@ class JishakuCommand(commands.Cog):
     @commands.command(name="jsk", aliases=["py", "jishaku", "exec", "eval"])
     async def jishaku(self, ctx, *, code: str = None):
         """
-        Commande Jishaku - Exécute du code Python
-        Owner only, même les développeurs n'ont pas accès
+        Jishaku command - Executes Python code
+        Owner only, not even developers have access
 
-        Variables disponibles:
+        Available variables:
         - ctx, bot, channel, author, guild, message
         - discord, commands, asyncio
-        - _ (dernier résultat)
+        - _ (last result)
 
-        Exemples:
+        Examples:
         jsk print("Hello")
         jsk return len(bot.guilds)
         jsk await ctx.send("Test")
@@ -168,72 +168,72 @@ class JishakuCommand(commands.Cog):
             embed = discord.Embed(
                 title="<:terminal:1398729532193853592> Jishaku",
                 description=(
-                    "**Commande d'exécution Python - Owner Only**\n\n"
+                    "**Python Execution Command - Owner Only**\n\n"
                     "```\n"
                     "jsk <code>\n"
                     "```\n"
-                    "**Variables disponibles:**\n"
-                    "• `ctx` - Contexte de la commande\n"
-                    "• `bot` - Instance du bot\n"
-                    "• `channel` - Salon actuel\n"
-                    "• `author` - Auteur de la commande\n"
-                    "• `guild` - Serveur actuel\n"
-                    "• `message` - Message de la commande\n"
-                    "• `_` - Dernier résultat retourné\n"
+                    "**Available variables:**\n"
+                    "• `ctx` - Command context\n"
+                    "• `bot` - Bot instance\n"
+                    "• `channel` - Current channel\n"
+                    "• `author` - Command author\n"
+                    "• `guild` - Current server\n"
+                    "• `message` - Command message\n"
+                    "• `_` - Last returned result\n"
                     "• Modules: `discord`, `commands`, `asyncio`"
                 ),
                 color=COLORS["primary"]
             )
-            embed.set_footer(text="⚠️ Cette commande est réservée à l'owner du bot")
+            embed.set_footer(text="⚠️ This command is reserved for the bot owner")
             await ctx.send(embed=embed)
             return
 
-        # Indicateur de traitement
+        # Processing indicator
         async with ctx.typing():
-            # Exécute le code
+            # Execute the code
             result = await self.run_code(ctx, code)
 
-        # Si pas de résultat ou résultat vide
+        # If no result or empty result
         if result is None or (isinstance(result, str) and result == '```py\n\n```'):
-            # Réaction de succès
+            # Success reaction
             try:
                 await ctx.message.add_reaction("<:done:1398729525277229066>")
             except:
                 pass
-        # Si erreur
+        # If error
         elif result and '```py\n' in result and 'Traceback' in result:
-            # Réaction d'erreur
+            # Error reaction
             try:
                 await ctx.message.add_reaction("<:undone:1398729502028333218>")
             except:
                 pass
 
-            # Envoie l'erreur si elle est courte
+            # Send the error if it is short
             if len(result) <= 2000:
                 await ctx.send(result)
             else:
-                # Si l'erreur est trop longue, l'envoie en fichier
+                # If the error is too long, send it as a file
                 file = discord.File(
                     io.BytesIO(result.encode('utf-8')),
                     filename='error.py'
                 )
-                await ctx.send("Erreur trop longue, envoyée en fichier:", file=file)
-        # Si résultat normal
+                await ctx.send("Error too long, sent as a file:", file=file)
+        # If normal result
         else:
-            # Envoie le résultat
+            # Send the result
             if result and len(result) <= 2000:
                 await ctx.send(result)
             elif result:
-                # Si le résultat est trop long, l'envoie en fichier
-                # Enlève les ``` pour le fichier
+                # If the result is too long, send it as a file
+                # Remove ``` for the file
                 clean_result = result.replace('```py\n', '').replace('\n```', '')
                 file = discord.File(
                     io.BytesIO(clean_result.encode('utf-8')),
                     filename='output.py'
                 )
-                await ctx.send("Résultat trop long, envoyé en fichier:", file=file)
+                await ctx.send("Result too long, sent as a file:", file=file)
             else:
-                # Réaction de succès si pas de sortie
+                # Success reaction if no output
                 try:
                     await ctx.message.add_reaction("<:done:1398729525277229066>")
                 except:
@@ -242,18 +242,18 @@ class JishakuCommand(commands.Cog):
     @commands.command(name="shell", aliases=["sh", "bash", "cmd"])
     async def shell(self, ctx, *, command: str = None):
         """
-        Exécute une commande shell/système
+        Executes a shell/system command
         Owner only
         """
         if not command:
             embed = discord.Embed(
                 title="<:terminal:1398729532193853592> Shell",
                 description=(
-                    "**Exécution de commandes système - Owner Only**\n\n"
+                    "**System command execution - Owner Only**\n\n"
                     "```\n"
-                    "shell <commande>\n"
+                    "shell <command>\n"
                     "```\n"
-                    "**Exemples:**\n"
+                    "**Examples:**\n"
                     "• `shell ls -la`\n"
                     "• `shell git status`\n"
                     "• `shell pip list`"
@@ -265,7 +265,7 @@ class JishakuCommand(commands.Cog):
 
         async with ctx.typing():
             try:
-                # Exécute la commande
+                # Execute the command
                 process = await asyncio.create_subprocess_shell(
                     command,
                     stdout=asyncio.subprocess.PIPE,
@@ -274,7 +274,7 @@ class JishakuCommand(commands.Cog):
 
                 stdout, stderr = await process.communicate()
 
-                # Décode les résultats
+                # Decode the results
                 result = ''
                 if stdout:
                     result += f'[stdout]\n{stdout.decode("utf-8", errors="ignore")}\n'
@@ -283,9 +283,9 @@ class JishakuCommand(commands.Cog):
                 if process.returncode != 0:
                     result += f'\n[Return code: {process.returncode}]'
 
-                # Limite la taille
+                # Limit the size
                 if len(result) > 1900:
-                    # Envoie en fichier si trop long
+                    # Send as a file if too long
                     file = discord.File(
                         io.BytesIO(result.encode('utf-8')),
                         filename='output.txt'
@@ -294,7 +294,7 @@ class JishakuCommand(commands.Cog):
                 else:
                     await ctx.send(f'```\n$ {command}\n{result}\n```')
 
-                # Réaction selon le code de retour
+                # Reaction according to the return code
                 if process.returncode == 0:
                     try:
                         await ctx.message.add_reaction("<:done:1398729525277229066>")
@@ -307,7 +307,7 @@ class JishakuCommand(commands.Cog):
                         pass
 
             except Exception as e:
-                await ctx.send(f'```\nErreur: {str(e)}\n```')
+                await ctx.send(f'```\nError: {str(e)}\n```')
                 try:
                     await ctx.message.add_reaction("<:undone:1398729502028333218>")
                 except:
@@ -316,99 +316,99 @@ class JishakuCommand(commands.Cog):
     @commands.command(name="load", aliases=["reload"])
     async def load_module(self, ctx, *, module: str = None):
         """
-        Charge ou recharge un module Python
+        Loads or reloads a Python module
         Owner only
         """
         if not module:
-            # Liste les modules chargés
+            # List loaded modules
             modules_list = [m for m in sys.modules.keys() if 'moddy' in m.lower() or 'cogs' in m or 'staff' in m]
             modules_list.sort()
 
             embed = discord.Embed(
                 title="<:settings:1398729549323440208> Modules",
-                description=f"**{len(modules_list)} modules chargés:**\n```\n" + '\n'.join(modules_list[:20]) + "\n```",
+                description=f"**{len(modules_list)} modules loaded:**\n```\n" + '\n'.join(modules_list[:20]) + "\n```",
                 color=COLORS["info"]
             )
             await ctx.send(embed=embed)
             return
 
         try:
-            # Recharge le module
+            # Reload the module
             if module in sys.modules:
                 importlib.reload(sys.modules[module])
-                await ctx.send(f"<:done:1398729525277229066> Module `{module}` rechargé")
+                await ctx.send(f"<:done:1398729525277229066> Module `{module}` reloaded")
             else:
                 importlib.import_module(module)
-                await ctx.send(f"<:done:1398729525277229066> Module `{module}` chargé")
+                await ctx.send(f"<:done:1398729525277229066> Module `{module}` loaded")
         except Exception as e:
-            await ctx.send(f"<:undone:1398729502028333218> Erreur: {str(e)}")
+            await ctx.send(f"<:undone:1398729502028333218> Error: {str(e)}")
 
     @commands.command(name="sql")
     async def sql_query(self, ctx, *, query: str = None):
         """
-        Exécute une requête SQL directe
-        Owner only - DANGEREUX
+        Executes a direct SQL query
+        Owner only - DANGEROUS
         """
         if not self.bot.db:
-            await ctx.send("<:undone:1398729502028333218> Base de données non connectée")
+            await ctx.send("<:undone:1398729502028333218> Database not connected")
             return
 
         if not query:
             embed = discord.Embed(
                 title="<:data_object:1401600908323852318> SQL",
                 description=(
-                    "Exécution SQL directe - Owner Only\n\n"
+                    "Direct SQL execution - Owner Only\n\n"
                     "```sql\n"
-                    "sql <requête>\n"
+                    "sql <query>\n"
                     "```\n"
-                    "<:undone:1398729502028333218> Commande dangereuse\n"
-                    "Peut modifier/supprimer des données"
+                    "<:undone:1398729502028333218> Dangerous command\n"
+                    "Can modify/delete data"
                 ),
                 color=COLORS["warning"]
             )
             await ctx.send(embed=embed)
             return
 
-        # Nettoie la requête
+        # Clean the query
         query = self.cleanup_code(query)
 
         try:
             async with ctx.typing():
-                # Exécute la requête
+                # Execute the query
                 async with self.bot.db.pool.acquire() as conn:
-                    # Si c'est un SELECT ou EXPLAIN
+                    # If it's a SELECT or EXPLAIN
                     if query.upper().startswith(('SELECT', 'EXPLAIN', 'SHOW', 'DESCRIBE')):
                         rows = await conn.fetch(query)
 
                         if not rows:
-                            await ctx.send("<:done:1398729525277229066> Aucun résultat")
+                            await ctx.send("<:done:1398729525277229066> No results")
                             return
 
-                        # Formate les résultats
+                        # Format the results
                         headers = list(rows[0].keys())
                         table_data = []
 
-                        for row in rows[:10]:  # Limite à 10 lignes
+                        for row in rows[:10]:  # Limit to 10 rows
                             table_data.append([str(row[h])[:20] for h in headers])
 
-                        # Crée un tableau simple
+                        # Create a simple table
                         result = f"```\n{' | '.join(headers)}\n"
                         result += '-' * len(' | '.join(headers)) + '\n'
                         for row in table_data:
                             result += ' | '.join(row) + '\n'
 
                         if len(rows) > 10:
-                            result += f"\n... et {len(rows) - 10} lignes de plus"
+                            result += f"\n... and {len(rows) - 10} more rows"
 
                         result += "```"
 
-                        await ctx.send(f"<:done:1398729525277229066> {len(rows)} résultats\n{result}")
+                        await ctx.send(f"<:done:1398729525277229066> {len(rows)} results\n{result}")
 
                     else:
-                        # Pour INSERT, UPDATE, DELETE, etc.
+                        # For INSERT, UPDATE, DELETE, etc.
                         result = await conn.execute(query)
 
-                        # Parse le résultat pour obtenir le nombre de lignes affectées
+                        # Parse the result to get the number of affected rows
                         affected = 0
                         if ' ' in result:
                             parts = result.split(' ')
@@ -417,10 +417,10 @@ class JishakuCommand(commands.Cog):
                                     affected = int(part)
                                     break
 
-                        await ctx.send(f"<:done:1398729525277229066> Requête exécutée\nRésultat: `{result}`")
+                        await ctx.send(f"<:done:1398729525277229066> Query executed\nResult: `{result}`")
 
         except Exception as e:
-            await ctx.send(f"<:undone:1398729502028333218> Erreur SQL:\n```sql\n{str(e)}\n```")
+            await ctx.send(f"<:undone:1398729502028333218> SQL Error:\n```sql\n{str(e)}\n```")
 
 
 async def setup(bot):

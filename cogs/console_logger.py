@@ -1,6 +1,6 @@
 """
-Système de redirection des logs console vers Discord
-Capture tout ce qui s'affiche dans la console Python
+System for redirecting console logs to Discord
+Captures everything that is displayed in the Python console
 """
 
 import discord
@@ -17,7 +17,7 @@ from config import COLORS
 
 
 class ConsoleColors:
-    """Codes de couleur ANSI pour la console"""
+    """ANSI color codes for the console"""
     RESET = "\033[0m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
@@ -34,7 +34,7 @@ class ConsoleColors:
 
 class ColoredFormatter(logging.Formatter):
     """
-    Formatter de log qui ajoute des couleurs en fonction du niveau
+    Log formatter that adds colors based on the level
     """
     LOG_COLORS = {
         logging.DEBUG: ConsoleColors.CYAN,
@@ -45,39 +45,39 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def format(self, record):
-        """Formate le log avec des couleurs"""
-        # Copie du record pour ne pas modifier l'original
+        """Formats the log with colors"""
+        # Copy of the record to avoid modifying the original
         record_copy = logging.makeLogRecord(record.__dict__)
 
-        # Couleur pour le niveau
+        # Color for the level
         level_color = self.LOG_COLORS.get(record_copy.levelno, ConsoleColors.WHITE)
 
-        # Ajoute la couleur au nom du niveau
+        # Add the color to the level name
         record_copy.levelname = f"{level_color}{record_copy.levelname}{ConsoleColors.RESET}"
 
-        # Formate le message complet
+        # Format the complete message
         message = super().format(record_copy)
         return message
 
 
 class InfoFilter(logging.Filter):
-    """Filtre pour ne garder que les logs INFO et DEBUG"""
+    """Filter to keep only INFO and DEBUG logs"""
     def filter(self, record):
         return record.levelno <= logging.INFO
 
 
 class ConsoleLogger(commands.Cog):
-    """Redirige tous les logs de la console vers Discord"""
+    """Redirects all console logs to Discord"""
 
     def __init__(self, bot):
         self.bot = bot
         self.console_channel_id = 1386749469734998186
-        self.log_buffer = deque(maxlen=50)  # Buffer des derniers logs
+        self.log_buffer = deque(maxlen=50)  # Buffer of the latest logs
         self.log_queue = asyncio.Queue()
         self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
 
-        # Filtres pour ignorer certains logs
+        # Filters to ignore certain logs
         self.ignored_patterns = [
             "discord.gateway",
             "discord.client",
@@ -93,31 +93,31 @@ class ConsoleLogger(commands.Cog):
             "rate limit bucket"
         ]
 
-        # Configure le logging
+        # Configure logging
         self.setup_logging()
 
-        # Démarre la tâche d'envoi
+        # Start the sending task
         self.send_logs_task.start()
 
     def cog_unload(self):
-        """Restaure les sorties standard lors du déchargement"""
+        """Restores standard outputs on unload"""
         self.send_logs_task.cancel()
         sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
 
-        # Retire notre handler
+        # Remove our handler
         logger = logging.getLogger()
         for handler in logger.handlers[:]:
             if isinstance(handler, DiscordLogHandler):
                 logger.removeHandler(handler)
 
     def should_log(self, content: str) -> bool:
-        """Vérifie si un log doit être envoyé ou ignoré"""
-        # Ignore les logs vides
+        """Checks if a log should be sent or ignored"""
+        # Ignore empty logs
         if not content or content.strip() == "":
             return False
 
-        # Vérifie les patterns à ignorer
+        # Check patterns to ignore
         for pattern in self.ignored_patterns:
             if pattern in content:
                 return False
@@ -125,29 +125,29 @@ class ConsoleLogger(commands.Cog):
         return True
 
     def setup_logging(self):
-        """Configure le système de logging pour capturer tout"""
+        """Configures the logging system to capture everything"""
         root_logger = logging.getLogger()
-        root_logger.handlers.clear()  # Supprime les anciens handlers
-        root_logger.setLevel(logging.INFO)  # Niveau global
+        root_logger.handlers.clear()  # Remove old handlers
+        root_logger.setLevel(logging.INFO)  # Global level
 
         console_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         console_formatter = ColoredFormatter(console_format, datefmt='%H:%M:%S')
 
-        # --- Handler pour stdout (INFO et en dessous) ---
+        # --- Handler for stdout (INFO and below) ---
         info_handler = logging.StreamHandler(sys.stdout)
         info_handler.setFormatter(console_formatter)
         info_handler.setLevel(logging.INFO)
         info_handler.addFilter(InfoFilter())
         root_logger.addHandler(info_handler)
 
-        # --- Handler pour stderr (WARNING et au-dessus) ---
+        # --- Handler for stderr (WARNING and above) ---
         error_handler = logging.StreamHandler(sys.stderr)
         error_handler.setFormatter(console_formatter)
         error_handler.setLevel(logging.WARNING)
         root_logger.addHandler(error_handler)
 
 
-        # --- Handler pour Discord (via le cog) ---
+        # --- Handler for Discord (via the cog) ---
         discord_handler = DiscordLogHandler(self)
         discord_format = '%(name)s - %(levelname)s - %(message)s'
         discord_formatter = logging.Formatter(discord_format)
@@ -155,43 +155,43 @@ class ConsoleLogger(commands.Cog):
         discord_handler.setLevel(logging.INFO)
         root_logger.addHandler(discord_handler)
 
-        # Redirige stdout et stderr
+        # Redirect stdout and stderr
         sys.stdout = ConsoleCapture(self, 'stdout')
         sys.stderr = ConsoleCapture(self, 'stderr')
 
     async def get_console_channel(self):
-        """Récupère le canal de console"""
+        """Gets the console channel"""
         return self.bot.get_channel(self.console_channel_id)
 
     def add_log(self, content: str, log_type: str = 'info'):
-        """Ajoute un log au buffer"""
-        # Vérifie si on doit logger
+        """Adds a log to the buffer"""
+        # Check if we should log
         if not self.should_log(content):
             return
 
         timestamp = datetime.now().strftime('%H:%M:%S')
         formatted_log = f"[{timestamp}] {content}"
 
-        # Ajoute au buffer local
+        # Add to local buffer
         self.log_buffer.append({
             'content': formatted_log,
             'type': log_type,
             'timestamp': datetime.now(timezone.utc)
         })
 
-        # Ajoute à la queue d'envoi
+        # Add to the sending queue
         try:
             self.log_queue.put_nowait({
                 'content': formatted_log,
                 'type': log_type
             })
         except asyncio.QueueFull:
-            # Si la queue est pleine, on ignore (évite le spam)
+            # If the queue is full, we ignore (prevents spam)
             pass
 
-    @tasks.loop(seconds=5)  # Augmenté à 5 secondes pour réduire le spam
+    @tasks.loop(seconds=5)  # Increased to 5 seconds to reduce spam
     async def send_logs_task(self):
-        """Envoie les logs accumulés vers Discord"""
+        """Sends accumulated logs to Discord"""
         if self.log_queue.empty():
             return
 
@@ -199,7 +199,7 @@ class ConsoleLogger(commands.Cog):
         if not channel:
             return
 
-        # Collecte tous les logs en attente
+        # Collect all pending logs
         logs_to_send = []
         colors = {
             'info': COLORS["info"],
@@ -220,7 +220,7 @@ class ConsoleLogger(commands.Cog):
         if not logs_to_send:
             return
 
-        # Groupe les logs par type
+        # Group logs by type
         grouped_logs = {}
         for log in logs_to_send:
             log_type = log['type']
@@ -228,10 +228,10 @@ class ConsoleLogger(commands.Cog):
                 grouped_logs[log_type] = []
             grouped_logs[log_type].append(log['content'])
 
-        # Crée un embed pour chaque type
+        # Create an embed for each type
         embeds = []
         for log_type, contents in grouped_logs.items():
-            # Limite le contenu pour respecter les limites Discord
+            # Limit the content to respect Discord limits
             content = '\n'.join(contents)
             if len(content) > 4000:
                 content = content[:3997] + '...'
@@ -242,7 +242,7 @@ class ConsoleLogger(commands.Cog):
                 timestamp=datetime.now(timezone.utc)
             )
 
-            # Titre selon le type
+            # Title according to type
             titles = {
                 'info': "Logs Info",
                 'warning': "Logs Warning",
@@ -255,41 +255,41 @@ class ConsoleLogger(commands.Cog):
 
             embeds.append(embed)
 
-        # Envoie les embeds (max 10 par message)
+        # Send embeds (max 10 per message)
         try:
             await channel.send(embeds=embeds[:10])
         except Exception as e:
-            # En cas d'erreur, on log localement seulement
-            print(f"Erreur envoi logs Discord: {e}")
+            # In case of an error, we only log locally
+            print(f"Error sending Discord logs: {e}")
 
     @send_logs_task.before_loop
     async def before_send_logs(self):
-        """Attend que le bot soit prêt"""
+        """Waits for the bot to be ready"""
         await self.bot.wait_until_ready()
 
 
 class DiscordLogHandler(logging.Handler):
-    """Handler de logging qui envoie vers Discord"""
+    """Logging handler that sends to Discord"""
 
     def __init__(self, cog):
         super().__init__()
         self.cog = cog
 
     def emit(self, record):
-        """Émet un log vers Discord"""
+        """Emits a log to Discord"""
         try:
-            # Ignore les logs discord.py
+            # Ignore discord.py logs
             if record.name.startswith('discord.'):
                 return
 
-            # Formate le message
+            # Format the message
             log_entry = self.format(record)
 
-            # Vérifie si on doit logger
+            # Check if we should log
             if not self.cog.should_log(log_entry):
                 return
 
-            # Détermine le type selon le niveau
+            # Determine the type based on the level
             if record.levelno >= logging.ERROR:
                 log_type = 'error'
             elif record.levelno >= logging.WARNING:
@@ -299,16 +299,16 @@ class DiscordLogHandler(logging.Handler):
             else:
                 log_type = 'debug'
 
-            # Ajoute au système de logs
+            # Add to the logging system
             self.cog.add_log(log_entry, log_type)
 
         except Exception:
-            # En cas d'erreur, on ne fait rien pour éviter les boucles
+            # In case of an error, do nothing to avoid loops
             pass
 
 
 class ConsoleCapture(io.TextIOBase):
-    """Capture les sorties console (stdout/stderr)"""
+    """Captures console outputs (stdout/stderr)"""
 
     def __init__(self, cog, stream_type):
         self.cog = cog
@@ -316,28 +316,28 @@ class ConsoleCapture(io.TextIOBase):
         self.buffer = []
 
     def write(self, text):
-        """Capture l'écriture"""
+        """Captures writing"""
         if not text or text == '\n':
             return
 
-        # Accumule dans le buffer
+        # Accumulate in the buffer
         self.buffer.append(text)
 
-        # Si on a une ligne complète
+        # If we have a complete line
         if '\n' in text or len(self.buffer) > 5:
             full_text = ''.join(self.buffer).strip()
             if full_text and self.cog.should_log(full_text):
                 self.cog.add_log(full_text, self.stream_type)
             self.buffer.clear()
 
-        # Écrit aussi dans la sortie originale
+        # Also write to the original output
         if self.stream_type == 'stdout':
             self.cog.original_stdout.write(text)
         else:
             self.cog.original_stderr.write(text)
 
     def flush(self):
-        """Flush le buffer"""
+        """Flush the buffer"""
         if self.buffer:
             full_text = ''.join(self.buffer).strip()
             if full_text and self.cog.should_log(full_text):

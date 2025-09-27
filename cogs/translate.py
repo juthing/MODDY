@@ -1,6 +1,6 @@
 """
-Commande translate pour Moddy
-Utilise l'API DeepL pour traduire du texte avec détection automatique
+Translate command for Moddy
+Uses the DeepL API to translate text with automatic detection
 """
 
 import discord
@@ -18,7 +18,7 @@ from config import COLORS, DEEPL_API_KEY
 
 
 class TranslateView(discord.ui.View):
-    """Vue pour retraduire dans une autre langue"""
+    """View to re-translate into another language"""
 
     def __init__(self, bot, original_text: str, from_lang: str, current_to_lang: str, lang: str, author: discord.User):
         super().__init__(timeout=120)
@@ -29,14 +29,14 @@ class TranslateView(discord.ui.View):
         self.lang = lang
         self.author = author
 
-        # Ajoute le select menu
+        # Add the select menu
         self.add_item(self.create_select())
 
     def create_select(self):
-        """Crée le menu de sélection de langue"""
+        """Creates the language selection menu"""
         options = []
 
-        # Langues disponibles DeepL (les plus communes)
+        # Available DeepL languages (most common)
         languages = {
             "EN-US": ("🇺🇸", "English (US)", "Anglais (US)"),
             "EN-GB": ("🇬🇧", "English (UK)", "Anglais (UK)"),
@@ -66,7 +66,7 @@ class TranslateView(discord.ui.View):
         }
 
         for code, (emoji, name, name_fr) in languages.items():
-            # Ne pas inclure la langue actuelle
+            # Do not include the current language
             if code != self.current_to_lang:
                 options.append(discord.SelectOption(
                     label=name_fr if self.lang == "FR" else name,
@@ -74,7 +74,7 @@ class TranslateView(discord.ui.View):
                     emoji=emoji
                 ))
 
-        # Limiter à 25 options (limite Discord)
+        # Limit to 25 options (Discord limit)
         options = options[:25]
 
         placeholder = "Traduire dans une autre langue" if self.lang == "FR" else "Translate to another language"
@@ -90,7 +90,7 @@ class TranslateView(discord.ui.View):
         return select
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Vérifie que c'est l'auteur qui utilise le menu"""
+        """Checks that it's the author using the menu"""
         if interaction.user != self.author:
             if self.lang == "FR":
                 msg = "Seul l'auteur de la commande peut utiliser ce menu."
@@ -101,10 +101,10 @@ class TranslateView(discord.ui.View):
         return True
 
     async def translate_callback(self, interaction: discord.Interaction):
-        """Callback pour retraduire le texte"""
+        """Callback to re-translate the text"""
         new_lang = self.children[0].values[0]
 
-        # Message de chargement
+        # Loading message
         if self.lang == "FR":
             loading_text = f"<:loading:1395047662092550194> Traduction en cours..."
         else:
@@ -112,13 +112,13 @@ class TranslateView(discord.ui.View):
 
         await interaction.response.defer()
 
-        # Utilise la fonction de traduction du cog
+        # Use the translation function of the cog
         translator = self.bot.get_cog("Translate")
         if translator:
             translated = await translator.translate_text(self.original_text, new_lang)
 
             if translated:
-                # Crée le nouvel embed
+                # Create the new embed
                 embed = translator.create_translation_embed(
                     self.original_text,
                     translated,
@@ -127,7 +127,7 @@ class TranslateView(discord.ui.View):
                     self.lang
                 )
 
-                # Met à jour la vue avec la nouvelle langue
+                # Update the view with the new language
                 self.current_to_lang = new_lang
                 self.clear_items()
                 self.add_item(self.create_select())
@@ -143,15 +143,15 @@ class TranslateView(discord.ui.View):
 
 
 class Translate(commands.Cog):
-    """Système de traduction avec DeepL"""
+    """Translation system using DeepL"""
 
     def __init__(self, bot):
         self.bot = bot
-        self.deepl_api_key = DEEPL_API_KEY  # Récupéré depuis config.py
-        self.user_usage = {}  # Dict pour tracker les utilisations par utilisateur
-        self.max_uses_per_minute = 20  # Maximum 20 utilisations par minute par utilisateur
+        self.deepl_api_key = DEEPL_API_KEY  # Retrieved from config.py
+        self.user_usage = {}  # Dict to track usage per user
+        self.max_uses_per_minute = 20  # Maximum 20 uses per minute per user
 
-        # Textes multilingues
+        # Multilingual texts
         self.texts = {
             "FR": {
                 "description": "Traduit du texte dans une autre langue",
@@ -187,7 +187,7 @@ class Translate(commands.Cog):
             }
         }
 
-        # Map des codes de langue DeepL vers les noms
+        # Map of DeepL language codes to names
         self.language_names = {
             "EN": {"FR": "Anglais", "EN": "English"},
             "EN-US": {"FR": "Anglais (US)", "EN": "English (US)"},
@@ -226,12 +226,12 @@ class Translate(commands.Cog):
         }
 
     def get_text(self, lang: str, key: str) -> str:
-        """Récupère un texte traduit"""
+        """Gets a translated text"""
         return self.texts.get(lang, self.texts["EN"]).get(key, key)
 
     def get_language_name(self, code: str, lang: str) -> str:
-        """Récupère le nom d'une langue dans la bonne traduction"""
-        # Nettoie le code (EN-US -> EN-US, EN -> EN)
+        """Gets the name of a language in the correct translation"""
+        # Clean the code (EN-US -> EN-US, EN -> EN)
         base_code = code.split('-')[0] if '-' not in code or code in self.language_names else code
 
         if code in self.language_names:
@@ -242,12 +242,12 @@ class Translate(commands.Cog):
             return code
 
     def sanitize_mentions(self, text: str, guild: Optional[discord.Guild]) -> str:
-        """Remplace les mentions par du texte sans ping"""
-        # Remplace @everyone et @here
+        """Replaces mentions with non-pinging text"""
+        # Replace @everyone and @here
         text = text.replace('@everyone', '@\u200beveryone')
         text = text.replace('@here', '@\u200bhere')
 
-        # Remplace les mentions d'utilisateurs
+        # Replace user mentions
         user_mention_pattern = r'<@!?(\d+)>'
 
         def replace_user_mention(match):
@@ -263,7 +263,7 @@ class Translate(commands.Cog):
 
         text = re.sub(user_mention_pattern, replace_user_mention, text)
 
-        # Remplace les mentions de rôles
+        # Replace role mentions
         role_mention_pattern = r'<@&(\d+)>'
 
         def replace_role_mention(match):
@@ -279,18 +279,18 @@ class Translate(commands.Cog):
         return text
 
     async def check_rate_limit(self, user_id: int) -> tuple[bool, int]:
-        """Vérifie la limite de 20 utilisations par minute pour un utilisateur"""
+        """Checks the 20 uses per minute limit for a user"""
         now = datetime.now()
 
-        # Initialise la liste pour cet utilisateur si elle n'existe pas
+        # Initialize the list for this user if it doesn't exist
         if user_id not in self.user_usage:
             self.user_usage[user_id] = []
 
-        # Nettoie les utilisations de plus d'une minute pour cet utilisateur
+        # Clean uses older than one minute for this user
         cutoff = now - timedelta(minutes=1)
         self.user_usage[user_id] = [timestamp for timestamp in self.user_usage[user_id] if timestamp > cutoff]
 
-        # Nettoie les utilisateurs qui n'ont pas utilisé la commande depuis plus de 2 minutes
+        # Clean users who haven't used the command for more than 2 minutes
         users_to_clean = []
         for uid, timestamps in self.user_usage.items():
             if uid != user_id and (not timestamps or max(timestamps) < now - timedelta(minutes=2)):
@@ -298,21 +298,21 @@ class Translate(commands.Cog):
         for uid in users_to_clean:
             del self.user_usage[uid]
 
-        # Vérifie si l'utilisateur peut utiliser la commande
+        # Check if the user can use the command
         if len(self.user_usage[user_id]) >= self.max_uses_per_minute:
-            # Calcule le temps avant la prochaine utilisation possible
+            # Calculate the time until the next possible use
             oldest_use = min(self.user_usage[user_id])
             wait_time = 60 - (now - oldest_use).total_seconds()
             return False, int(wait_time)
 
-        # Ajoute cette utilisation pour cet utilisateur
+        # Add this use for this user
         self.user_usage[user_id].append(now)
         return True, 0
 
     async def translate_text(self, text: str, target_lang: str) -> Optional[str]:
-        """Appelle l'API DeepL pour traduire le texte"""
+        """Calls the DeepL API to translate the text"""
         try:
-            # URL de l'API DeepL (gratuite)
+            # DeepL API URL (free)
             url = "https://api-free.deepl.com/v2/translate"
 
             headers = {
@@ -335,14 +335,14 @@ class Translate(commands.Cog):
         except Exception as e:
             import logging
             logger = logging.getLogger('moddy')
-            logger.error(f"Erreur traduction DeepL: {e}")
+            logger.error(f"DeepL translation error: {e}")
             return None
 
     async def detect_language(self, text: str) -> Optional[str]:
-        """Détecte la langue du texte avec DeepL"""
+        """Detects the language of the text with DeepL"""
         try:
-            # DeepL détecte automatiquement la langue source
-            # On fait une requête de traduction vers EN pour obtenir la langue source
+            # DeepL automatically detects the source language
+            # We make a translation request to EN to get the source language
             url = "https://api-free.deepl.com/v2/translate"
 
             headers = {
@@ -366,13 +366,13 @@ class Translate(commands.Cog):
             return None
 
     def create_translation_embed(self, original: str, translated: str, from_lang: str, to_lang: str, user_lang: str) -> discord.Embed:
-        """Crée l'embed de traduction"""
+        """Creates the translation embed"""
         embed = discord.Embed(
             title=f"<:translate:1398720130950627600> {self.get_text(user_lang, 'translation_title')}",
             color=COLORS["primary"]
         )
 
-        # Texte original
+        # Original text
         original_display = original[:1000] + "..." if len(original) > 1000 else original
         embed.add_field(
             name=f"{self.get_text(user_lang, 'from_lang')}: {self.get_language_name(from_lang, user_lang)}",
@@ -380,7 +380,7 @@ class Translate(commands.Cog):
             inline=False
         )
 
-        # Texte traduit
+        # Translated text
         translated_display = translated[:1000] + "..." if len(translated) > 1000 else translated
         embed.add_field(
             name=f"{self.get_text(user_lang, 'to_lang')}: {self.get_language_name(to_lang, user_lang)}",
@@ -388,7 +388,7 @@ class Translate(commands.Cog):
             inline=False
         )
 
-        # Footer avec le nombre de caractères
+        # Footer with character count
         embed.set_footer(
             text=f"{len(original)} {self.get_text(user_lang, 'characters')} • DeepL API",
             icon_url="https://www.deepl.com/img/logo/DeepL_Logo_darkBlue_v2.svg"
@@ -442,19 +442,19 @@ class Translate(commands.Cog):
         to: app_commands.Choice[str],
         incognito: Optional[bool] = None
     ):
-        """Commande principale de traduction"""
+        """Main translation command"""
 
-        # IMPORTANT : Attend un peu pour laisser le système de langue faire son travail
+        # IMPORTANT: Wait a bit to let the language system do its work
         await asyncio.sleep(0.1)
 
-        # Vérifie si l'interaction a déjà été répondue (par le système de langue)
+        # Check if the interaction has already been responded to (by the language system)
         if interaction.response.is_done():
-            # Le système de langue a demandé la sélection, on attend qu'il finisse
-            # et on exécute la traduction après
-            await asyncio.sleep(2)  # Attend que l'utilisateur choisisse sa langue
+            # The language system has requested the selection, we wait for it to finish
+            # and execute the translation afterwards
+            await asyncio.sleep(2)  # Wait for the user to choose their language
 
-            # Récupère la langue mise à jour
-            lang = 'EN'  # Fallback par défaut
+            # Get the updated language
+            lang = 'EN'  # Default fallback
             if self.bot.db:
                 try:
                     user_lang = await self.bot.db.get_attribute('user', interaction.user.id, 'LANG')
@@ -463,7 +463,7 @@ class Translate(commands.Cog):
                 except:
                     pass
 
-            # Récupère le mode ephemeral
+            # Get the ephemeral mode
             if incognito is None and self.bot.db:
                 try:
                     user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
@@ -473,7 +473,7 @@ class Translate(commands.Cog):
             else:
                 ephemeral = incognito if incognito is not None else True
 
-            # Vérifie la limite de taux
+            # Check the rate limit
             can_use, remaining = await self.check_rate_limit(interaction.user.id)
             if not can_use:
                 error_embed = ModdyResponse.error(
@@ -483,11 +483,11 @@ class Translate(commands.Cog):
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
                 return
 
-            # Continue avec la traduction via followup
+            # Continue with the translation via followup
             loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
             msg = await interaction.followup.send(embed=loading_embed, ephemeral=ephemeral)
 
-            # Exécute la traduction
+            # Execute the translation
             sanitized_text = self.sanitize_mentions(text, interaction.guild)
             source_lang = await self.detect_language(sanitized_text)
             translated = await self.translate_text(sanitized_text, to.value)
@@ -518,14 +518,14 @@ class Translate(commands.Cog):
 
             return
 
-        # Si l'interaction n'a pas encore été répondue, on continue normalement
-        # Récupère la langue de l'utilisateur
+        # If the interaction has not yet been responded to, we continue normally
+        # Get the user's language
         lang = getattr(interaction, 'user_lang', 'EN')
 
-        # Récupère le mode ephemeral
+        # Get the ephemeral mode
         ephemeral = get_incognito_setting(interaction)
 
-        # Vérifie la limite de taux (20 par minute par utilisateur)
+        # Check the rate limit (20 per minute per user)
         can_use, remaining = await self.check_rate_limit(interaction.user.id)
         if not can_use:
             error_embed = ModdyResponse.error(
@@ -535,7 +535,7 @@ class Translate(commands.Cog):
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
-        # Vérifie la longueur du texte
+        # Check the length of the text
         if len(text) > 3000:
             error_embed = ModdyResponse.error(
                 self.get_text(lang, "error_title"),
@@ -544,21 +544,21 @@ class Translate(commands.Cog):
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
-        # Sanitize les mentions
+        # Sanitize mentions
         sanitized_text = self.sanitize_mentions(text, interaction.guild)
 
-        # Message de chargement
+        # Loading message
         loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
         await interaction.response.send_message(embed=loading_embed, ephemeral=ephemeral)
 
-        # Détecte la langue source
+        # Detect the source language
         source_lang = await self.detect_language(sanitized_text)
 
-        # Traduit le texte
+        # Translate the text
         translated = await self.translate_text(sanitized_text, to.value)
 
         if translated and source_lang:
-            # Crée l'embed de résultat
+            # Create the result embed
             embed = self.create_translation_embed(
                 sanitized_text,
                 translated,
@@ -567,7 +567,7 @@ class Translate(commands.Cog):
                 lang
             )
 
-            # Crée la vue avec le menu de retraduction
+            # Create the view with the re-translation menu
             view = TranslateView(
                 self.bot,
                 sanitized_text,
@@ -580,7 +580,7 @@ class Translate(commands.Cog):
             await interaction.edit_original_response(embed=embed, view=view)
 
         else:
-            # Erreur de traduction
+            # Translation error
             error_embed = ModdyResponse.error(
                 self.get_text(lang, "error_title"),
                 self.get_text(lang, "error_api")
