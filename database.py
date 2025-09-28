@@ -204,6 +204,14 @@ class ModdyDatabase:
         if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
             serializable_info['created_at'] = serializable_info['created_at'].isoformat()
 
+        # --- DEBUG LOGGING ---
+        logger.info(f"DB DEBUG (cache_guild_info for {guild_id}):")
+        logger.info(f"  > created_at_dt value: {created_at_dt!r}")
+        logger.info(f"  > created_at_dt type: {type(created_at_dt)}")
+        if isinstance(created_at_dt, datetime):
+            logger.info(f"  > created_at_dt tzinfo: {created_at_dt.tzinfo}")
+        # --- END DEBUG LOGGING ---
+
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
