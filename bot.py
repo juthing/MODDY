@@ -190,12 +190,6 @@ class ModdyBot(commands.Bot):
             if DEVELOPER_IDS:
                 self._dev_team_ids = set(DEVELOPER_IDS)
 
-        except Exception as e:
-            logger.error(f"❌ Error fetching team: {e}")
-            # Fallback to IDs in config if available
-            if DEVELOPER_IDS:
-                self._dev_team_ids = set(DEVELOPER_IDS)
-
     def is_developer(self, user_id: int) -> bool:
         """Checks if a user is a developer"""
         return user_id in self._dev_team_ids
@@ -401,19 +395,8 @@ class ModdyBot(commands.Bot):
                     return
 
                 # If not blacklisted, continue normally
-                # Create the server entry
-                await self.db.get_guild(guild.id)  # Create if not exists
-
-                # Cache server information
-                from database import UpdateSource
-                guild_info = {
-                    'name': guild.name,
-                    'icon_url': str(guild.icon.url) if guild.icon else None,
-                    'features': guild.features,
-                    'member_count': guild.member_count,
-                    'created_at': guild.created_at
-                }
-                await self.db.cache_guild_info(guild.id, guild_info, UpdateSource.BOT_JOIN)
+                # Create the server entry in the guilds table
+                await self.db.get_guild(guild.id)  # This creates the entry if it doesn't exist
 
             except Exception as e:
                 logger.error(f"DB Error (guild_join): {e}")

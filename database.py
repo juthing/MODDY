@@ -13,15 +13,6 @@ import logging
 logger = logging.getLogger('moddy.database')
 
 
-class UpdateSource(Enum):
-    """Sources de mise à jour des données"""
-    BOT_JOIN = "bot_join"
-    USER_PROFILE = "user_profile"
-    API_CALL = "api_call"
-    MANUAL = "manual"
-    SCHEDULED = "scheduled"
-
-
 class ModdyDatabase:
     """Gestionnaire principal de la base de données"""
 
@@ -84,26 +75,7 @@ class ModdyDatabase:
                 CREATE INDEX IF NOT EXISTS idx_errors_user ON errors(user_id)
             """)
 
-            # Cache des serveurs
-            await conn.execute("""
-                CREATE TABLE IF NOT EXISTS guilds_cache (
-                    guild_id BIGINT PRIMARY KEY,
-                    name VARCHAR(100),
-                    icon_url TEXT,
-                    features TEXT[],
-                    member_count INTEGER,
-                    created_at TIMESTAMPTZ,
-                    last_updated TIMESTAMPTZ DEFAULT NOW(),
-                    update_source VARCHAR(50),
-                    raw_data JSONB DEFAULT '{}'::jsonb
-                )
-            """)
-
-            await conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_guilds_cache_updated ON guilds_cache(last_updated)
-            """)
-
-            # Table des utilisateurs (fonctionnelle)
+            # Table des utilisateurs
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     user_id BIGINT PRIMARY KEY,
@@ -118,7 +90,7 @@ class ModdyDatabase:
                 CREATE INDEX IF NOT EXISTS idx_users_attributes ON users USING GIN (attributes)
             """)
 
-            # Table des serveurs (fonctionnelle)
+            # Table des serveurs
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS guilds (
                     guild_id BIGINT PRIMARY KEY,
@@ -187,81 +159,7 @@ class ModdyDatabase:
             )
             return dict(row) if row else None
 
-    # ================ CACHE DES LOOKUPS ================
-
-    async def cache_guild_info(self, guild_id: int, info: Dict[str, Any],
-                               source: UpdateSource = UpdateSource.API_CALL):
-        """Met en cache les informations d'un serveur"""
-        # Crée une copie des données pour la sérialisation JSON
-        serializable_info = info.copy()
-
-        # Récupération et normalisation de created_at
-        created_at_dt = info.get('created_at')
-
-        # Gestion sécurisée du datetime
-        if created_at_dt is not None:
-            if isinstance(created_at_dt, datetime):
-                # S'assurer que le datetime a un timezone
-                if created_at_dt.tzinfo is None:
-                    created_at_dt = created_at_dt.replace(tzinfo=timezone.utc)
-                # Forcer la conversion en UTC si nécessaire
-                elif created_at_dt.tzinfo != timezone.utc:
-                    created_at_dt = created_at_dt.astimezone(timezone.utc)
-            else:
-                # Si ce n'est pas un datetime, le mettre à None
-                created_at_dt = None
-                logger.warning(f"created_at n'est pas un datetime pour guild {guild_id}: {type(created_at_dt)}")
-
-        # Préparer les données pour la sérialisation JSON
-        if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
-            serializable_info['created_at'] = serializable_info['created_at'].isoformat()
-
-        async with self.pool.acquire() as conn:
-            try:
-                await conn.execute("""
-                    INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
-                                              created_at, update_source, raw_data)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                    ON CONFLICT (guild_id) DO UPDATE SET
-                        name = EXCLUDED.name,
-                        icon_url = EXCLUDED.icon_url,
-                        features = EXCLUDED.features,
-                        member_count = EXCLUDED.member_count,
-                        last_updated = NOW(),
-                        update_source = EXCLUDED.update_source,
-                        raw_data = EXCLUDED.raw_data
-                """,
-                    guild_id,
-                    info.get('name'),
-                    info.get('icon_url'),
-                    info.get('features', []),
-                    info.get('member_count'),
-                    created_at_dt,  # Utilise le datetime corrigé
-                    source.value,
-                    json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
-                )
-            except Exception as e:
-                logger.error(f"❌ Error caching guild info for {guild_id}: {e}")
-                # Re-raise pour que l'erreur soit gérée par l'appelant
-                raise
-
-    async def get_cached_guild(self, guild_id: int, max_age_days: int = 7) -> Optional[Dict[str, Any]]:
-        """Récupère les infos cachées d'un serveur si elles sont assez récentes"""
-        async with self.pool.acquire() as conn:
-            query = f"""
-                SELECT * FROM guilds_cache 
-                WHERE guild_id = $1 
-                AND last_updated > NOW() - INTERVAL '{max_age_days} days'
-            """
-            row = await conn.fetchrow(query, guild_id)
-
-            if row:
-                data = dict(row)
-                data['raw_data'] = json.loads(data['raw_data']) if data['raw_data'] else {}
-                return data
-            return None
-
-    # ================ GESTION DES ATTRIBUTS ================
+    # ================ GESTION DES UTILISATEURS ET SERVEURS ================
 
     async def get_user(self, user_id: int) -> Dict[str, Any]:
         """Récupère ou crée un utilisateur"""
@@ -319,6 +217,8 @@ class ModdyDatabase:
                 'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
 
+    # ================ GESTION DES ATTRIBUTS ================
+
     async def set_attribute(self, entity_type: str, entity_id: int,
                             attribute: str, value: Optional[Union[str, bool]],
                             changed_by: int, reason: str = None):
@@ -343,7 +243,7 @@ class ModdyDatabase:
                 entity_id
             )
 
-            # CORRECTION ICI : Gère proprement le cas où attributes est None
+            # Gère proprement le cas où attributes est None
             if row and row['attributes']:
                 old_attributes = json.loads(row['attributes'])
             else:
@@ -490,13 +390,13 @@ class ModdyDatabase:
         async with self.pool.acquire() as conn:
             stats = {}
 
-            # Compte les enregistrements
-            for table in ['errors', 'users', 'guilds', 'guilds_cache']:
+            # Compte les enregistrements (sans guilds_cache)
+            for table in ['errors', 'users', 'guilds']:
                 count = await conn.fetchval(f"SELECT COUNT(*) FROM {table}")
                 stats[table] = count
 
             # Statistiques spécifiques avec le nouveau système
-            # Compte les utilisateurs ayant l'attribut BETA (peu importe la valeur)
+            # Compte les utilisateurs ayant l'attribut BETA
             stats['beta_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'BETA'
@@ -508,7 +408,7 @@ class ModdyDatabase:
                 WHERE attributes ? 'PREMIUM'
             """)
 
-            # Compte les utilisateurs blacklistés (ayant l'attribut BLACKLISTED)
+            # Compte les utilisateurs blacklistés
             stats['blacklisted_users'] = await conn.fetchval("""
                 SELECT COUNT(*) FROM users 
                 WHERE attributes ? 'BLACKLISTED'
