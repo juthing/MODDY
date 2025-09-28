@@ -193,48 +193,57 @@ class ModdyDatabase:
                                source: UpdateSource = UpdateSource.API_CALL):
         """Met en cache les informations d'un serveur"""
         # Crée une copie des données pour la sérialisation JSON
-        # afin de ne pas modifier le dictionnaire original.
         serializable_info = info.copy()
+
+        # Récupération et normalisation de created_at
         created_at_dt = info.get('created_at')
 
-        # Correction du fuseau horaire pour 'created_at'
-        if isinstance(created_at_dt, datetime) and created_at_dt.tzinfo is None:
-            created_at_dt = created_at_dt.replace(tzinfo=timezone.utc)
+        # Gestion sécurisée du datetime
+        if created_at_dt is not None:
+            if isinstance(created_at_dt, datetime):
+                # S'assurer que le datetime a un timezone
+                if created_at_dt.tzinfo is None:
+                    created_at_dt = created_at_dt.replace(tzinfo=timezone.utc)
+                # Forcer la conversion en UTC si nécessaire
+                elif created_at_dt.tzinfo != timezone.utc:
+                    created_at_dt = created_at_dt.astimezone(timezone.utc)
+            else:
+                # Si ce n'est pas un datetime, le mettre à None
+                created_at_dt = None
+                logger.warning(f"created_at n'est pas un datetime pour guild {guild_id}: {type(created_at_dt)}")
 
+        # Préparer les données pour la sérialisation JSON
         if 'created_at' in serializable_info and isinstance(serializable_info['created_at'], datetime):
             serializable_info['created_at'] = serializable_info['created_at'].isoformat()
 
-        # --- DEBUG LOGGING ---
-        logger.info(f"DB DEBUG (cache_guild_info for {guild_id}):")
-        logger.info(f"  > created_at_dt value: {created_at_dt!r}")
-        logger.info(f"  > created_at_dt type: {type(created_at_dt)}")
-        if isinstance(created_at_dt, datetime):
-            logger.info(f"  > created_at_dt tzinfo: {created_at_dt.tzinfo}")
-        # --- END DEBUG LOGGING ---
-
         async with self.pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
-                                          created_at, update_source, raw_data)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (guild_id) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    icon_url = EXCLUDED.icon_url,
-                    features = EXCLUDED.features,
-                    member_count = EXCLUDED.member_count,
-                    last_updated = NOW(),
-                    update_source = EXCLUDED.update_source,
-                    raw_data = EXCLUDED.raw_data
-            """,
-                guild_id,
-                info.get('name'),
-                info.get('icon_url'),
-                info.get('features', []),
-                info.get('member_count'),
-                created_at_dt,  # Utilise le datetime corrigé
-                source.value,
-                json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
-            )
+            try:
+                await conn.execute("""
+                    INSERT INTO guilds_cache (guild_id, name, icon_url, features, member_count,
+                                              created_at, update_source, raw_data)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ON CONFLICT (guild_id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        icon_url = EXCLUDED.icon_url,
+                        features = EXCLUDED.features,
+                        member_count = EXCLUDED.member_count,
+                        last_updated = NOW(),
+                        update_source = EXCLUDED.update_source,
+                        raw_data = EXCLUDED.raw_data
+                """,
+                    guild_id,
+                    info.get('name'),
+                    info.get('icon_url'),
+                    info.get('features', []),
+                    info.get('member_count'),
+                    created_at_dt,  # Utilise le datetime corrigé
+                    source.value,
+                    json.dumps(serializable_info)  # Utilise la copie sérialisable pour JSONB
+                )
+            except Exception as e:
+                logger.error(f"❌ Error caching guild info for {guild_id}: {e}")
+                # Re-raise pour que l'erreur soit gérée par l'appelant
+                raise
 
     async def get_cached_guild(self, guild_id: int, max_age_days: int = 7) -> Optional[Dict[str, Any]]:
         """Récupère les infos cachées d'un serveur si elles sont assez récentes"""
