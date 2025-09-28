@@ -1,12 +1,12 @@
 ### 📄 Instructions pour les IAs – Projet Moddy
 
-Tu aides à développer **Moddy**, un bot Discord écrit en **Python**, hébergé sur un **VPS Ubuntu 24.04 LTS** (chez Hostinger). Il s'agit d'une **application publique**, orientée **assistance pour modérateurs et administrateurs**, mais **sans commandes de sanction** classiques.
+Tu aides à développer **Moddy**, un bot Discord écrit en **Python**, hébergé sur Railway. Il s'agit d'une **application publique**, orientée **assistance pour modérateurs et administrateurs**. 
 
 #### 📦 Stack et structure
 
 * **Langage** : Python 3.11+
 * **Lib** : `discord.py` avec support des **components v2** de Discord
-* **Base de données** : Neon (PostgreSQL)
+* **Base de données** : PostgreSQL
 * **Variables d’environnement** via `.env`
 * **Arborescence actuelle** :
 
@@ -33,7 +33,7 @@ Ces commandes sont accessibles **partout (même en DM)**, en mentionnant le bot 
 * `ping`
 * `version`
 * `sync`
-* `deploy` (déploiement d’un commit sur le VPS)
+* [...] d'autres commandes 
 
 #### 🎯 Commandes slash disponibles
 
