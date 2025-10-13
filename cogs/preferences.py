@@ -657,14 +657,5 @@ class Preferences(commands.Cog):
             # Si déjà répondu (par le système de langue), utilise followup
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
-    @app_commands.command(
-        name="prefs",
-        description="Raccourci pour préférences / Shortcut for preferences"
-    )
-    async def prefs_shortcut(self, interaction: discord.Interaction):
-        """Raccourci pour la commande preferences"""
-        await self.preferences(interaction)
-
-
 async def setup(bot):
     await bot.add_cog(Preferences(bot))
