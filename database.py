@@ -147,7 +147,7 @@ class ModdyDatabase:
                 error_data.get('user_id'),
                 error_data.get('guild_id'),
                 error_data.get('command'),
-                json.dumps(error_data.get('context', {}))
+                error_data.get('context', {})
             )
 
     async def get_error(self, error_code: str) -> Optional[Dict[str, Any]]:
@@ -157,7 +157,18 @@ class ModdyDatabase:
                 "SELECT * FROM errors WHERE error_code = $1",
                 error_code
             )
-            return dict(row) if row else None
+            if not row:
+                return None
+
+            error_data = dict(row)
+            # Compatibility: if context is a string, load it as JSON
+            if isinstance(error_data.get('context'), str):
+                try:
+                    error_data['context'] = json.loads(error_data['context'])
+                except (json.JSONDecodeError, TypeError):
+                    error_data['context'] = {} # Fallback to empty dict
+
+            return error_data
 
     # ================ GESTION DES UTILISATEURS ET SERVEURS ================
 
