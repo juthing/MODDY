@@ -9,10 +9,19 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from aiohttp import web
+from aiohttp.web_log import AccessLogger
 import psutil
 import os
 
 logger = logging.getLogger('moddy.health')
+
+
+class InstatusFilterAccessLogger(AccessLogger):
+    def log(self, request, response, time):
+        if 'InstatusBot' in request.headers.get('User-Agent', ''):
+            return
+
+        super().log(request, response, time)
 
 
 class HealthServer:
@@ -38,7 +47,7 @@ class HealthServer:
 
     async def start(self):
         """Démarre le serveur"""
-        self.runner = web.AppRunner(self.app)
+        self.runner = web.AppRunner(self.app, access_log_class=InstatusFilterAccessLogger)
         await self.runner.setup()
         site = web.TCPSite(self.runner, '0.0.0.0', self.port)
         await site.start()
