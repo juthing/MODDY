@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Moddy - Startup script with integrated services
-Launches the Discord bot and all associated services (JSK webhook, etc.)
+Launches the Discord bot and all associated services.
 """
 
 import asyncio
@@ -32,7 +32,7 @@ if sys.version_info < (3, 11):
 
 
 class ServiceManager:
-    """Moddy Service Manager (JSK webhook, etc.)"""
+    """Moddy Service Manager"""
 
     def __init__(self):
         self.services: Dict[str, Dict[str, Any]] = {}
@@ -294,29 +294,10 @@ async def start_services():
     """Starts all necessary services before the bot."""
     logger = logging.getLogger('moddy')
 
-    # Checks if the JSK webhook should be launched
-    if os.environ.get('ENABLE_JSK_WEBHOOK', 'true').lower() == 'true':
-        # Checks if the module exists
-        jsk_webhook_path = Path(__file__).parent / 'services' / 'jsk_webhook.py'
-
-        if jsk_webhook_path.exists():
-            # Launches the JSK webhook
-            jsk_port = os.environ.get('JSK_WEBHOOK_PORT', '8100')
-            success = service_manager.start_service(
-                'JSK-Webhook',
-                [sys.executable, '-m', 'services.jsk_webhook'],
-                f'http://localhost:{jsk_port}/health'
-            )
-
-            if not success:
-                logger.warning("⚠️ The JSK webhook could not be started, but the bot will continue")
-        else:
-            logger.info("ℹ️ JSK webhook module not found, skipping")
-
     # Other services can be added here if needed
     # service_manager.start_service('other-service', [...])
 
-    # Displays the status of services
+    # Displays the status of services, if any
     status = service_manager.get_status()
     if status:
         logger.info("📊 Services status:")
