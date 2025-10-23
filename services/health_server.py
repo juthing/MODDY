@@ -438,7 +438,7 @@ class HealthServer:
                 pool = self.bot.db.pool
                 pool_info = {
                     "size": pool.get_size(),
-                    "free_size": pool.get_free_size(),
+                    "free_size": pool.get_idle_size(),
                     "min_size": pool.get_min_size(),
                     "max_size": pool.get_max_size()
                 }
