@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 import traceback
 
+from services.health_server import setup_health_server
 from config import (
     DEBUG,
     DEFAULT_PREFIX,
@@ -54,6 +55,7 @@ class ModdyBot(commands.Bot):
         self.db = None  # ModdyDatabase instance
         self._dev_team_ids: Set[int] = set()
         self.maintenance_mode = False
+        self.health_server = None
 
         # Cache for server prefixes
         self.prefix_cache = {}
@@ -114,6 +116,9 @@ class ModdyBot(commands.Bot):
         # Load extensions
         await self.load_extensions()
 
+        # Start the health check server
+        await self.start_health_server()
+
         # Start background tasks
         self.status_update.start()
 
@@ -161,6 +166,29 @@ class ModdyBot(commands.Bot):
         else:
             # Fallback if the system is not loaded
             logger.error(f"Slash command error: {error}", exc_info=error)
+
+    async def start_health_server(self):
+        """Démarre le serveur de health check"""
+        try:
+            # Démarrage du serveur
+            self.health_server = await setup_health_server(self)
+            logger.info("✅ Health server started")
+
+        except ImportError:
+            logger.warning("⚠️ Health server module not found, skipping")
+            self.health_server = None
+        except Exception as e:
+            logger.error(f"❌ Failed to start health server: {e}")
+            self.health_server = None
+
+    async def stop_health_server(self):
+        """Arrête le serveur de health check"""
+        if hasattr(self, 'health_server') and self.health_server:
+            try:
+                await self.health_server.stop()
+                logger.info("✅ Health server stopped")
+            except Exception as e:
+                logger.error(f"❌ Error stopping health server: {e}")
 
     async def fetch_dev_team(self):
         """Fetch development team from Discord"""
@@ -485,6 +513,9 @@ class ModdyBot(commands.Bot):
 
         # Wait a bit for tasks to finish
         await asyncio.sleep(0.1)
+
+        # Stop health server
+        await self.stop_health_server()
 
         # Close DB connection
         if self.db:
