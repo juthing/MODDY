@@ -258,6 +258,9 @@ class ServerManagementView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Seul l'auteur peut utiliser les boutons ET doit être développeur"""
+        if interaction.response.is_done():
+            return False
+
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
                 "<:undone:1398729502028333218> This action is reserved for developers.",
@@ -468,6 +471,9 @@ class GuildAttributeActionView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Vérifie que c'est un développeur ET l'auteur"""
+        if interaction.response.is_done():
+            return False
+
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
                 "<:undone:1398729502028333218> This action is reserved for developers.",
@@ -645,6 +651,9 @@ class GuildActionsView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Vérifie que c'est un développeur ET l'auteur"""
+        if interaction.response.is_done():
+            return False
+
         if not self.bot.is_developer(interaction.user.id):
             await interaction.response.send_message(
                 "<:undone:1398729502028333218> This action is reserved for developers.",
@@ -725,6 +734,10 @@ class GuildActionsView(discord.ui.View):
         """Active/désactive le statut officiel"""
         is_official = self.guild_data['attributes'].get('OFFICIAL_SERVER', False)
 
+        # Defer immediately if no confirmation is needed.
+        if is_official and not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
+
         if not is_official:
             # Demande confirmation
             view = ConfirmView()
@@ -733,11 +746,16 @@ class GuildActionsView(discord.ui.View):
                 description=f"Are you sure you want to mark **{self.guild.name}** as an official server?",
                 color=COLORS["warning"]
             )
-
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
             await view.wait()
 
-            if not view.value:
+            if view.value is None: # Timeout
+                try: await interaction.edit_original_response(content="Action timed out.", embed=None, view=None)
+                except discord.NotFound: pass
+                return
+            if not view.value: # Cancelled
+                try: await interaction.edit_original_response(content="Action cancelled.", embed=None, view=None)
+                except discord.NotFound: pass
                 return
 
         try:
@@ -746,39 +764,37 @@ class GuildActionsView(discord.ui.View):
                 'guild', self.guild.id, 'OFFICIAL_SERVER', new_value,
                 self.author.id, f"{'Removal' if is_official else 'Addition'} official status"
             )
-
-            # Rafraîchit les données
             self.guild_data = await self.bot.db.get_guild(self.guild.id)
             self.parent_view.guild_data = self.guild_data
 
-            # Recrée la vue
+            # Create new view and embed for the main message
             new_view = GuildActionsView(self.bot, self.guild, self.guild_data, self.author, self.parent_view)
             new_view.message = self.message
-
-            # Recrée l'embed
             embed = discord.Embed(
                 title=f"<:settings:1398729549323440208> Actions for {self.guild.name}",
-                description=f"<:done:1398729525277229066> Official status {'enabled' if new_value else 'removed'}!",
+                description=f"<:done:1398729525277229066> Official status successfully {'enabled' if new_value else 'removed'}.",
                 color=COLORS["success"]
             )
 
-            if is_official:
-                await interaction.response.edit_message(embed=embed, view=new_view)
+            # Edit the main panel message
+            await self.message.edit(embed=embed, view=new_view)
+
+            # Final feedback on the interaction
+            success_message = f"<:done:1398729525277229066> Official status {'enabled' if new_value else 'removed'}!"
+            if not is_official:
+                await interaction.edit_original_response(content=success_message, embed=None, view=None)
             else:
-                await interaction.edit_original_response(embed=embed, view=new_view)
+                await interaction.followup.send(success_message, ephemeral=True)
 
         except Exception as e:
-            if is_official:
-                await interaction.response.send_message(
-                    f"<:undone:1398729502028333218> Error: {str(e)}",
-                    ephemeral=True
-                )
+            error_message = f"<:undone:1398729502028333218> Error: {str(e)}"
+            if not interaction.response.is_done():
+                await interaction.response.send_message(error_message, ephemeral=True)
+            elif not is_official:
+                try: await interaction.edit_original_response(content=error_message, embed=None, view=None)
+                except discord.NotFound: await interaction.followup.send(error_message, ephemeral=True)
             else:
-                await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
-                    embed=None,
-                    view=None
-                )
+                await interaction.followup.send(error_message, ephemeral=True)
 
     async def leave_guild(self, interaction: discord.Interaction):
         """Fait quitter le bot du serveur"""
@@ -791,6 +807,15 @@ class GuildActionsView(discord.ui.View):
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         await view.wait()
+
+        if view.value is None: # Timeout
+            try: await interaction.edit_original_response(content="Action timed out.", embed=None, view=None)
+            except discord.NotFound: pass
+            return
+        if not view.value: # Cancelled
+            try: await interaction.edit_original_response(content="Action cancelled.", embed=None, view=None)
+            except discord.NotFound: pass
+            return
 
         if view.value:
             try:
@@ -809,11 +834,14 @@ class GuildActionsView(discord.ui.View):
                         view=None
                     )
             except Exception as e:
-                await interaction.edit_original_response(
-                    content=f"<:undone:1398729502028333218> Error: {str(e)}",
-                    embed=None,
-                    view=None
-                )
+                try:
+                    await interaction.edit_original_response(
+                        content=f"<:undone:1398729502028333218> Error: {str(e)}",
+                        embed=None,
+                        view=None
+                    )
+                except discord.NotFound:
+                    await interaction.followup.send(f"<:undone:1398729502028333218> Error: {str(e)}", ephemeral=True)
 
     async def reset_guild(self, interaction: discord.Interaction):
         """Réinitialise toutes les données du serveur"""
