@@ -187,7 +187,7 @@ class HealthServer:
                 issues.append("Bot disconnected")
             else:
                 # Vérification de la latence
-                latency_ms = round(self.bot.latency * 1000)
+                latency_ms = round(self.bot.latency * 1000) if self.bot.latency != float('inf') else -1
                 if latency_ms > 500:
                     status = "partial_outage"
                     issues.append(f"High latency: {latency_ms}ms")
@@ -254,7 +254,7 @@ class HealthServer:
                 }, status=503)
 
             is_ready = self.bot.is_ready()
-            latency_ms = round(self.bot.latency * 1000) if is_ready else -1
+            latency_ms = round(self.bot.latency * 1000) if is_ready and self.bot.latency != float('inf') else -1
 
             response = {
                 "status": "online" if is_ready else "offline",
@@ -494,7 +494,7 @@ class HealthServer:
                     "users": len(self.bot.users),
                     "commands_count": len(self.bot.commands),
                     "cogs_count": len(self.bot.cogs),
-                    "latency_ms": round(self.bot.latency * 1000)
+                    "latency_ms": round(self.bot.latency * 1000) if self.bot.latency != float('inf') else -1
                 }
 
                 # Métriques par cog si disponibles
