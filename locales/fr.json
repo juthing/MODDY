@@ -1,0 +1,94 @@
+{
+  "commands": {
+    "ping": {
+      "description": "Vérifie la latence du bot",
+      "response": {
+        "title": "<:support:1398734366670065726> Pong !",
+        "description": "{emoji} **Connexion {status}**\n\n**Latence API Discord :** `{api_latency}ms`\n**Temps de réponse :** `{message_latency}`",
+        "footer": "Moddy • {guild_count} serveurs"
+      },
+      "status": {
+        "excellent": "Excellente",
+        "good": "Bonne",
+        "average": "Moyenne",
+        "poor": "Mauvaise"
+      }
+    },
+    "translate": {
+      "description": "Traduit du texte dans une autre langue",
+      "params": {
+        "text": "Le texte à traduire",
+        "to": "Langue de destination",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "translating": "Traduction en cours...",
+      "response": {
+        "title": "<:translate:1398720130950627600> Traduction",
+        "from_field": "Langue détectée : {language}",
+        "to_field": "Traduit en : {language}",
+        "footer": "{char_count} caractères • DeepL API"
+      },
+      "errors": {
+        "rate_limit": "Limite atteinte ! Maximum 20 traductions par minute. Réessayez dans {seconds} secondes",
+        "too_long": "Le texte est trop long (maximum 3000 caractères)",
+        "no_text": "Aucun texte fourni à traduire",
+        "api_error": "Impossible de contacter l'API de traduction"
+      },
+      "view": {
+        "placeholder": "Traduire dans une autre langue"
+      }
+    }
+  },
+  "errors": {
+    "generic": {
+      "title": "Une erreur est survenue",
+      "description": "**Code d'erreur :** `{error_code}`\n\nCette erreur a été enregistrée et sera analysée.\nVous pouvez fournir ce code au développeur si nécessaire."
+    },
+    "permissions": {
+      "title": "Permissions insuffisantes",
+      "description": "Permissions manquantes : `{permissions}`"
+    },
+    "cooldown": {
+      "title": "Cooldown actif",
+      "description": "Réessayez dans `{time}` secondes"
+    },
+    "argument": {
+      "title": "Argument manquant",
+      "description": "L'argument `{argument}` est requis"
+    }
+  },
+  "common": {
+    "loading": "<:loading:1395047662092550194> Chargement...",
+    "success": "<:done:1398729525277229066> Succès !",
+    "error": "<:undone:1398729502028333218> Erreur",
+    "info": "<:info:1401614681440784477> Information",
+    "warning": "<:warning:1398729560895422505> Avertissement"
+  },
+  "languages": {
+    "en-US": "Anglais (US)",
+    "en-GB": "Anglais (UK)",
+    "fr": "Français",
+    "de": "Allemand",
+    "es-ES": "Espagnol",
+    "it": "Italien",
+    "pt-BR": "Portugais (BR)",
+    "pt-PT": "Portugais",
+    "nl": "Néerlandais",
+    "pl": "Polonais",
+    "ru": "Russe",
+    "ja": "Japonais",
+    "zh-CN": "Chinois (Simplifié)",
+    "ko": "Coréen",
+    "tr": "Turc",
+    "sv-SE": "Suédois",
+    "da": "Danois",
+    "no": "Norvégien",
+    "fi": "Finnois",
+    "el": "Grec",
+    "cs": "Tchèque",
+    "ro": "Roumain",
+    "hu": "Hongrois",
+    "uk": "Ukrainien",
+    "bg": "Bulgare"
+  }
+}

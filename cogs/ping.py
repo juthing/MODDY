@@ -1,6 +1,5 @@
 """
-Commande ping publique
-Simple et accessible à tous
+Commande ping publique 
 """
 import asyncio
 import time
@@ -12,6 +11,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import COLORS, EMOJIS
+from utils.i18n import i18n, t
 
 
 class PublicPing(commands.Cog):
@@ -20,14 +20,17 @@ class PublicPing(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="ping", description="Vérifie la latence du bot / Check the bot's latency")
+    @app_commands.command(
+        name="ping",
+        description="Check the bot's latency"
+    )
     @app_commands.describe(
-        incognito="Rendre la réponse visible uniquement pour vous / Make response visible only to you"
+        incognito="Make response visible only to you"
     )
     async def ping_slash(self, interaction: discord.Interaction, incognito: Optional[bool] = None):
-        """Commande slash /ping simple pour tout le monde"""
+        """Commande slash /ping avec i18n automatique"""
 
-        # === BLOC INCOGNITO - À copier au début de chaque commande ===
+        # === BLOC INCOGNITO ===
         if incognito is None and self.bot.db:
             try:
                 user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
@@ -36,91 +39,69 @@ class PublicPing(commands.Cog):
                 ephemeral = True
         else:
             ephemeral = incognito if incognito is not None else True
-        # === FIN DU BLOC INCOGNITO ===
 
-        # === GESTION BUG "Interaction already acknowledged" ===
-        await asyncio.sleep(0.1)
-        if interaction.response.is_done():
-            # The language manager has already responded. We must use a followup.
-            # This means we cannot measure message latency. We'll only show API latency.
-            api_latency = round(self.bot.latency * 1000)
-
-            if api_latency < 50:
-                status = "Excellente"
-                emoji = EMOJIS["done"]
-            elif api_latency < 100:
-                status = "Bonne"
-                emoji = EMOJIS["info"]
-            elif api_latency < 200:
-                status = "Moyenne"
-                emoji = EMOJIS["warning"]
-            else:
-                status = "Mauvaise"
-                emoji = EMOJIS["error"]
-
-            embed = discord.Embed(
-                title=f"{EMOJIS['ping']} Pong!",
-                description=(
-                    f"{emoji} **Connexion {status}**\n\n"
-                    f"**Latence API Discord:** `{api_latency}ms`"
-                ),
-                color=COLORS["primary"],
-                timestamp=datetime.utcnow()
-            )
-            embed.set_footer(
-                text=f"Moddy • {len(self.bot.guilds)} serveurs",
-                icon_url=self.bot.user.display_avatar.url if self.bot.user else None
-            )
-            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            return
-
-        # === Normal execution flow ===
+        # Mesure du temps de début
         start = time.perf_counter()
 
         # Latence API
         api_latency = round(self.bot.latency * 1000)
 
-        # Déterminer la qualité de la connexion
+        # Déterminer la qualité de la connexion et l'emoji
         if api_latency < 50:
-            status = "Excellente"
+            status_key = "excellent"
             emoji = EMOJIS["done"]
         elif api_latency < 100:
-            status = "Bonne"
+            status_key = "good"
             emoji = EMOJIS["info"]
         elif api_latency < 200:
-            status = "Moyenne"
+            status_key = "average"
             emoji = EMOJIS["warning"]
         else:
-            status = "Mauvaise"
+            status_key = "poor"
             emoji = EMOJIS["error"]
 
-        # Créer l'embed avec du contenu
+        # Récupérer le texte du statut traduit
+        status = t(f"commands.ping.status.{status_key}", interaction)
+
+        # Créer l'embed initial avec le chargement
         embed = discord.Embed(
-            title=f"{EMOJIS['ping']} Pong!",
-            description=(
-                f"{emoji} **Connexion {status}**\n\n"
-                f"**Latence API Discord:** `{api_latency}ms`\n"
-                f"**Temps de réponse:** {EMOJIS['loading']}"
+            title=t("commands.ping.response.title", interaction),
+            description=t(
+                "commands.ping.response.description",
+                interaction,
+                emoji=emoji,
+                status=status,
+                api_latency=api_latency,
+                message_latency=t("common.loading", interaction)
             ),
             color=COLORS["primary"],
             timestamp=datetime.utcnow()
         )
 
         embed.set_footer(
-            text=f"Moddy • {len(self.bot.guilds)} serveurs",
+            text=t(
+                "commands.ping.response.footer",
+                interaction,
+                guild_count=len(self.bot.guilds)
+            ),
             icon_url=self.bot.user.display_avatar.url if self.bot.user else None
         )
 
-        # Envoyer le message
+        # Envoyer le message initial
         await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+
+        # Calculer la latence du message
         end = time.perf_counter()
         message_latency = round((end - start) * 1000)
 
-        # Mettre à jour avec la latence du message
-        embed.description = (
-            f"{emoji} **Connexion {status}**\n\n"
-            f"**Latence API Discord:** `{api_latency}ms`\n"
-            f"**Temps de réponse:** `{message_latency}ms`"
+        # Mettre à jour l'embed avec la latence réelle
+        embed.description = t(
+            "commands.ping.response.description",
+            interaction,
+            emoji=emoji,
+            status=status,
+            api_latency=api_latency,
+            message_latency=f"`{message_latency}ms`"
         )
 
         # Modifier le message avec l'embed final

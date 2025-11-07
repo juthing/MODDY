@@ -1,0 +1,94 @@
+{
+  "commands": {
+    "ping": {
+      "description": "Check the bot's latency",
+      "response": {
+        "title": "<:support:1398734366670065726> Pong!",
+        "description": "{emoji} **Connection {status}**\n\n**Discord API Latency:** `{api_latency}ms`\n**Response Time:** `{message_latency}`",
+        "footer": "Moddy • {guild_count} servers"
+      },
+      "status": {
+        "excellent": "Excellent",
+        "good": "Good",
+        "average": "Average",
+        "poor": "Poor"
+      }
+    },
+    "translate": {
+      "description": "Translate text to another language",
+      "params": {
+        "text": "The text to translate",
+        "to": "Target language",
+        "incognito": "Make response visible only to you"
+      },
+      "translating": "Translating...",
+      "response": {
+        "title": "<:translate:1398720130950627600> Translation",
+        "from_field": "Detected language: {language}",
+        "to_field": "Translated to: {language}",
+        "footer": "{char_count} characters • DeepL API"
+      },
+      "errors": {
+        "rate_limit": "Rate limit reached! Maximum 20 translations per minute. Try again in {seconds} seconds",
+        "too_long": "Text is too long (maximum 3000 characters)",
+        "no_text": "No text provided to translate",
+        "api_error": "Unable to contact translation API"
+      },
+      "view": {
+        "placeholder": "Translate to another language"
+      }
+    }
+  },
+  "errors": {
+    "generic": {
+      "title": "An error occurred",
+      "description": "**Error Code:** `{error_code}`\n\nThis error has been logged and will be analyzed.\nYou can provide this code to the developer if needed."
+    },
+    "permissions": {
+      "title": "Insufficient Permissions",
+      "description": "Missing permissions: `{permissions}`"
+    },
+    "cooldown": {
+      "title": "Cooldown Active",
+      "description": "Try again in `{time}` seconds"
+    },
+    "argument": {
+      "title": "Missing Argument",
+      "description": "The argument `{argument}` is required"
+    }
+  },
+  "common": {
+    "loading": "<:loading:1395047662092550194> Loading...",
+    "success": "<:done:1398729525277229066> Success!",
+    "error": "<:undone:1398729502028333218> Error",
+    "info": "<:info:1401614681440784477> Information",
+    "warning": "<:warning:1398729560895422505> Warning"
+  },
+  "languages": {
+    "en-US": "English (US)",
+    "en-GB": "English (UK)",
+    "fr": "French",
+    "de": "German",
+    "es-ES": "Spanish",
+    "it": "Italian",
+    "pt-BR": "Portuguese (BR)",
+    "pt-PT": "Portuguese",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "zh-CN": "Chinese (Simplified)",
+    "ko": "Korean",
+    "tr": "Turkish",
+    "sv-SE": "Swedish",
+    "da": "Danish",
+    "no": "Norwegian",
+    "fi": "Finnish",
+    "el": "Greek",
+    "cs": "Czech",
+    "ro": "Romanian",
+    "hu": "Hungarian",
+    "uk": "Ukrainian",
+    "bg": "Bulgarian",
+  }
+}

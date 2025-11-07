@@ -23,6 +23,8 @@ from config import (
     COLORS
 )
 from database import setup_database, db
+# Import du nouveau système i18n
+from utils.i18n import i18n
 
 logger = logging.getLogger('moddy')
 
@@ -113,6 +115,11 @@ class ModdyBot(commands.Bot):
         if DATABASE_URL:
             await self.setup_database()
 
+        # Initialize i18n system
+        logger.info("🌐 Loading i18n system...")
+        i18n.load_translations()
+        logger.info(f"✅ i18n loaded with {len(i18n.supported_locales)} languages")
+
         # Load extensions
         await self.load_extensions()
 
@@ -135,7 +142,9 @@ class ModdyBot(commands.Bot):
             logger.info("✅ Commands synced globally")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        """Slash command error handling"""
+        """Slash command error handling with i18n"""
+        from utils.i18n import t
+
         # Use the ErrorTracker cog if it's loaded
         error_cog = self.get_cog("ErrorTracker")
         if error_cog:
@@ -164,8 +173,23 @@ class ModdyBot(commands.Bot):
             # Use the existing handler
             await error_cog.on_command_error(fake_ctx, error)
         else:
-            # Fallback if the system is not loaded
+            # Fallback if the system is not loaded - now with i18n
             logger.error(f"Slash command error: {error}", exc_info=error)
+
+            try:
+                error_msg = t("errors.generic.description", interaction, error_code="UNKNOWN")
+                embed = discord.Embed(
+                    title=t("errors.generic.title", interaction),
+                    description=error_msg,
+                    color=COLORS["error"]
+                )
+
+                if interaction.response.is_done():
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+                else:
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+            except:
+                pass
 
     async def start_health_server(self):
         """Démarre le serveur de health check"""
@@ -289,11 +313,17 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"❌ Error loading dev logger: {e}")
 
+        # NOTE: L'ancien LanguageManager n'est PLUS chargé
+        # Le nouveau système i18n est automatique via interaction.locale
+
         # Load user cogs
         cogs_dir = Path("cogs")
         if cogs_dir.exists():
             for file in cogs_dir.glob("*.py"):
-                if file.name.startswith("_") or file.name in ["error_handler.py", "blacklist_check.py", "dev_logger.py"]:
+                # SKIP l'ancien language_manager s'il existe encore
+                if file.name.startswith("_") or file.name in ["error_handler.py", "blacklist_check.py", "dev_logger.py", "language_manager.py"]:
+                    if file.name == "language_manager.py":
+                        logger.warning("⚠️ Skipping old language_manager.py - using new i18n system")
                     continue
 
                 try:
@@ -344,6 +374,7 @@ class ModdyBot(commands.Bot):
         logger.info(f"✅ {self.user} is connected!")
         logger.info(f"📊 {len(self.guilds)} servers | {len(self.users)} users")
         logger.info(f"🏓 Latency: {round(self.latency * 1000)}ms")
+        logger.info(f"🌐 i18n: {len(i18n.supported_locales)} languages loaded")
 
         # Update DEVELOPER attributes now that self.user is available
         if self.db and self._dev_team_ids:
@@ -469,7 +500,8 @@ class ModdyBot(commands.Bot):
             ("watching", f"{len(self.guilds)} servers"),
             ("playing", "/help"),
             ("watching", "moderators"),
-            ("playing", f"with {len(self.users)} users")
+            ("playing", f"with {len(self.users)} users"),
+            ("watching", f"{len(i18n.supported_locales)} languages")  # Nouveau statut i18n
         ]
 
         # Add special statuses if connected to the DB
