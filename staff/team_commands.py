@@ -62,6 +62,8 @@ class TeamCommands(commands.Cog):
             await self.handle_serverinfo_command(message, args)
         elif command_name == "help":
             await self.handle_help_command(message, args)
+        elif command_name == "flex":
+            await self.handle_flex_command(message, args)
         else:
             view = create_error_message(
                 "Unknown Command",
@@ -272,7 +274,8 @@ class TeamCommands(commands.Cog):
         team_commands = [
             ("t.help", "Show this help message"),
             ("t.invite [server_id]", "Get an invite link to a server"),
-            ("t.serverinfo [server_id]", "Get detailed information about a server")
+            ("t.serverinfo [server_id]", "Get detailed information about a server"),
+            ("t.flex", "Prove you are a member of the Moddy team")
         ]
 
         fields.append({
@@ -345,6 +348,73 @@ class TeamCommands(commands.Cog):
         )
 
         await message.reply(view=view, mention_author=False)
+
+    async def handle_flex_command(self, message: discord.Message, args: str):
+        """
+        Handle t.flex command - Prove staff membership on a server
+        Usage: <@1373916203814490194> t.flex
+        """
+        # Get user roles
+        user_roles = await staff_permissions.get_user_roles(message.author.id)
+
+        if not user_roles:
+            view = create_error_message(
+                "Not a Staff Member",
+                "You don't have any staff roles in the MODDY team."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Format roles in a human-readable way
+        role_names = {
+            "Dev": "Developer",
+            "Manager": "Manager",
+            "Supervisor_Mod": "Moderation Supervisor",
+            "Supervisor_Com": "Communication Supervisor",
+            "Supervisor_Sup": "Support Supervisor",
+            "Moderator": "Moderator",
+            "Communication": "Communication Specialist",
+            "Support": "Support Specialist"
+        }
+
+        # Get primary role (highest in hierarchy)
+        primary_role = user_roles[0].value
+        formatted_role = role_names.get(primary_role, primary_role)
+
+        # Create the verification message with Components V2
+        from discord.ui import LayoutView, Container, TextDisplay
+
+        view = LayoutView()
+        container = Container()
+
+        # Verification message
+        verification_text = f"{EMOJIS['verified']} **{message.author.mention} is a {formatted_role} of the Moddy team.**\n\nThis message was sent to prevent identity theft. [Learn more](https://moddy.app/staff)"
+        container.add_item(TextDisplay(verification_text))
+
+        view.add_item(container)
+
+        # Send in channel (not as reply) and delete command message
+        try:
+            await message.channel.send(view=view)
+            await message.delete()
+
+            # Log the action
+            logger.info(f"Staff {message.author} ({message.author.id}) used t.flex in {message.guild.name if message.guild else 'DM'} ({message.guild.id if message.guild else 'N/A'})")
+
+        except discord.Forbidden:
+            view_error = create_error_message(
+                "Permission Denied",
+                "I don't have permission to send messages or delete messages in this channel."
+            )
+            await message.reply(view=view_error, mention_author=False)
+
+        except Exception as e:
+            logger.error(f"Error in t.flex command: {e}")
+            view_error = create_error_message(
+                "Error",
+                f"Failed to send verification message: {str(e)}"
+            )
+            await message.reply(view=view_error, mention_author=False)
 
 
 async def setup(bot):
