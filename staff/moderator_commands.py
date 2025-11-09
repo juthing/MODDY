@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
 
 logger = logging.getLogger('moddy.moderator_commands')
 
@@ -55,7 +56,7 @@ class ModeratorCommands(commands.Cog):
                 description=reason,
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Route to appropriate command
@@ -73,21 +74,21 @@ class ModeratorCommands(commands.Cog):
                 description=f"Moderator command `{command_name}` not found.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
 
     async def handle_blacklist_command(self, message: discord.Message, args: str):
         """
         Handle mod.blacklist command - Blacklist a user
-        Usage: <@&1386452009678278818> mod.blacklist @user [reason]
+        Usage: <@1373916203814490194> mod.blacklist @user [reason]
         """
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> mod.blacklist @user [reason]`\n\nMention a user to blacklist.",
+                description="**Usage:** `<@1373916203814490194> mod.blacklist @user [reason]`\n\nMention a user to blacklist.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -101,7 +102,7 @@ class ModeratorCommands(commands.Cog):
                 description="You cannot blacklist staff members.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Check if already blacklisted
@@ -111,7 +112,7 @@ class ModeratorCommands(commands.Cog):
                 description=f"{target_user.mention} is already blacklisted.",
                 color=COLORS["warning"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Blacklist the user
@@ -134,23 +135,23 @@ class ModeratorCommands(commands.Cog):
 
         embed.set_footer(text=f"Executed by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
         logger.info(f"User {target_user} ({target_user.id}) blacklisted by {message.author} ({message.author.id})")
 
     async def handle_unblacklist_command(self, message: discord.Message, args: str):
         """
         Handle mod.unblacklist command - Remove user from blacklist
-        Usage: <@&1386452009678278818> mod.unblacklist @user [reason]
+        Usage: <@1373916203814490194> mod.unblacklist @user [reason]
         """
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> mod.unblacklist @user [reason]`\n\nMention a user to unblacklist.",
+                description="**Usage:** `<@1373916203814490194> mod.unblacklist @user [reason]`\n\nMention a user to unblacklist.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -164,7 +165,7 @@ class ModeratorCommands(commands.Cog):
                 description=f"{target_user.mention} is not blacklisted.",
                 color=COLORS["warning"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Remove from blacklist
@@ -187,22 +188,22 @@ class ModeratorCommands(commands.Cog):
 
         embed.set_footer(text=f"Executed by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
         logger.info(f"User {target_user} ({target_user.id}) unblacklisted by {message.author} ({message.author.id})")
 
     async def handle_userinfo_command(self, message: discord.Message, args: str):
         """
         Handle mod.userinfo command - Get detailed user information
-        Usage: <@&1386452009678278818> mod.userinfo @user
+        Usage: <@1373916203814490194> mod.userinfo @user
         """
         if not message.mentions:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> mod.userinfo @user`\n\nMention a user to get information.",
+                description="**Usage:** `<@1373916203814490194> mod.userinfo @user`\n\nMention a user to get information.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -260,20 +261,20 @@ class ModeratorCommands(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
     async def handle_guildinfo_command(self, message: discord.Message, args: str):
         """
         Handle mod.guildinfo command - Get detailed guild information
-        Usage: <@&1386452009678278818> mod.guildinfo [guild_id]
+        Usage: <@1373916203814490194> mod.guildinfo [guild_id]
         """
         if not args:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> mod.guildinfo [guild_id]`\n\nProvide a guild ID.",
+                description="**Usage:** `<@1373916203814490194> mod.guildinfo [guild_id]`\n\nProvide a guild ID.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         try:
@@ -284,7 +285,7 @@ class ModeratorCommands(commands.Cog):
                 description="Please provide a valid guild ID (numbers only).",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         guild = self.bot.get_guild(guild_id)
@@ -294,7 +295,7 @@ class ModeratorCommands(commands.Cog):
                 description=f"MODDY is not in a guild with ID `{guild_id}`.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Get guild data from database
@@ -365,7 +366,7 @@ class ModeratorCommands(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
 
 async def setup(bot):

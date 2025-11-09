@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
 
 logger = logging.getLogger('moddy.team_commands')
 
@@ -55,7 +56,7 @@ class TeamCommands(commands.Cog):
                 description=reason,
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Route to appropriate command
@@ -68,23 +69,23 @@ class TeamCommands(commands.Cog):
         else:
             embed = discord.Embed(
                 title="❌ Unknown Command",
-                description=f"Team command `{command_name}` not found.\n\nUse `<@&1386452009678278818> t.help` for a list of available commands.",
+                description=f"Team command `{command_name}` not found.\n\nUse `<@1373916203814490194> t.help` for a list of available commands.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
 
     async def handle_invite_command(self, message: discord.Message, args: str):
         """
         Handle t.invite command - Get an invite to a server
-        Usage: <@&1386452009678278818> t.invite [server_id]
+        Usage: <@1373916203814490194> t.invite [server_id]
         """
         if not args:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> t.invite [server_id]`\n\nProvide a server ID to get an invite link.",
+                description="**Usage:** `<@1373916203814490194> t.invite [server_id]`\n\nProvide a server ID to get an invite link.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Parse server ID
@@ -96,7 +97,7 @@ class TeamCommands(commands.Cog):
                 description="Please provide a valid server ID (numbers only).",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Get guild
@@ -107,7 +108,7 @@ class TeamCommands(commands.Cog):
                 description=f"MODDY is not in a server with ID `{guild_id}`.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Try to create an invite
@@ -128,7 +129,7 @@ class TeamCommands(commands.Cog):
                     description=f"MODDY doesn't have permission to create invites in **{guild.name}**.",
                     color=COLORS["error"]
                 )
-                await message.channel.send(embed=embed, delete_after=15)
+                await message.reply(embed=embed, mention_author=False)
                 return
 
             # Create invite (7 days, 1 use, no temporary membership)
@@ -170,7 +171,7 @@ class TeamCommands(commands.Cog):
 
             embed.set_footer(text=f"Requested by {message.author}")
 
-            await message.channel.send(embed=embed)
+            await message.reply(embed=embed, mention_author=False)
 
             # Log the action
             logger.info(f"Staff {message.author} ({message.author.id}) requested invite for {guild.name} ({guild.id})")
@@ -181,7 +182,7 @@ class TeamCommands(commands.Cog):
                 description=f"MODDY doesn't have permission to create invites in **{guild.name}**.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
 
         except Exception as e:
             logger.error(f"Error creating invite: {e}")
@@ -190,20 +191,20 @@ class TeamCommands(commands.Cog):
                 description=f"Failed to create invite: {str(e)}",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
 
     async def handle_serverinfo_command(self, message: discord.Message, args: str):
         """
         Handle t.serverinfo command - Get information about a server
-        Usage: <@&1386452009678278818> t.serverinfo [server_id]
+        Usage: <@1373916203814490194> t.serverinfo [server_id]
         """
         if not args:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> t.serverinfo [server_id]`\n\nProvide a server ID to get information.",
+                description="**Usage:** `<@1373916203814490194> t.serverinfo [server_id]`\n\nProvide a server ID to get information.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Parse server ID
@@ -215,7 +216,7 @@ class TeamCommands(commands.Cog):
                 description="Please provide a valid server ID (numbers only).",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Get guild
@@ -226,7 +227,7 @@ class TeamCommands(commands.Cog):
                 description=f"MODDY is not in a server with ID `{guild_id}`.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Create info embed
@@ -285,12 +286,12 @@ class TeamCommands(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
         Handle t.help command - Show available team commands
-        Usage: <@&1386452009678278818> t.help
+        Usage: <@1373916203814490194> t.help
         """
         # Get user roles to show relevant commands
         user_roles = await staff_permissions.get_user_roles(message.author.id)
@@ -311,7 +312,7 @@ class TeamCommands(commands.Cog):
 
         embed.add_field(
             name="🌐 Team Commands (All Staff)",
-            value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in team_commands]),
+            value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in team_commands]),
             inline=False
         )
 
@@ -326,7 +327,7 @@ class TeamCommands(commands.Cog):
 
             embed.add_field(
                 name="👑 Management Commands",
-                value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in mgmt_commands]),
+                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mgmt_commands]),
                 inline=False
             )
 
@@ -342,7 +343,7 @@ class TeamCommands(commands.Cog):
 
             embed.add_field(
                 name="💻 Developer Commands",
-                value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in dev_commands]),
+                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in dev_commands]),
                 inline=False
             )
 
@@ -357,7 +358,7 @@ class TeamCommands(commands.Cog):
 
             embed.add_field(
                 name="🛡️ Moderator Commands",
-                value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in mod_commands]),
+                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mod_commands]),
                 inline=False
             )
 
@@ -379,7 +380,7 @@ class TeamCommands(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author} | Your roles: {', '.join([r.value for r in user_roles])}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
 
 async def setup(bot):

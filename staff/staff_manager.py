@@ -13,6 +13,13 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, StaffRole, CommandType
 from database import db
 from config import COLORS
+from utils.components_v2 import (
+    create_error_message,
+    create_success_message,
+    create_info_message,
+    create_warning_message,
+    create_staff_info_message
+)
 
 logger = logging.getLogger('moddy.staff_manager')
 
@@ -267,12 +274,8 @@ class StaffManagement(commands.Cog):
 
         if not allowed:
             logger.warning(f"   ❌ Permission denied: {reason}")
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=reason,
-                color=COLORS["error"]
-            )
-            await message.channel.send(embed=embed, delete_after=10)
+            view = create_error_message("Permission Denied", reason)
+            await message.reply(view=view, mention_author=False)
             return
 
         logger.info(f"   ✅ Permission granted")
@@ -287,49 +290,36 @@ class StaffManagement(commands.Cog):
         elif command_name == "staffinfo":
             await self.handle_staffinfo_command(message, args)
         else:
-            embed = discord.Embed(
-                title="❌ Unknown Command",
-                description=f"Management command `{command_name}` not found.",
-                color=COLORS["error"]
-            )
-            await message.channel.send(embed=embed, delete_after=10)
+            view = create_error_message("Unknown Command", f"Management command `{command_name}` not found.")
+            await message.reply(view=view, mention_author=False)
 
     async def handle_rank_command(self, message: discord.Message, args: str):
         """
         Handle m.rank command - Add user to staff team
-        Usage: <@&1386452009678278818> m.rank @user
+        Usage: <@1373916203814490194> m.rank @user
         """
         # Parse user mention
         if not message.mentions:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> m.rank @user`\n\nMention a user to add them to the staff team.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> m.rank @user`\n\nMention a user to add them to the staff team."
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(view=view, mention_author=False)
             return
 
         target_user = message.mentions[0]
 
         # Can't rank bots
         if target_user.bot:
-            embed = discord.Embed(
-                title="❌ Invalid Target",
-                description="You cannot add bots to the staff team.",
-                color=COLORS["error"]
-            )
-            await message.channel.send(embed=embed, delete_after=10)
+            view = create_error_message("Invalid Target", "You cannot add bots to the staff team.")
+            await message.reply(view=view, mention_author=False)
             return
 
         # Check if user is already staff
         user_data = await db.get_user(target_user.id)
         if user_data['attributes'].get('TEAM'):
-            embed = discord.Embed(
-                title="⚠️ Already Staff",
-                description=f"{target_user.mention} is already a staff member.",
-                color=COLORS["warning"]
-            )
-            await message.channel.send(embed=embed, delete_after=10)
+            view = create_warning_message("Already Staff", f"{target_user.mention} is already a staff member.")
+            await message.reply(view=view, mention_author=False)
             return
 
         # Open role selection
@@ -344,21 +334,20 @@ class StaffManagement(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed, view=view)
+        await message.reply(embed=embed, view=view, mention_author=False)
 
     async def handle_setstaff_command(self, message: discord.Message, args: str):
         """
         Handle m.setstaff command - Manage staff permissions
-        Usage: <@&1386452009678278818> m.setstaff @user
+        Usage: <@1373916203814490194> m.setstaff @user
         """
         # Parse user mention
         if not message.mentions:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> m.setstaff @user`\n\nMention a user to manage their permissions.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> m.setstaff @user`\n\nMention a user to manage their permissions."
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(view=view, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -366,23 +355,21 @@ class StaffManagement(commands.Cog):
         # Check if target is staff
         user_data = await db.get_user(target_user.id)
         if not user_data['attributes'].get('TEAM') and not self.bot.is_developer(target_user.id):
-            embed = discord.Embed(
-                title="❌ Not Staff",
-                description=f"{target_user.mention} is not a staff member.\n\nUse `m.rank @user` to add them first.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Not Staff",
+                f"{target_user.mention} is not a staff member.\n\nUse `m.rank @user` to add them first."
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Check if modifier can modify target
         can_modify = await staff_permissions.can_modify_user(message.author.id, target_user.id)
         if not can_modify:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description="You cannot modify this user's permissions.\n\nYou can only modify staff members below your hierarchy level.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Permission Denied",
+                "You cannot modify this user's permissions.\n\nYou can only modify staff members below your hierarchy level."
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Get current permissions
@@ -456,12 +443,12 @@ class StaffManagement(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed, view=view)
+        await message.reply(embed=embed, view=view, mention_author=False)
 
     async def handle_stafflist_command(self, message: discord.Message, args: str):
         """
         Handle m.stafflist command - List all staff members
-        Usage: <@&1386452009678278818> m.stafflist
+        Usage: <@1373916203814490194> m.stafflist
         """
         staff_members = await db.get_all_staff_members()
 
@@ -471,7 +458,7 @@ class StaffManagement(commands.Cog):
                 description="No staff members found.",
                 color=COLORS["info"]
             )
-            await message.channel.send(embed=embed)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Group by roles
@@ -512,12 +499,12 @@ class StaffManagement(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
     async def handle_staffinfo_command(self, message: discord.Message, args: str):
         """
         Handle m.staffinfo command - Show info about a staff member
-        Usage: <@&1386452009678278818> m.staffinfo @user
+        Usage: <@1373916203814490194> m.staffinfo @user
         """
         # Parse user mention or use self
         target_user = message.mentions[0] if message.mentions else message.author
@@ -531,7 +518,7 @@ class StaffManagement(commands.Cog):
                 description=f"{target_user.mention} is not a staff member.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         # Create info embed
@@ -581,7 +568,7 @@ class StaffManagement(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
 
 async def setup(bot):
