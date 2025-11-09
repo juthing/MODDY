@@ -15,18 +15,19 @@ import asyncio
 from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
 from utils.incognito import add_incognito_option, get_incognito_setting
 from config import COLORS, DEEPL_API_KEY
+from utils.i18n import i18n
 
 
 class TranslateView(discord.ui.View):
     """View to re-translate into another language"""
 
-    def __init__(self, bot, original_text: str, from_lang: str, current_to_lang: str, lang: str, author: discord.User):
+    def __init__(self, bot, original_text: str, from_lang: str, current_to_lang: str, locale: str, author: discord.User):
         super().__init__(timeout=120)
         self.bot = bot
         self.original_text = original_text
         self.from_lang = from_lang
         self.current_to_lang = current_to_lang
-        self.lang = lang
+        self.locale = locale
         self.author = author
 
         # Add the select menu
@@ -68,8 +69,10 @@ class TranslateView(discord.ui.View):
         for code, (emoji, name, name_fr) in languages.items():
             # Do not include the current language
             if code != self.current_to_lang:
+                # Use French names for French locale, English names for others
+                label = name_fr if self.locale == "fr" else name
                 options.append(discord.SelectOption(
-                    label=name_fr if self.lang == "FR" else name,
+                    label=label,
                     value=code,
                     emoji=emoji
                 ))
@@ -77,7 +80,7 @@ class TranslateView(discord.ui.View):
         # Limit to 25 options (Discord limit)
         options = options[:25]
 
-        placeholder = "Traduire dans une autre langue" if self.lang == "FR" else "Translate to another language"
+        placeholder = i18n.get("commands.translate.view.placeholder", locale=self.locale)
 
         select = discord.ui.Select(
             placeholder=placeholder,
@@ -92,7 +95,8 @@ class TranslateView(discord.ui.View):
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Checks that it's the author using the menu"""
         if interaction.user != self.author:
-            if self.lang == "FR":
+            locale = i18n.get_user_locale(interaction)
+            if locale == "fr":
                 msg = "Seul l'auteur de la commande peut utiliser ce menu."
             else:
                 msg = "Only the command author can use this menu."
@@ -103,12 +107,6 @@ class TranslateView(discord.ui.View):
     async def translate_callback(self, interaction: discord.Interaction):
         """Callback to re-translate the text"""
         new_lang = self.children[0].values[0]
-
-        # Loading message
-        if self.lang == "FR":
-            loading_text = f"<:loading:1395047662092550194> Traduction en cours..."
-        else:
-            loading_text = f"<:loading:1395047662092550194> Translating..."
 
         await interaction.response.defer()
 
@@ -124,7 +122,7 @@ class TranslateView(discord.ui.View):
                     translated,
                     self.from_lang,
                     new_lang,
-                    self.lang
+                    self.locale
                 )
 
                 # Update the view with the new language
@@ -134,11 +132,7 @@ class TranslateView(discord.ui.View):
 
                 await interaction.edit_original_response(embed=embed, view=self)
             else:
-                if self.lang == "FR":
-                    error_msg = "<:undone:1398729502028333218> Erreur lors de la traduction"
-                else:
-                    error_msg = "<:undone:1398729502028333218> Translation error"
-
+                error_msg = i18n.get("common.error", locale=self.locale)
                 await interaction.followup.send(error_msg, ephemeral=True)
 
 
@@ -151,95 +145,32 @@ class Translate(commands.Cog):
         self.user_usage = {}  # Dict to track usage per user
         self.max_uses_per_minute = 20  # Maximum 20 uses per minute per user
 
-        # Multilingual texts
-        self.texts = {
-            "FR": {
-                "description": "Traduit du texte dans une autre langue",
-                "text_desc": "Le texte à traduire",
-                "to_desc": "Langue de destination",
-                "incognito_desc": "Rendre la réponse visible uniquement pour vous",
-                "translating": "Traduction en cours...",
-                "from_lang": "Langue détectée",
-                "to_lang": "Traduit en",
-                "translation_title": "Traduction",
-                "error_title": "Erreur de traduction",
-                "error_api": "Impossible de contacter l'API de traduction",
-                "error_rate_limit": "Limite atteinte ! Maximum 20 traductions par minute. Réessayez dans {} secondes",
-                "error_too_long": "Le texte est trop long (maximum 3000 caractères)",
-                "error_no_text": "Aucun texte fourni à traduire",
-                "characters": "caractères"
-            },
-            "EN": {
-                "description": "Translate text to another language",
-                "text_desc": "The text to translate",
-                "to_desc": "Target language",
-                "incognito_desc": "Make response visible only to you",
-                "translating": "Translating...",
-                "from_lang": "Detected language",
-                "to_lang": "Translated to",
-                "translation_title": "Translation",
-                "error_title": "Translation error",
-                "error_api": "Unable to contact translation API",
-                "error_rate_limit": "Rate limit reached! Maximum 20 translations per minute. Try again in {} seconds",
-                "error_too_long": "Text is too long (maximum 3000 characters)",
-                "error_no_text": "No text provided to translate",
-                "characters": "characters"
+    def get_language_name(self, code: str, locale: str) -> str:
+        """Gets the name of a language using i18n"""
+        # Convert DeepL code (uppercase) to i18n code (lowercase with proper format)
+        # DeepL: EN-US, EN-GB, FR, DE -> i18n: en-US, en-GB, fr, de
+        normalized_code = code.lower()
+
+        # Special cases for codes without region
+        if normalized_code in ['en', 'fr', 'de', 'es', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ko', 'tr', 'sv', 'da', 'no', 'fi', 'el', 'cs', 'ro', 'hu', 'uk', 'bg']:
+            # Map to standard codes
+            code_mapping = {
+                'en': 'en-US',
+                'es': 'es-ES',
+                'pt': 'pt-PT',
+                'zh': 'zh-CN',
+                'sv': 'sv-SE'
             }
-        }
+            normalized_code = code_mapping.get(normalized_code, normalized_code)
 
-        # Map of DeepL language codes to names
-        self.language_names = {
-            "EN": {"FR": "Anglais", "EN": "English"},
-            "EN-US": {"FR": "Anglais (US)", "EN": "English (US)"},
-            "EN-GB": {"FR": "Anglais (UK)", "EN": "English (UK)"},
-            "FR": {"FR": "Français", "EN": "French"},
-            "DE": {"FR": "Allemand", "EN": "German"},
-            "ES": {"FR": "Espagnol", "EN": "Spanish"},
-            "IT": {"FR": "Italien", "EN": "Italian"},
-            "PT": {"FR": "Portugais", "EN": "Portuguese"},
-            "PT-PT": {"FR": "Portugais", "EN": "Portuguese"},
-            "PT-BR": {"FR": "Portugais (BR)", "EN": "Portuguese (BR)"},
-            "NL": {"FR": "Néerlandais", "EN": "Dutch"},
-            "PL": {"FR": "Polonais", "EN": "Polish"},
-            "RU": {"FR": "Russe", "EN": "Russian"},
-            "JA": {"FR": "Japonais", "EN": "Japanese"},
-            "ZH": {"FR": "Chinois", "EN": "Chinese"},
-            "KO": {"FR": "Coréen", "EN": "Korean"},
-            "TR": {"FR": "Turc", "EN": "Turkish"},
-            "SV": {"FR": "Suédois", "EN": "Swedish"},
-            "DA": {"FR": "Danois", "EN": "Danish"},
-            "NO": {"FR": "Norvégien", "EN": "Norwegian"},
-            "FI": {"FR": "Finnois", "EN": "Finnish"},
-            "EL": {"FR": "Grec", "EN": "Greek"},
-            "CS": {"FR": "Tchèque", "EN": "Czech"},
-            "RO": {"FR": "Roumain", "EN": "Romanian"},
-            "HU": {"FR": "Hongrois", "EN": "Hungarian"},
-            "UK": {"FR": "Ukrainien", "EN": "Ukrainian"},
-            "BG": {"FR": "Bulgare", "EN": "Bulgarian"},
-            "AR": {"FR": "Arabe", "EN": "Arabic"},
-            "ID": {"FR": "Indonésien", "EN": "Indonesian"},
-            "SK": {"FR": "Slovaque", "EN": "Slovak"},
-            "SL": {"FR": "Slovène", "EN": "Slovenian"},
-            "ET": {"FR": "Estonien", "EN": "Estonian"},
-            "LV": {"FR": "Letton", "EN": "Latvian"},
-            "LT": {"FR": "Lituanien", "EN": "Lithuanian"}
-        }
+        # Try to get the language name from i18n
+        lang_name = i18n.get(f"languages.{normalized_code}", locale=locale)
 
-    def get_text(self, lang: str, key: str) -> str:
-        """Gets a translated text"""
-        return self.texts.get(lang, self.texts["EN"]).get(key, key)
-
-    def get_language_name(self, code: str, lang: str) -> str:
-        """Gets the name of a language in the correct translation"""
-        # Clean the code (EN-US -> EN-US, EN -> EN)
-        base_code = code.split('-')[0] if '-' not in code or code in self.language_names else code
-
-        if code in self.language_names:
-            return self.language_names[code].get(lang, code)
-        elif base_code in self.language_names:
-            return self.language_names[base_code].get(lang, code)
-        else:
+        # If not found (returns [languages.xxx]), return the code itself
+        if lang_name.startswith('['):
             return code
+
+        return lang_name
 
     def sanitize_mentions(self, text: str, guild: Optional[discord.Guild]) -> str:
         """Replaces mentions with non-pinging text"""
@@ -365,32 +296,36 @@ class Translate(commands.Cog):
         except Exception:
             return None
 
-    def create_translation_embed(self, original: str, translated: str, from_lang: str, to_lang: str, user_lang: str) -> discord.Embed:
+    def create_translation_embed(self, original: str, translated: str, from_lang: str, to_lang: str, locale: str) -> discord.Embed:
         """Creates the translation embed"""
+        title = i18n.get("commands.translate.response.title", locale=locale)
         embed = discord.Embed(
-            title=f"<:translate:1398720130950627600> {self.get_text(user_lang, 'translation_title')}",
+            title=title,
             color=COLORS["primary"]
         )
 
         # Original text
         original_display = original[:1000] + "..." if len(original) > 1000 else original
+        from_field = i18n.get("commands.translate.response.from_field", locale=locale, language=self.get_language_name(from_lang, locale))
         embed.add_field(
-            name=f"{self.get_text(user_lang, 'from_lang')}: {self.get_language_name(from_lang, user_lang)}",
+            name=from_field,
             value=f"```\n{original_display}\n```",
             inline=False
         )
 
         # Translated text
         translated_display = translated[:1000] + "..." if len(translated) > 1000 else translated
+        to_field = i18n.get("commands.translate.response.to_field", locale=locale, language=self.get_language_name(to_lang, locale))
         embed.add_field(
-            name=f"{self.get_text(user_lang, 'to_lang')}: {self.get_language_name(to_lang, user_lang)}",
+            name=to_field,
             value=f"```\n{translated_display}\n```",
             inline=False
         )
 
         # Footer with character count
+        footer = i18n.get("commands.translate.response.footer", locale=locale, char_count=len(original))
         embed.set_footer(
-            text=f"{len(original)} {self.get_text(user_lang, 'characters')} • DeepL API",
+            text=footer,
             icon_url="https://www.deepl.com/img/logo/DeepL_Logo_darkBlue_v2.svg"
         )
 
@@ -444,83 +379,8 @@ class Translate(commands.Cog):
     ):
         """Main translation command"""
 
-        # IMPORTANT: Wait a bit to let the language system do its work
-        await asyncio.sleep(0.1)
-
-        # Check if the interaction has already been responded to (by the language system)
-        if interaction.response.is_done():
-            # The language system has requested the selection, we wait for it to finish
-            # and execute the translation afterwards
-            await asyncio.sleep(2)  # Wait for the user to choose their language
-
-            # Get the updated language
-            lang = 'EN'  # Default fallback
-            if self.bot.db:
-                try:
-                    user_lang = await self.bot.db.get_attribute('user', interaction.user.id, 'LANG')
-                    if user_lang:
-                        lang = user_lang
-                except:
-                    pass
-
-            # Get the ephemeral mode
-            if incognito is None and self.bot.db:
-                try:
-                    user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
-                    ephemeral = True if user_pref is None else user_pref
-                except:
-                    ephemeral = True
-            else:
-                ephemeral = incognito if incognito is not None else True
-
-            # Check the rate limit
-            can_use, remaining = await self.check_rate_limit(interaction.user.id)
-            if not can_use:
-                error_embed = ModdyResponse.error(
-                    self.get_text(lang, "error_title"),
-                    self.get_text(lang, "error_rate_limit").format(remaining)
-                )
-                await interaction.followup.send(embed=error_embed, ephemeral=True)
-                return
-
-            # Continue with the translation via followup
-            loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
-            msg = await interaction.followup.send(embed=loading_embed, ephemeral=ephemeral)
-
-            # Execute the translation
-            sanitized_text = self.sanitize_mentions(text, interaction.guild)
-            source_lang = await self.detect_language(sanitized_text)
-            translated = await self.translate_text(sanitized_text, to.value)
-
-            if translated and source_lang:
-                embed = self.create_translation_embed(
-                    sanitized_text,
-                    translated,
-                    source_lang,
-                    to.value,
-                    lang
-                )
-                view = TranslateView(
-                    self.bot,
-                    sanitized_text,
-                    source_lang,
-                    to.value,
-                    lang,
-                    interaction.user
-                )
-                await msg.edit(embed=embed, view=view)
-            else:
-                error_embed = ModdyResponse.error(
-                    self.get_text(lang, "error_title"),
-                    self.get_text(lang, "error_api")
-                )
-                await msg.edit(embed=error_embed)
-
-            return
-
-        # If the interaction has not yet been responded to, we continue normally
-        # Get the user's language
-        lang = getattr(interaction, 'user_lang', 'EN')
+        # Get the user's locale from Discord
+        locale = i18n.get_user_locale(interaction)
 
         # Get the ephemeral mode
         ephemeral = get_incognito_setting(interaction)
@@ -528,19 +388,15 @@ class Translate(commands.Cog):
         # Check the rate limit (20 per minute per user)
         can_use, remaining = await self.check_rate_limit(interaction.user.id)
         if not can_use:
-            error_embed = ModdyResponse.error(
-                self.get_text(lang, "error_title"),
-                self.get_text(lang, "error_rate_limit").format(remaining)
-            )
+            error_msg = i18n.get("commands.translate.errors.rate_limit", locale=locale, seconds=remaining)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
         # Check the length of the text
         if len(text) > 3000:
-            error_embed = ModdyResponse.error(
-                self.get_text(lang, "error_title"),
-                self.get_text(lang, "error_too_long")
-            )
+            error_msg = i18n.get("commands.translate.errors.too_long", locale=locale)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
             await interaction.response.send_message(embed=error_embed, ephemeral=True)
             return
 
@@ -548,7 +404,8 @@ class Translate(commands.Cog):
         sanitized_text = self.sanitize_mentions(text, interaction.guild)
 
         # Loading message
-        loading_embed = ModdyResponse.loading(self.get_text(lang, "translating"))
+        loading_msg = i18n.get("commands.translate.translating", locale=locale)
+        loading_embed = ModdyResponse.loading(loading_msg)
         await interaction.response.send_message(embed=loading_embed, ephemeral=ephemeral)
 
         # Detect the source language
@@ -564,7 +421,7 @@ class Translate(commands.Cog):
                 translated,
                 source_lang,
                 to.value,
-                lang
+                locale
             )
 
             # Create the view with the re-translation menu
@@ -573,7 +430,7 @@ class Translate(commands.Cog):
                 sanitized_text,
                 source_lang,
                 to.value,
-                lang,
+                locale,
                 interaction.user
             )
 
@@ -581,10 +438,8 @@ class Translate(commands.Cog):
 
         else:
             # Translation error
-            error_embed = ModdyResponse.error(
-                self.get_text(lang, "error_title"),
-                self.get_text(lang, "error_api")
-            )
+            error_msg = i18n.get("commands.translate.errors.api_error", locale=locale)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
             await interaction.edit_original_response(embed=error_embed)
 
 
