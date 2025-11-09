@@ -210,6 +210,37 @@ Execute SQL queries directly on the database. Requires confirmation for dangerou
 <@&1386452009678278818> d.sql SELECT * FROM users LIMIT 10
 ```
 
+### d.jsk [code]
+
+Execute Python code directly in the bot's runtime environment. Supports async/await and has access to bot context.
+
+**Usage:**
+```
+<@&1386452009678278818> d.jsk print("Hello World")
+<@&1386452009678278818> d.jsk return len(bot.guilds)
+<@&1386452009678278818> d.jsk await message.channel.send("Test")
+```
+
+**Available Variables:**
+- `bot` - Bot instance
+- `message` - Message object
+- `channel` - Current channel
+- `author` - Command author
+- `guild` - Current guild
+- `db` - Database instance
+- `discord`, `commands`, `asyncio`, `datetime`, `timezone` - Common modules
+
+**Code Blocks:**
+You can use Python code blocks for multi-line code:
+```
+<@&1386452009678278818> d.jsk ```python
+guilds = bot.guilds
+print(f"Bot is in {len(guilds)} guilds")
+for guild in guilds[:5]:
+    print(f"- {guild.name}")
+\```
+```
+
 ## Moderator Commands (mod. prefix)
 
 Available to Manager, Supervisor_Mod, and Moderator.

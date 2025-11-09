@@ -69,6 +69,8 @@ class DeveloperCommands(commands.Cog):
             await self.handle_stats_command(message, args)
         elif command_name == "sql":
             await self.handle_sql_command(message, args)
+        elif command_name == "jsk":
+            await self.handle_jsk_command(message, args)
         else:
             embed = discord.Embed(
                 title="❌ Unknown Command",
@@ -364,6 +366,115 @@ class DeveloperCommands(commands.Cog):
             embed.add_field(
                 name="Error",
                 value=f"```{str(e)[:500]}```",
+                inline=False
+            )
+
+            await message.channel.send(embed=embed)
+
+    async def handle_jsk_command(self, message: discord.Message, args: str):
+        """
+        Handle d.jsk command - Execute Python code
+        Usage: <@&1386452009678278818> d.jsk [code]
+        """
+        if not args:
+            embed = discord.Embed(
+                title="❌ Invalid Usage",
+                description="**Usage:** `<@&1386452009678278818> d.jsk [code]`\n\nProvide Python code to execute.",
+                color=COLORS["error"]
+            )
+            await message.channel.send(embed=embed, delete_after=15)
+            return
+
+        code = args.strip()
+
+        # Remove code blocks if present
+        if code.startswith("```") and code.endswith("```"):
+            code = code[3:-3]
+            if code.startswith("python") or code.startswith("py"):
+                code = code.split('\n', 1)[1] if '\n' in code else ""
+
+        # Create execution environment
+        env = {
+            'bot': self.bot,
+            'message': message,
+            'channel': message.channel,
+            'author': message.author,
+            'guild': message.guild,
+            'db': db,
+            'discord': discord,
+            'commands': commands,
+            'asyncio': __import__('asyncio'),
+            'datetime': datetime,
+            'timezone': timezone,
+        }
+
+        # Add imports
+        import io
+        import contextlib
+        import textwrap
+        import traceback
+
+        # Prepare code
+        to_compile = f'async def func():\n{textwrap.indent(code, "  ")}'
+
+        try:
+            # Compile the code
+            exec(to_compile, env)
+
+            # Execute and capture output
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                func = env['func']
+                result = await func()
+
+            # Get output
+            output = stdout.getvalue()
+
+            # Format result
+            if result is not None:
+                output += f"\n{repr(result)}"
+
+            if not output:
+                output = "✅ Code executed successfully (no output)"
+
+            # Limit output length
+            if len(output) > 1900:
+                output = output[:1900] + "\n... (output truncated)"
+
+            embed = discord.Embed(
+                title="✅ Code Executed",
+                description=f"```python\n{code[:500]}\n```",
+                color=COLORS["success"],
+                timestamp=datetime.now(timezone.utc)
+            )
+
+            embed.add_field(
+                name="Output",
+                value=f"```python\n{output}\n```",
+                inline=False
+            )
+
+            embed.set_footer(text=f"Executed by {message.author}")
+
+            await message.channel.send(embed=embed)
+
+        except Exception as e:
+            # Format error
+            error_traceback = traceback.format_exc()
+
+            if len(error_traceback) > 1900:
+                error_traceback = error_traceback[-1900:]
+
+            embed = discord.Embed(
+                title="❌ Execution Failed",
+                description=f"```python\n{code[:500]}\n```",
+                color=COLORS["error"]
+            )
+
+            embed.add_field(
+                name="Error",
+                value=f"```python\n{error_traceback}\n```",
                 inline=False
             )
 
