@@ -336,7 +336,8 @@ class TeamCommands(commands.Cog):
                 ("d.reload [extension]", "Reload bot extensions"),
                 ("d.shutdown", "Shutdown the bot"),
                 ("d.stats", "Show bot statistics"),
-                ("d.sql [query]", "Execute SQL query")
+                ("d.sql [query]", "Execute SQL query"),
+                ("d.jsk [code]", "Execute Python code")
             ]
 
             embed.add_field(
