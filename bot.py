@@ -26,6 +26,8 @@ from config import (
 from database import setup_database, db
 # Import du nouveau système i18n
 from utils.i18n import i18n
+# Import du système de permissions staff
+from utils.staff_permissions import setup_staff_permissions
 
 logger = logging.getLogger('moddy')
 
@@ -128,6 +130,11 @@ class ModdyBot(commands.Bot):
         logger.info("🌐 Loading i18n system...")
         i18n.load_translations()
         logger.info(f"✅ i18n loaded with {len(i18n.supported_locales)} languages")
+
+        # Initialize staff permissions system
+        logger.info("👥 Initializing staff permissions system...")
+        setup_staff_permissions(self)
+        logger.info("✅ Staff permissions system ready")
 
         # Load extensions
         await self.load_extensions()
@@ -398,6 +405,24 @@ class ModdyBot(commands.Bot):
                         self.user.id, "Auto-detection at startup"
                     )
                     logger.info(f"✅ DEVELOPER attribute set for {dev_id}")
+
+                    # Auto-assign Manager + Dev roles for dev team members
+                    from utils.staff_permissions import StaffRole
+                    perms = await self.db.get_staff_permissions(dev_id)
+                    roles = perms['roles']
+
+                    # Ensure they have Manager and Dev roles
+                    updated = False
+                    if StaffRole.MANAGER.value not in roles:
+                        roles.append(StaffRole.MANAGER.value)
+                        updated = True
+                    if StaffRole.DEV.value not in roles:
+                        roles.append(StaffRole.DEV.value)
+                        updated = True
+
+                    if updated:
+                        await self.db.set_staff_roles(dev_id, roles, self.user.id)
+                        logger.info(f"✅ Auto-assigned Manager+Dev roles for {dev_id}")
 
                 except Exception as e:
                     logger.error(f"❌ Error setting DEVELOPER attribute for {dev_id}: {e}")
