@@ -13,6 +13,7 @@ import os
 import sys
 from pathlib import Path
 import traceback
+import aiohttp
 
 from services.health_server import setup_health_server
 from config import (
@@ -39,6 +40,15 @@ class ModdyBot(commands.Bot):
         intents.guilds = True
         intents.members = True
 
+        # Configure HTTP client timeout to prevent timeout errors
+        # Especially important in containerized environments (Docker/Railway)
+        http_timeout = aiohttp.ClientTimeout(
+            total=60,      # Total timeout for the entire request
+            connect=30,    # Timeout for establishing connection
+            sock_read=30,  # Timeout for reading from socket
+            sock_connect=30  # Timeout for socket connection
+        )
+
         # Bot configuration
         super().__init__(
             command_prefix=self.get_prefix,
@@ -49,7 +59,9 @@ class ModdyBot(commands.Bot):
                 name="servers | /help"
             ),
             status=discord.Status.online,
-            case_insensitive=True
+            case_insensitive=True,
+            max_messages=10000,
+            http_timeout=http_timeout  # Apply custom timeout
         )
 
         # Internal variables
