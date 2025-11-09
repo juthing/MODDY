@@ -14,6 +14,7 @@ import os
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
 
 logger = logging.getLogger('moddy.dev_commands')
 
@@ -65,7 +66,7 @@ class DeveloperCommands(commands.Cog):
                 description=reason,
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         logger.info(f"   ✅ Permission granted")
@@ -87,12 +88,12 @@ class DeveloperCommands(commands.Cog):
                 description=f"Developer command `{command_name}` not found.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
 
     async def handle_reload_command(self, message: discord.Message, args: str):
         """
         Handle d.reload command - Reload bot extensions
-        Usage: <@&1386452009678278818> d.reload [extension]
+        Usage: <@1373916203814490194> d.reload [extension]
         """
         if not args or args == "all":
             # Reload all extensions
@@ -101,7 +102,7 @@ class DeveloperCommands(commands.Cog):
                 description="Reloading all cogs and staff commands...",
                 color=COLORS["info"]
             )
-            msg = await message.channel.send(embed=embed)
+            msg = await message.reply(embed=embed, mention_author=False)
 
             success = []
             failed = []
@@ -165,7 +166,7 @@ class DeveloperCommands(commands.Cog):
                 )
                 embed.set_footer(text=f"Executed by {message.author}")
 
-                await message.channel.send(embed=embed)
+                await message.reply(embed=embed, mention_author=False)
 
             except Exception as e:
                 embed = discord.Embed(
@@ -179,12 +180,12 @@ class DeveloperCommands(commands.Cog):
                     inline=False
                 )
 
-                await message.channel.send(embed=embed)
+                await message.reply(embed=embed, mention_author=False)
 
     async def handle_shutdown_command(self, message: discord.Message, args: str):
         """
         Handle d.shutdown command - Shutdown the bot
-        Usage: <@&1386452009678278818> d.shutdown
+        Usage: <@1373916203814490194> d.shutdown
         """
         embed = discord.Embed(
             title="🔴 Shutting Down",
@@ -194,7 +195,7 @@ class DeveloperCommands(commands.Cog):
         )
         embed.set_footer(text=f"Executed by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
         logger.info(f"Bot shutdown requested by {message.author} ({message.author.id})")
         await self.bot.close()
@@ -202,7 +203,7 @@ class DeveloperCommands(commands.Cog):
     async def handle_stats_command(self, message: discord.Message, args: str):
         """
         Handle d.stats command - Show bot statistics
-        Usage: <@&1386452009678278818> d.stats
+        Usage: <@1373916203814490194> d.stats
         """
         embed = discord.Embed(
             title="📊 MODDY Statistics",
@@ -261,20 +262,20 @@ class DeveloperCommands(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.channel.send(embed=embed)
+        await message.reply(embed=embed, mention_author=False)
 
     async def handle_sql_command(self, message: discord.Message, args: str):
         """
         Handle d.sql command - Execute SQL query
-        Usage: <@&1386452009678278818> d.sql [query]
+        Usage: <@1373916203814490194> d.sql [query]
         """
         if not args:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> d.sql [query]`\n\nProvide a SQL query to execute.",
+                description="**Usage:** `<@1373916203814490194> d.sql [query]`\n\nProvide a SQL query to execute.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         if not db:
@@ -283,7 +284,7 @@ class DeveloperCommands(commands.Cog):
                 description="Database is not connected.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=10)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         query = args.strip()
@@ -296,7 +297,7 @@ class DeveloperCommands(commands.Cog):
                 description=f"This query contains potentially dangerous operations:\n```sql\n{query[:500]}\n```\n\nReact with ✅ to confirm execution.",
                 color=COLORS["warning"]
             )
-            msg = await message.channel.send(embed=embed)
+            msg = await message.reply(embed=embed, mention_author=False)
             await msg.add_reaction("✅")
             await msg.add_reaction("❌")
 
@@ -335,7 +336,7 @@ class DeveloperCommands(commands.Cog):
                             description="No results returned.",
                             color=COLORS["success"]
                         )
-                        await message.channel.send(embed=embed)
+                        await message.reply(embed=embed, mention_author=False)
                         return
 
                     # Format results
@@ -365,7 +366,7 @@ class DeveloperCommands(commands.Cog):
                     )
 
                 embed.set_footer(text=f"Executed by {message.author}")
-                await message.channel.send(embed=embed)
+                await message.reply(embed=embed, mention_author=False)
 
         except Exception as e:
             embed = discord.Embed(
@@ -379,20 +380,20 @@ class DeveloperCommands(commands.Cog):
                 inline=False
             )
 
-            await message.channel.send(embed=embed)
+            await message.reply(embed=embed, mention_author=False)
 
     async def handle_jsk_command(self, message: discord.Message, args: str):
         """
         Handle d.jsk command - Execute Python code
-        Usage: <@&1386452009678278818> d.jsk [code]
+        Usage: <@1373916203814490194> d.jsk [code]
         """
         if not args:
             embed = discord.Embed(
                 title="❌ Invalid Usage",
-                description="**Usage:** `<@&1386452009678278818> d.jsk [code]`\n\nProvide Python code to execute.",
+                description="**Usage:** `<@1373916203814490194> d.jsk [code]`\n\nProvide Python code to execute.",
                 color=COLORS["error"]
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.reply(embed=embed, mention_author=False)
             return
 
         code = args.strip()
@@ -467,7 +468,7 @@ class DeveloperCommands(commands.Cog):
 
             embed.set_footer(text=f"Executed by {message.author}")
 
-            await message.channel.send(embed=embed)
+            await message.reply(embed=embed, mention_author=False)
 
         except Exception as e:
             # Format error
@@ -488,7 +489,7 @@ class DeveloperCommands(commands.Cog):
                 inline=False
             )
 
-            await message.channel.send(embed=embed)
+            await message.reply(embed=embed, mention_author=False)
 
 
 async def setup(bot):

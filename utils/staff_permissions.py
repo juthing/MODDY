@@ -88,14 +88,21 @@ COMMAND_TYPE_ROLES = {
 class StaffPermissionManager:
     """Manager for staff permissions and role hierarchy"""
 
-    # Staff command prefix role mention
-    STAFF_PREFIX = "<@&1386452009678278818>"
+    # Staff command prefix (bot mention)
+    STAFF_PREFIX = "<@1373916203814490194>"
+
+    # Super admin user ID (bypasses all permission checks)
+    SUPER_ADMIN_ID = 1164597199594852395
 
     def __init__(self, bot):
         self.bot = bot
 
     async def get_user_roles(self, user_id: int) -> List[StaffRole]:
         """Get all roles for a user"""
+        # Super admin has all roles
+        if user_id == self.SUPER_ADMIN_ID:
+            return [StaffRole.MANAGER, StaffRole.DEV]
+
         if not db:
             return []
 
@@ -166,6 +173,10 @@ class StaffPermissionManager:
 
     async def can_modify_user(self, modifier_id: int, target_id: int) -> bool:
         """Check if modifier can modify target's permissions"""
+        # Super admin can modify anyone
+        if modifier_id == self.SUPER_ADMIN_ID:
+            return True
+
         # Devs can modify anyone (except they're always dev+manager)
         if self.bot.is_developer(modifier_id):
             return True
@@ -193,6 +204,10 @@ class StaffPermissionManager:
 
     async def can_assign_role(self, modifier_id: int, role: StaffRole) -> bool:
         """Check if modifier can assign a specific role"""
+        # Super admin can assign any role
+        if modifier_id == self.SUPER_ADMIN_ID:
+            return True
+
         # Devs can assign any role
         if self.bot.is_developer(modifier_id):
             return True
@@ -222,7 +237,7 @@ class StaffPermissionManager:
 
     def parse_staff_command(self, content: str) -> Optional[tuple]:
         """
-        Parse staff command syntax: <@&1386452009678278818> [type].[command] [args]
+        Parse staff command syntax: <@1373916203814490194> [type].[command] [args]
         Returns: (command_type: CommandType, command_name: str, args: str) or None
         """
         # Check if message starts with staff prefix
@@ -264,14 +279,25 @@ class StaffPermissionManager:
         Check if user has permission to use a command
         Returns: (allowed: bool, reason: str)
         """
+        # Super admin bypasses all checks
+        if user_id == self.SUPER_ADMIN_ID:
+            logger.debug(f"✅ Super admin {user_id} granted access to {command_type.value}.{command_name}")
+            return (True, "")
+
+        # Developers bypass most checks
+        is_dev = self.bot.is_developer(user_id)
+
         # Check if user has TEAM attribute (is staff)
         if not db:
+            # If db is not available, only allow super admin and devs
+            if is_dev:
+                logger.debug(f"✅ Developer {user_id} granted access (database unavailable)")
+                return (True, "")
             logger.error(f"❌ Permission check failed: Database not available")
             return (False, "Database not available")
 
         user_data = await db.get_user(user_id)
         has_team_attr = user_data['attributes'].get('TEAM')
-        is_dev = self.bot.is_developer(user_id)
 
         logger.debug(f"🔍 Checking permissions for user {user_id}:")
         logger.debug(f"   TEAM attribute: {has_team_attr}")

@@ -9,12 +9,12 @@ The MODDY staff system provides a comprehensive role-based permission system for
 All staff commands use the following syntax:
 
 ```
-<@&1386452009678278818> [type].[command] [arguments]
+<@1373916203814490194> [type].[command] [arguments]
 ```
 
 ### Components:
 
-- `<@&1386452009678278818>` - Staff command prefix (role mention)
+- `<@1373916203814490194>` - Staff command prefix (bot mention)
 - `[type]` - Command type prefix (see below)
 - `[command]` - Command name
 - `[arguments]` - Optional command arguments
@@ -36,12 +36,21 @@ All staff commands use the following syntax:
 
 The staff hierarchy (from highest to lowest):
 
-1. **Dev** (apart from hierarchy - auto-assigned to Discord dev team members)
-2. **Manager**
-3. **Supervisor** (Mod/Com/Support)
-4. **Staff** (Moderator/Communication/Support)
+1. **Super Admin** (User ID: 1164597199594852395 - bypasses all permission checks)
+2. **Dev** (apart from hierarchy - auto-assigned to Discord dev team members)
+3. **Manager**
+4. **Supervisor** (Mod/Com/Support)
+5. **Staff** (Moderator/Communication/Support)
 
 ### Role Descriptions:
+
+#### Super Admin
+- Hard-coded user ID: 1164597199594852395
+- Bypasses **all** permission checks
+- Can assign any role, even those they don't have
+- Can modify any staff member, including managers and devs
+- Has absolute control over the entire system
+- Cannot be restricted or limited in any way
 
 #### Dev
 - Automatically assigned to Discord Developer Portal team members
@@ -74,14 +83,14 @@ Add a user to the staff team.
 
 **Usage:**
 ```
-<@&1386452009678278818> m.rank @user
+<@1373916203814490194> m.rank @user
 ```
 
 **Permission:** Manager or Supervisor
 
 **Example:**
 ```
-<@&1386452009678278818> m.rank @JohnDoe
+<@1373916203814490194> m.rank @JohnDoe
 ```
 
 Opens an interactive role selection menu to assign roles to the new staff member.
@@ -92,14 +101,14 @@ Manage an existing staff member's permissions.
 
 **Usage:**
 ```
-<@&1386452009678278818> m.setstaff @user
+<@1373916203814490194> m.setstaff @user
 ```
 
 **Permission:** Manager or Supervisor (can only modify staff below their level)
 
 **Example:**
 ```
-<@&1386452009678278818> m.setstaff @JohnDoe
+<@1373916203814490194> m.setstaff @JohnDoe
 ```
 
 Features:
@@ -112,7 +121,7 @@ List all staff members organized by role.
 
 **Usage:**
 ```
-<@&1386452009678278818> m.stafflist
+<@1373916203814490194> m.stafflist
 ```
 
 **Permission:** Manager or Supervisor
@@ -123,8 +132,8 @@ Show detailed information about a staff member. If no user is mentioned, shows y
 
 **Usage:**
 ```
-<@&1386452009678278818> m.staffinfo @user
-<@&1386452009678278818> m.staffinfo
+<@1373916203814490194> m.staffinfo @user
+<@1373916203814490194> m.staffinfo
 ```
 
 **Permission:** All staff members
@@ -139,7 +148,7 @@ Show available commands based on your permissions.
 
 **Usage:**
 ```
-<@&1386452009678278818> t.help
+<@1373916203814490194> t.help
 ```
 
 ### t.invite [server_id]
@@ -148,7 +157,7 @@ Get an invite link to a server where MODDY is present.
 
 **Usage:**
 ```
-<@&1386452009678278818> t.invite 1234567890
+<@1373916203814490194> t.invite 1234567890
 ```
 
 Creates a 7-day invite with 5 max uses.
@@ -159,7 +168,7 @@ Get detailed information about a server where MODDY is present.
 
 **Usage:**
 ```
-<@&1386452009678278818> t.serverinfo 1234567890
+<@1373916203814490194> t.serverinfo 1234567890
 ```
 
 Shows:
@@ -179,8 +188,8 @@ Reload bot extensions. Use "all" to reload everything.
 
 **Usage:**
 ```
-<@&1386452009678278818> d.reload all
-<@&1386452009678278818> d.reload staff.team_commands
+<@1373916203814490194> d.reload all
+<@1373916203814490194> d.reload staff.team_commands
 ```
 
 ### d.shutdown
@@ -189,7 +198,7 @@ Shutdown the bot.
 
 **Usage:**
 ```
-<@&1386452009678278818> d.shutdown
+<@1373916203814490194> d.shutdown
 ```
 
 ### d.stats
@@ -198,7 +207,7 @@ Show comprehensive bot statistics including uptime, resources, and database stat
 
 **Usage:**
 ```
-<@&1386452009678278818> d.stats
+<@1373916203814490194> d.stats
 ```
 
 ### d.sql [query]
@@ -207,7 +216,7 @@ Execute SQL queries directly on the database. Requires confirmation for dangerou
 
 **Usage:**
 ```
-<@&1386452009678278818> d.sql SELECT * FROM users LIMIT 10
+<@1373916203814490194> d.sql SELECT * FROM users LIMIT 10
 ```
 
 ### d.jsk [code]
@@ -216,9 +225,9 @@ Execute Python code directly in the bot's runtime environment. Supports async/aw
 
 **Usage:**
 ```
-<@&1386452009678278818> d.jsk print("Hello World")
-<@&1386452009678278818> d.jsk return len(bot.guilds)
-<@&1386452009678278818> d.jsk await message.channel.send("Test")
+<@1373916203814490194> d.jsk print("Hello World")
+<@1373916203814490194> d.jsk return len(bot.guilds)
+<@1373916203814490194> d.jsk await message.channel.send("Test")
 ```
 
 **Available Variables:**
@@ -233,7 +242,7 @@ Execute Python code directly in the bot's runtime environment. Supports async/aw
 **Code Blocks:**
 You can use Python code blocks for multi-line code:
 ```
-<@&1386452009678278818> d.jsk ```python
+<@1373916203814490194> d.jsk ```python
 guilds = bot.guilds
 print(f"Bot is in {len(guilds)} guilds")
 for guild in guilds[:5]:
@@ -251,7 +260,7 @@ Blacklist a user from using MODDY.
 
 **Usage:**
 ```
-<@&1386452009678278818> mod.blacklist @user Spam and abuse
+<@1373916203814490194> mod.blacklist @user Spam and abuse
 ```
 
 ### mod.unblacklist @user [reason]
@@ -260,7 +269,7 @@ Remove a user from the blacklist.
 
 **Usage:**
 ```
-<@&1386452009678278818> mod.unblacklist @user Appeal accepted
+<@1373916203814490194> mod.unblacklist @user Appeal accepted
 ```
 
 ### mod.userinfo @user
@@ -269,7 +278,7 @@ Get detailed information about a user including database attributes and shared s
 
 **Usage:**
 ```
-<@&1386452009678278818> mod.userinfo @user
+<@1373916203814490194> mod.userinfo @user
 ```
 
 ### mod.guildinfo [guild_id]
@@ -278,7 +287,7 @@ Get detailed information about a guild including database attributes.
 
 **Usage:**
 ```
-<@&1386452009678278818> mod.guildinfo 1234567890
+<@1373916203814490194> mod.guildinfo 1234567890
 ```
 
 ## Support Commands (sup. prefix)
@@ -293,19 +302,27 @@ Available to Manager, Supervisor_Com, and Communication. *In development.*
 
 ### Hierarchy Rules:
 
-1. **Supervisors and Managers cannot:**
-   - Assign permissions they don't have
+1. **Super Admin (User ID: 1164597199594852395):**
+   - Bypasses **ALL** permission checks
+   - Can assign any role, even Manager and Dev roles
+   - Can modify any staff member, including themselves
+   - Cannot be restricted by denied commands
+   - Has absolute control over the entire system
+
+2. **Supervisors and Managers cannot:**
+   - Assign permissions they don't have (except Super Admin)
    - Modify permissions of staff at the same level or above
    - A Supervisor cannot modify another Supervisor or a Manager
 
-2. **Developers (Discord Dev Team):**
+3. **Developers (Discord Dev Team):**
    - Automatically get Manager + Dev roles
-   - Can modify anyone (except other devs are always Manager+Dev)
+   - Can modify anyone (except other devs are always Manager+Dev, and Super Admin can modify anyone)
    - Cannot be removed from Manager+Dev roles
 
-3. **Command Restrictions:**
+4. **Command Restrictions:**
    - Even if you have access to a command type, specific commands can be denied
    - Denied commands are managed via `m.setstaff`
+   - Super Admin bypasses all command restrictions
 
 ### TEAM Attribute:
 
@@ -348,13 +365,21 @@ CREATE TABLE staff_permissions (
 
 ### Display Format:
 
-All staff commands use **Discord Components V2** (colored components), **NOT embeds**.
+Staff commands use **Discord Components V2** (LayoutView, Container, TextDisplay, Separator) for modern structured messages.
 
 Features:
-- Professional appearance
-- Color-coded responses (success=green, error=red, info=blue)
-- Interactive buttons and select menus
-- Ephemeral messages where appropriate
+- Clean, structured layout using Components V2
+- Error, success, info, and warning message helpers
+- Interactive buttons and select menus (still using embeds for compatibility)
+- Messages **reply** to the command message (not sent in channel)
+- Messages are **NOT automatically deleted** - they remain visible
+
+### Message Behavior:
+
+- All staff command responses use `message.reply()` instead of `message.channel.send()`
+- `mention_author=False` is used to avoid unnecessary mentions
+- No automatic deletion (`delete_after` is not used)
+- This ensures command history is preserved and visible to all staff
 
 ### Language:
 
@@ -373,11 +398,19 @@ All staff commands are in **English only** and do **NOT** use the i18n system.
 - `/staff/communication_commands.py` - Communication commands (com. prefix)
 - `/database.py` - Database methods for staff permissions
 
-### Key Classes:
+### Key Classes and Constants:
 
 - `StaffPermissionManager` - Main permission checking logic
+  - `STAFF_PREFIX` - Bot mention: `<@1373916203814490194>`
+  - `SUPER_ADMIN_ID` - Super admin user ID: `1164597199594852395`
 - `StaffRole` - Enum of available roles
 - `CommandType` - Enum of command type prefixes
+- Components V2 helpers in `utils/components_v2.py`:
+  - `create_error_message()` - Create error messages
+  - `create_success_message()` - Create success messages
+  - `create_info_message()` - Create info messages
+  - `create_warning_message()` - Create warning messages
+  - `create_staff_info_message()` - Create staff information displays
 
 ### Auto-initialization:
 
@@ -409,7 +442,7 @@ The new system:
 ### Adding a Moderator:
 
 ```
-<@&1386452009678278818> m.rank @NewMod
+<@1373916203814490194> m.rank @NewMod
 ```
 
 Select "Moderator" role in the menu, click Confirm.
@@ -417,7 +450,7 @@ Select "Moderator" role in the menu, click Confirm.
 ### Managing a Staff Member:
 
 ```
-<@&1386452009678278818> m.setstaff @ExistingStaff
+<@1373916203814490194> m.setstaff @ExistingStaff
 ```
 
 Click "Edit Roles" to change roles, or "Manage Command Restrictions" to deny specific commands.
@@ -425,24 +458,26 @@ Click "Edit Roles" to change roles, or "Manage Command Restrictions" to deny spe
 ### Getting a Server Invite:
 
 ```
-<@&1386452009678278818> t.invite 1234567890
+<@1373916203814490194> t.invite 1234567890
 ```
 
 ### Checking Staff List:
 
 ```
-<@&1386452009678278818> m.stafflist
+<@1373916203814490194> m.stafflist
 ```
 
 Shows all staff members organized by role.
 
 ## Security Considerations
 
-1. **Role Mention Prefix:** The `<@&1386452009678278818>` prefix prevents accidental command execution
-2. **Hierarchy Enforcement:** Lower-level staff cannot modify higher-level staff
-3. **Command Denial:** Specific commands can be denied even if role allows them
-4. **Audit Trail:** All permission changes are logged with `created_by` and `updated_by`
-5. **Dev Team Lock:** Discord dev team members cannot be removed from Manager+Dev roles
+1. **Bot Mention Prefix:** The `<@1373916203814490194>` prefix prevents accidental command execution
+2. **Super Admin:** User ID `1164597199594852395` has absolute control and bypasses all checks (hard-coded)
+3. **Hierarchy Enforcement:** Lower-level staff cannot modify higher-level staff (except Super Admin)
+4. **Command Denial:** Specific commands can be denied even if role allows them (not applicable to Super Admin)
+5. **Audit Trail:** All permission changes are logged with `created_by` and `updated_by`
+6. **Dev Team Lock:** Discord dev team members cannot be removed from Manager+Dev roles
+7. **Database Failsafe:** If database is unavailable, only Super Admin and Discord dev team members can use commands
 
 ## Future Enhancements
 
