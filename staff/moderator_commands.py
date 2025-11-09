@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
-from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
 
 logger = logging.getLogger('moddy.moderator_commands')
 
@@ -51,12 +51,8 @@ class ModeratorCommands(commands.Cog):
         )
 
         if not allowed:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=reason,
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Permission Denied", reason)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Route to appropriate command
@@ -69,12 +65,8 @@ class ModeratorCommands(commands.Cog):
         elif command_name == "guildinfo":
             await self.handle_guildinfo_command(message, args)
         else:
-            embed = discord.Embed(
-                title="❌ Unknown Command",
-                description=f"Moderator command `{command_name}` not found.",
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Unknown Command", f"Moderator command `{command_name}` not found.")
+            await message.reply(view=view, mention_author=False)
 
     async def handle_blacklist_command(self, message: discord.Message, args: str):
         """
@@ -83,12 +75,11 @@ class ModeratorCommands(commands.Cog):
         """
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> mod.blacklist @user [reason]`\n\nMention a user to blacklist.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> mod.blacklist @user [reason]`\n\nMention a user to blacklist."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -97,22 +88,20 @@ class ModeratorCommands(commands.Cog):
         # Can't blacklist staff
         user_data = await db.get_user(target_user.id)
         if user_data['attributes'].get('TEAM') or self.bot.is_developer(target_user.id):
-            embed = discord.Embed(
-                title="❌ Cannot Blacklist Staff",
-                description="You cannot blacklist staff members.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Cannot Blacklist Staff",
+                "You cannot blacklist staff members."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Check if already blacklisted
         if user_data['attributes'].get('BLACKLISTED'):
-            embed = discord.Embed(
-                title="⚠️ Already Blacklisted",
-                description=f"{target_user.mention} is already blacklisted.",
-                color=COLORS["warning"]
+            view = create_warning_message(
+                "Already Blacklisted",
+                f"{target_user.mention} is already blacklisted."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Blacklist the user
@@ -121,21 +110,21 @@ class ModeratorCommands(commands.Cog):
             message.author.id, reason
         )
 
-        # Create success embed
-        embed = discord.Embed(
-            title="🔨 User Blacklisted",
-            description=f"{target_user.mention} has been blacklisted.",
-            color=COLORS["error"],
-            timestamp=datetime.now(timezone.utc)
+        # Create success view
+        fields = [
+            {'name': 'User', 'value': f"{target_user} (`{target_user.id}`)"},
+            {'name': 'Moderator', 'value': message.author.mention},
+            {'name': 'Reason', 'value': reason}
+        ]
+
+        view = create_success_message(
+            f"{EMOJIS['blacklist']} User Blacklisted",
+            f"{target_user.mention} has been blacklisted.",
+            fields=fields,
+            footer=f"Executed by {message.author}"
         )
 
-        embed.add_field(name="User", value=f"{target_user} (`{target_user.id}`)", inline=True)
-        embed.add_field(name="Moderator", value=message.author.mention, inline=True)
-        embed.add_field(name="Reason", value=reason, inline=False)
-
-        embed.set_footer(text=f"Executed by {message.author}")
-
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
         logger.info(f"User {target_user} ({target_user.id}) blacklisted by {message.author} ({message.author.id})")
 
@@ -146,12 +135,11 @@ class ModeratorCommands(commands.Cog):
         """
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> mod.unblacklist @user [reason]`\n\nMention a user to unblacklist.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> mod.unblacklist @user [reason]`\n\nMention a user to unblacklist."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -160,12 +148,11 @@ class ModeratorCommands(commands.Cog):
         # Check if blacklisted
         user_data = await db.get_user(target_user.id)
         if not user_data['attributes'].get('BLACKLISTED'):
-            embed = discord.Embed(
-                title="⚠️ Not Blacklisted",
-                description=f"{target_user.mention} is not blacklisted.",
-                color=COLORS["warning"]
+            view = create_warning_message(
+                "Not Blacklisted",
+                f"{target_user.mention} is not blacklisted."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Remove from blacklist
@@ -174,21 +161,21 @@ class ModeratorCommands(commands.Cog):
             message.author.id, reason
         )
 
-        # Create success embed
-        embed = discord.Embed(
-            title="✅ User Unblacklisted",
-            description=f"{target_user.mention} has been removed from the blacklist.",
-            color=COLORS["success"],
-            timestamp=datetime.now(timezone.utc)
+        # Create success view
+        fields = [
+            {'name': 'User', 'value': f"{target_user} (`{target_user.id}`)"},
+            {'name': 'Moderator', 'value': message.author.mention},
+            {'name': 'Reason', 'value': reason}
+        ]
+
+        view = create_success_message(
+            "User Unblacklisted",
+            f"{target_user.mention} has been removed from the blacklist.",
+            fields=fields,
+            footer=f"Executed by {message.author}"
         )
 
-        embed.add_field(name="User", value=f"{target_user} (`{target_user.id}`)", inline=True)
-        embed.add_field(name="Moderator", value=message.author.mention, inline=True)
-        embed.add_field(name="Reason", value=reason, inline=False)
-
-        embed.set_footer(text=f"Executed by {message.author}")
-
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
         logger.info(f"User {target_user} ({target_user.id}) unblacklisted by {message.author} ({message.author.id})")
 
@@ -198,12 +185,11 @@ class ModeratorCommands(commands.Cog):
         Usage: <@1373916203814490194> mod.userinfo @user
         """
         if not message.mentions:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> mod.userinfo @user`\n\nMention a user to get information.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> mod.userinfo @user`\n\nMention a user to get information."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         target_user = message.mentions[0]
@@ -211,21 +197,13 @@ class ModeratorCommands(commands.Cog):
         # Get user data from database
         user_data = await db.get_user(target_user.id)
 
-        # Create info embed
-        embed = discord.Embed(
-            title="👤 User Information",
-            color=COLORS["info"],
-            timestamp=datetime.now(timezone.utc)
-        )
-
-        embed.set_author(name=str(target_user), icon_url=target_user.display_avatar.url)
+        fields = []
 
         # Basic info
-        embed.add_field(
-            name="Basic Information",
-            value=f"**ID:** `{target_user.id}`\n**Username:** {target_user.name}\n**Created:** <t:{int(target_user.created_at.timestamp())}:R>",
-            inline=False
-        )
+        fields.append({
+            'name': f"{EMOJIS['user']} Basic Information",
+            'value': f"**ID:** `{target_user.id}`\n**Username:** {target_user.name}\n**Created:** <t:{int(target_user.created_at.timestamp())}:R>"
+        })
 
         # Attributes
         attributes = user_data['attributes']
@@ -237,31 +215,33 @@ class ModeratorCommands(commands.Cog):
                 else:
                     attr_list.append(f"• `{key}`: {value}")
 
-            embed.add_field(
-                name="Attributes",
-                value="\n".join(attr_list) if attr_list else "*None*",
-                inline=False
-            )
+            fields.append({
+                'name': "Attributes",
+                'value': "\n".join(attr_list) if attr_list else "*None*"
+            })
 
         # Guild count
         guilds = [g for g in self.bot.guilds if target_user in g.members]
-        embed.add_field(
-            name="Shared Servers",
-            value=f"{len(guilds)} servers",
-            inline=True
-        )
+        fields.append({
+            'name': f"{EMOJIS['web']} Shared Servers",
+            'value': f"{len(guilds)} servers"
+        })
 
         # Database timestamps
         if user_data.get('created_at'):
-            embed.add_field(
-                name="First Seen",
-                value=f"<t:{int(user_data['created_at'].timestamp())}:R>",
-                inline=True
-            )
+            fields.append({
+                'name': f"{EMOJIS['time']} First Seen",
+                'value': f"<t:{int(user_data['created_at'].timestamp())}:R>"
+            })
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        view = create_info_message(
+            f"{EMOJIS['user']} User Information - {str(target_user)}",
+            f"Information about {target_user.mention}",
+            fields=fields,
+            footer=f"Requested by {message.author}"
+        )
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
     async def handle_guildinfo_command(self, message: discord.Message, args: str):
         """
@@ -269,75 +249,60 @@ class ModeratorCommands(commands.Cog):
         Usage: <@1373916203814490194> mod.guildinfo [guild_id]
         """
         if not args:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> mod.guildinfo [guild_id]`\n\nProvide a guild ID.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> mod.guildinfo [guild_id]`\n\nProvide a guild ID."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         try:
             guild_id = int(args.strip())
         except ValueError:
-            embed = discord.Embed(
-                title="❌ Invalid Guild ID",
-                description="Please provide a valid guild ID (numbers only).",
-                color=COLORS["error"]
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid Guild ID",
+                "Please provide a valid guild ID (numbers only)."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            embed = discord.Embed(
-                title="❌ Guild Not Found",
-                description=f"MODDY is not in a guild with ID `{guild_id}`.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Guild Not Found",
+                f"MODDY is not in a guild with ID `{guild_id}`."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Get guild data from database
         guild_data = await db.get_guild(guild_id)
 
-        # Create info embed
-        embed = discord.Embed(
-            title="🏰 Guild Information",
-            color=COLORS["info"],
-            timestamp=datetime.now(timezone.utc)
-        )
-
-        if guild.icon:
-            embed.set_thumbnail(url=guild.icon.url)
+        fields = []
 
         # Basic info
-        embed.add_field(
-            name="Basic Information",
-            value=f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Owner:** {guild.owner.mention if guild.owner else 'Unknown'} (`{guild.owner_id}`)\n**Created:** <t:{int(guild.created_at.timestamp())}:R>",
-            inline=False
-        )
+        fields.append({
+            'name': f"{EMOJIS['info']} Basic Information",
+            'value': f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Owner:** {guild.owner.mention if guild.owner else 'Unknown'} (`{guild.owner_id}`)\n**Created:** <t:{int(guild.created_at.timestamp())}:R>"
+        })
 
         # Members
-        embed.add_field(
-            name="Members",
-            value=f"**Total:** {guild.member_count:,}\n**Humans:** {len([m for m in guild.members if not m.bot]):,}\n**Bots:** {len([m for m in guild.members if m.bot]):,}",
-            inline=True
-        )
+        fields.append({
+            'name': f"{EMOJIS['user']} Members",
+            'value': f"**Total:** {guild.member_count:,}\n**Humans:** {len([m for m in guild.members if not m.bot]):,}\n**Bots:** {len([m for m in guild.members if m.bot]):,}"
+        })
 
         # Channels
-        embed.add_field(
-            name="Channels",
-            value=f"**Text:** {len(guild.text_channels)}\n**Voice:** {len(guild.voice_channels)}\n**Categories:** {len(guild.categories)}",
-            inline=True
-        )
+        fields.append({
+            'name': "Channels",
+            'value': f"**Text:** {len(guild.text_channels)}\n**Voice:** {len(guild.voice_channels)}\n**Categories:** {len(guild.categories)}"
+        })
 
         # Boost
-        embed.add_field(
-            name="Boost Status",
-            value=f"**Level:** {guild.premium_tier}\n**Boosts:** {guild.premium_subscription_count}",
-            inline=True
-        )
+        fields.append({
+            'name': "Boost Status",
+            'value': f"**Level:** {guild.premium_tier}\n**Boosts:** {guild.premium_subscription_count}"
+        })
 
         # Attributes
         attributes = guild_data['attributes']
@@ -349,24 +314,27 @@ class ModeratorCommands(commands.Cog):
                 else:
                     attr_list.append(f"• `{key}`: {value}")
 
-            embed.add_field(
-                name="Attributes",
-                value="\n".join(attr_list),
-                inline=False
-            )
+            fields.append({
+                'name': "Attributes",
+                'value': "\n".join(attr_list)
+            })
 
         # Features
         if guild.features:
             features = [f.replace('_', ' ').title() for f in guild.features[:8]]
-            embed.add_field(
-                name="Features",
-                value=", ".join(features),
-                inline=False
-            )
+            fields.append({
+                'name': "Features",
+                'value': ", ".join(features)
+            })
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        view = create_info_message(
+            f"🏰 Guild Information - {guild.name}",
+            f"Detailed information about **{guild.name}**",
+            fields=fields,
+            footer=f"Requested by {message.author}"
+        )
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
 
 async def setup(bot):
