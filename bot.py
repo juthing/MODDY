@@ -406,6 +406,13 @@ class ModdyBot(commands.Bot):
                     )
                     logger.info(f"✅ DEVELOPER attribute set for {dev_id}")
 
+                    # ALWAYS set TEAM attribute for dev team members (critical for staff commands)
+                    await self.db.set_attribute(
+                        'user', dev_id, 'TEAM', True,
+                        self.user.id, "Auto-assigned to dev team members"
+                    )
+                    logger.info(f"✅ TEAM attribute set for {dev_id}")
+
                     # Auto-assign Manager + Dev roles for dev team members
                     from utils.staff_permissions import StaffRole
                     perms = await self.db.get_staff_permissions(dev_id)
@@ -423,6 +430,8 @@ class ModdyBot(commands.Bot):
                     if updated:
                         await self.db.set_staff_roles(dev_id, roles, self.user.id)
                         logger.info(f"✅ Auto-assigned Manager+Dev roles for {dev_id}")
+                    else:
+                        logger.info(f"✅ Dev {dev_id} already has Manager+Dev roles")
 
                 except Exception as e:
                     logger.error(f"❌ Error setting DEVELOPER attribute for {dev_id}: {e}")

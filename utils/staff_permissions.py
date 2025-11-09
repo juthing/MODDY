@@ -235,11 +235,13 @@ class StaffPermissionManager:
         # Split into parts
         parts = content.split(maxsplit=1)
         if not parts:
+            logger.debug(f"❌ Parse failed: No command after prefix")
             return None
 
         # Parse type.command
         command_part = parts[0]
         if '.' not in command_part:
+            logger.debug(f"❌ Parse failed: No '.' in command part: {command_part}")
             return None
 
         type_str, command_name = command_part.split('.', 1)
@@ -251,8 +253,10 @@ class StaffPermissionManager:
         try:
             command_type = CommandType(type_str)
         except ValueError:
+            logger.debug(f"❌ Parse failed: Invalid command type: {type_str}")
             return None
 
+        logger.debug(f"✅ Parsed: {command_type.value}.{command_name} with args: {args[:50]}")
         return (command_type, command_name, args)
 
     async def check_command_permission(self, user_id: int, command_type: CommandType, command_name: str) -> tuple:
@@ -262,21 +266,37 @@ class StaffPermissionManager:
         """
         # Check if user has TEAM attribute (is staff)
         if not db:
+            logger.error(f"❌ Permission check failed: Database not available")
             return (False, "Database not available")
 
         user_data = await db.get_user(user_id)
-        if not user_data['attributes'].get('TEAM') and not self.bot.is_developer(user_id):
+        has_team_attr = user_data['attributes'].get('TEAM')
+        is_dev = self.bot.is_developer(user_id)
+
+        logger.debug(f"🔍 Checking permissions for user {user_id}:")
+        logger.debug(f"   TEAM attribute: {has_team_attr}")
+        logger.debug(f"   Is developer: {is_dev}")
+
+        if not has_team_attr and not is_dev:
+            logger.warning(f"❌ User {user_id} is not a staff member (no TEAM attribute and not in dev team)")
             return (False, "You are not a staff member")
+
+        # Get user roles for debugging
+        user_roles = await self.get_user_roles(user_id)
+        logger.debug(f"   User roles: {[r.value for r in user_roles]}")
 
         # Check command type permission
         if not await self.can_use_command_type(user_id, command_type):
+            logger.warning(f"❌ User {user_id} cannot use {command_type.value} commands (missing required role)")
             return (False, f"You don't have permission to use {command_type.value}. commands")
 
         # Check if command is specifically denied
         full_command = f"{command_type.value}.{command_name}"
         if await self.is_command_denied(user_id, full_command):
+            logger.warning(f"❌ Command {full_command} is specifically denied for user {user_id}")
             return (False, f"You don't have permission to use this specific command")
 
+        logger.debug(f"✅ Permission granted for user {user_id} to use {full_command}")
         return (True, "")
 
 

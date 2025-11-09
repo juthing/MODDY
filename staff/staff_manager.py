@@ -253,12 +253,20 @@ class StaffManagement(commands.Cog):
         if command_type != CommandType.MANAGEMENT:
             return
 
+        # Log the command attempt
+        logger.info(f"👑 Management command '{command_name}' attempted by {message.author} ({message.author.id})")
+
+        # Check if user is in dev team
+        is_dev = self.bot.is_developer(message.author.id)
+        logger.info(f"   Developer status: {is_dev}")
+
         # Check permissions
         allowed, reason = await staff_permissions.check_command_permission(
             message.author.id, command_type, command_name
         )
 
         if not allowed:
+            logger.warning(f"   ❌ Permission denied: {reason}")
             embed = discord.Embed(
                 title="❌ Permission Denied",
                 description=reason,
@@ -266,6 +274,8 @@ class StaffManagement(commands.Cog):
             )
             await message.channel.send(embed=embed, delete_after=10)
             return
+
+        logger.info(f"   ✅ Permission granted")
 
         # Route to appropriate command
         if command_name == "rank":
