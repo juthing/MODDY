@@ -43,10 +43,10 @@ class ModdyBot(commands.Bot):
         # Configure HTTP client timeout to prevent timeout errors
         # Especially important in containerized environments (Docker/Railway)
         http_timeout = aiohttp.ClientTimeout(
-            total=60,      # Total timeout for the entire request
-            connect=30,    # Timeout for establishing connection
-            sock_read=30,  # Timeout for reading from socket
-            sock_connect=30  # Timeout for socket connection
+            total=90,      # Total timeout for the entire request
+            connect=45,    # Timeout for establishing connection
+            sock_read=45,  # Timeout for reading from socket
+            sock_connect=45  # Timeout for socket connection
         )
 
         # Bot configuration
@@ -119,9 +119,6 @@ class ModdyBot(commands.Bot):
 
         # Configure error handler for slash commands
         self.tree.on_error = self.on_app_command_error
-
-        # Fetch development team
-        await self.fetch_dev_team()
 
         # Connect the database
         if DATABASE_URL:
@@ -378,6 +375,10 @@ class ModdyBot(commands.Bot):
 
     async def on_ready(self):
         """Called when the bot is ready"""
+
+        # Fetch development team (moved from setup_hook to avoid blocking during connection)
+        await self.fetch_dev_team()
+
         logger.info(f"✅ {self.user} is connected!")
         logger.info(f"📊 {len(self.guilds)} servers | {len(self.users)} users")
         logger.info(f"🏓 Latency: {round(self.latency * 1000)}ms")

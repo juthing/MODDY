@@ -368,9 +368,29 @@ async def main():
             state = status.get(service_name, "Unknown")
             await ctx.send(f"Service {service_name}: {state}")
 
-        # Starts the bot
+        # Starts the bot with retry logic for network issues
         logger.info("🚀 Starting Discord bot...")
-        await bot.start(TOKEN)
+
+        max_retries = 5
+        retry_delay = 2  # seconds
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                await bot.start(TOKEN)
+                break  # Success, exit retry loop
+            except asyncio.TimeoutError:
+                if attempt < max_retries:
+                    logger.warning(f"⚠️ Connection timeout (attempt {attempt}/{max_retries})")
+                    logger.info(f"🔄 Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"❌ Failed to connect after {max_retries} attempts")
+                    raise
+            except Exception as e:
+                # Other exceptions should not be retried
+                logger.error(f"❌ Connection error: {e}")
+                raise
 
     except ImportError as e:
         logger.error(f"❌ Import error: {e}")
