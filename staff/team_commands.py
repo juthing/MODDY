@@ -332,9 +332,47 @@ class TeamCommands(commands.Cog):
 
         # Developer commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.DEV):
+            dev_commands = [
+                ("d.reload [extension]", "Reload bot extensions"),
+                ("d.shutdown", "Shutdown the bot"),
+                ("d.stats", "Show bot statistics"),
+                ("d.sql [query]", "Execute SQL query")
+            ]
+
             embed.add_field(
                 name="💻 Developer Commands",
-                value="Developer commands are being migrated to the new system.",
+                value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in dev_commands]),
+                inline=False
+            )
+
+        # Moderator commands
+        if await staff_permissions.can_use_command_type(message.author.id, CommandType.MODERATOR):
+            mod_commands = [
+                ("mod.blacklist @user [reason]", "Blacklist a user"),
+                ("mod.unblacklist @user [reason]", "Remove user from blacklist"),
+                ("mod.userinfo @user", "Get detailed user information"),
+                ("mod.guildinfo [guild_id]", "Get detailed guild information")
+            ]
+
+            embed.add_field(
+                name="🛡️ Moderator Commands",
+                value="\n".join([f"`<@&1386452009678278818> {cmd}` - {desc}" for cmd, desc in mod_commands]),
+                inline=False
+            )
+
+        # Support commands
+        if await staff_permissions.can_use_command_type(message.author.id, CommandType.SUPPORT):
+            embed.add_field(
+                name="🎧 Support Commands",
+                value="Support commands are in development.",
+                inline=False
+            )
+
+        # Communication commands
+        if await staff_permissions.can_use_command_type(message.author.id, CommandType.COMMUNICATION):
+            embed.add_field(
+                name="💬 Communication Commands",
+                value="Communication commands are in development.",
                 inline=False
             )
 

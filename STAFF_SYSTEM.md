@@ -169,6 +169,95 @@ Shows:
 - Boost status
 - Server features
 
+## Developer Commands (d. prefix)
+
+Exclusive to Discord Dev Portal team members.
+
+### d.reload [extension]
+
+Reload bot extensions. Use "all" to reload everything.
+
+**Usage:**
+```
+<@&1386452009678278818> d.reload all
+<@&1386452009678278818> d.reload staff.team_commands
+```
+
+### d.shutdown
+
+Shutdown the bot.
+
+**Usage:**
+```
+<@&1386452009678278818> d.shutdown
+```
+
+### d.stats
+
+Show comprehensive bot statistics including uptime, resources, and database stats.
+
+**Usage:**
+```
+<@&1386452009678278818> d.stats
+```
+
+### d.sql [query]
+
+Execute SQL queries directly on the database. Requires confirmation for dangerous operations.
+
+**Usage:**
+```
+<@&1386452009678278818> d.sql SELECT * FROM users LIMIT 10
+```
+
+## Moderator Commands (mod. prefix)
+
+Available to Manager, Supervisor_Mod, and Moderator.
+
+### mod.blacklist @user [reason]
+
+Blacklist a user from using MODDY.
+
+**Usage:**
+```
+<@&1386452009678278818> mod.blacklist @user Spam and abuse
+```
+
+### mod.unblacklist @user [reason]
+
+Remove a user from the blacklist.
+
+**Usage:**
+```
+<@&1386452009678278818> mod.unblacklist @user Appeal accepted
+```
+
+### mod.userinfo @user
+
+Get detailed information about a user including database attributes and shared servers.
+
+**Usage:**
+```
+<@&1386452009678278818> mod.userinfo @user
+```
+
+### mod.guildinfo [guild_id]
+
+Get detailed information about a guild including database attributes.
+
+**Usage:**
+```
+<@&1386452009678278818> mod.guildinfo 1234567890
+```
+
+## Support Commands (sup. prefix)
+
+Available to Manager, Supervisor_Sup, and Support. *In development.*
+
+## Communication Commands (com. prefix)
+
+Available to Manager, Supervisor_Com, and Communication. *In development.*
+
 ## Permission Rules
 
 ### Hierarchy Rules:
@@ -247,6 +336,10 @@ All staff commands are in **English only** and do **NOT** use the i18n system.
 - `/utils/staff_permissions.py` - Permission manager and role hierarchy
 - `/staff/staff_manager.py` - Management commands (m. prefix)
 - `/staff/team_commands.py` - Team commands (t. prefix)
+- `/staff/dev_commands.py` - Developer commands (d. prefix)
+- `/staff/moderator_commands.py` - Moderator commands (mod. prefix)
+- `/staff/support_commands.py` - Support commands (sup. prefix)
+- `/staff/communication_commands.py` - Communication commands (com. prefix)
 - `/database.py` - Database methods for staff permissions
 
 ### Key Classes:
