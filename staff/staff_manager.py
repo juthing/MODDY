@@ -18,7 +18,9 @@ from utils.components_v2 import (
     create_success_message,
     create_info_message,
     create_warning_message,
-    create_staff_info_message
+    create_staff_info_message,
+    create_simple_message,
+    EMOJIS
 )
 
 logger = logging.getLogger('moddy.staff_manager')
@@ -134,23 +136,20 @@ class RoleSelectView(ui.View):
             role_values = [role.value for role in self.selected_roles]
             await db.set_staff_roles(self.target_user.id, role_values, self.modifier.id)
 
-            # Create success embed
-            embed = discord.Embed(
-                title="✅ Staff Roles Updated",
-                description=f"Roles for {self.target_user.mention} have been updated.",
-                color=COLORS["success"],
-                timestamp=datetime.now(timezone.utc)
+            # Create success view
+            fields = [{
+                'name': 'Roles Assigned',
+                'value': "\n".join([f"• {role.value}" for role in self.selected_roles])
+            }]
+
+            view = create_success_message(
+                "Staff Roles Updated",
+                f"Roles for {self.target_user.mention} have been updated.",
+                fields=fields,
+                footer=f"Modified by {self.modifier}"
             )
 
-            embed.add_field(
-                name="Roles Assigned",
-                value="\n".join([f"• {role.value}" for role in self.selected_roles]),
-                inline=False
-            )
-
-            embed.set_footer(text=f"Modified by {self.modifier}")
-
-            await interaction.response.edit_message(embed=embed, view=None)
+            await interaction.response.edit_message(view=view, content=None)
 
         except Exception as e:
             logger.error(f"Error assigning roles: {e}")
@@ -164,18 +163,14 @@ class RoleSelectView(ui.View):
         """Cancel role assignment"""
         if interaction.user.id != self.modifier.id:
             await interaction.response.send_message(
-                "❌ Only the command initiator can use this button.",
+                f"{EMOJIS['undone']} Only the command initiator can use this button.",
                 ephemeral=True
             )
             return
 
-        embed = discord.Embed(
-            title="❌ Cancelled",
-            description="Role assignment cancelled.",
-            color=COLORS["error"]
-        )
+        view = create_error_message("Cancelled", "Role assignment cancelled.")
 
-        await interaction.response.edit_message(embed=embed, view=None)
+        await interaction.response.edit_message(view=view, content=None)
 
 
 class DenyCommandModal(ui.Modal, title="Deny Specific Commands"):
@@ -200,29 +195,21 @@ class DenyCommandModal(ui.Modal, title="Deny Specific Commands"):
         try:
             await db.set_denied_commands(self.target_user.id, commands, self.modifier.id)
 
-            embed = discord.Embed(
-                title="✅ Command Restrictions Updated",
-                description=f"Command restrictions for {self.target_user.mention} have been updated.",
-                color=COLORS["success"],
-                timestamp=datetime.now(timezone.utc)
+            denied_value = "\n".join([f"• `{cmd}`" for cmd in commands]) if commands else "None - All restrictions removed"
+
+            fields = [{
+                'name': 'Denied Commands',
+                'value': denied_value
+            }]
+
+            view = create_success_message(
+                "Command Restrictions Updated",
+                f"Command restrictions for {self.target_user.mention} have been updated.",
+                fields=fields,
+                footer=f"Modified by {self.modifier}"
             )
 
-            if commands:
-                embed.add_field(
-                    name="Denied Commands",
-                    value="\n".join([f"• `{cmd}`" for cmd in commands]),
-                    inline=False
-                )
-            else:
-                embed.add_field(
-                    name="Denied Commands",
-                    value="None - All restrictions removed",
-                    inline=False
-                )
-
-            embed.set_footer(text=f"Modified by {self.modifier}")
-
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
 
         except Exception as e:
             logger.error(f"Error setting denied commands: {e}")
@@ -453,12 +440,8 @@ class StaffManagement(commands.Cog):
         staff_members = await db.get_all_staff_members()
 
         if not staff_members:
-            embed = discord.Embed(
-                title="📋 Staff List",
-                description="No staff members found.",
-                color=COLORS["info"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_info_message("📋 Staff List", "No staff members found.")
+            await message.reply(view=view, mention_author=False)
             return
 
         # Group by roles
@@ -469,12 +452,7 @@ class StaffManagement(commands.Cog):
                     by_role[role_str] = []
                 by_role[role_str].append(member['user_id'])
 
-        embed = discord.Embed(
-            title="📋 MODDY Staff Team",
-            description=f"Total staff members: **{len(staff_members)}**",
-            color=COLORS["primary"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        fields = []
 
         # Add fields for each role
         role_order = [
@@ -491,15 +469,19 @@ class StaffManagement(commands.Cog):
             if role_str in by_role:
                 members = by_role[role_str]
                 member_mentions = [f"<@{uid}>" for uid in members]
-                embed.add_field(
-                    name=f"{role_str} ({len(members)})",
-                    value=", ".join(member_mentions),
-                    inline=False
-                )
+                fields.append({
+                    'name': f"{role_str} ({len(members)})",
+                    'value': ", ".join(member_mentions)
+                })
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        view = create_info_message(
+            "📋 MODDY Staff Team",
+            f"Total staff members: **{len(staff_members)}**",
+            fields=fields,
+            footer=f"Requested by {message.author}"
+        )
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
     async def handle_staffinfo_command(self, message: discord.Message, args: str):
         """
@@ -513,22 +495,11 @@ class StaffManagement(commands.Cog):
         perms = await db.get_staff_permissions(target_user.id)
 
         if not perms['roles'] and not self.bot.is_developer(target_user.id):
-            embed = discord.Embed(
-                title="❌ Not Staff",
-                description=f"{target_user.mention} is not a staff member.",
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Not Staff", f"{target_user.mention} is not a staff member.")
+            await message.reply(view=view, mention_author=False)
             return
 
-        # Create info embed
-        embed = discord.Embed(
-            title="👤 Staff Member Information",
-            color=COLORS["info"],
-            timestamp=datetime.now(timezone.utc)
-        )
-
-        embed.set_author(name=str(target_user), icon_url=target_user.display_avatar.url)
+        fields = []
 
         # Add roles
         roles = [StaffRole(r).value for r in perms['roles']] if perms['roles'] else []
@@ -537,38 +508,39 @@ class StaffManagement(commands.Cog):
         if self.bot.is_developer(target_user.id) and "Manager" not in roles:
             roles.insert(0, "Manager (Auto)")
 
-        embed.add_field(
-            name="Roles",
-            value="\n".join([f"• {role}" for role in roles]) if roles else "*No roles*",
-            inline=False
-        )
+        fields.append({
+            'name': 'Roles',
+            'value': "\n".join([f"• {role}" for role in roles]) if roles else "*No roles*"
+        })
 
         # Add denied commands
         if perms['denied_commands']:
-            embed.add_field(
-                name="Command Restrictions",
-                value="\n".join([f"• `{cmd}`" for cmd in perms['denied_commands']]),
-                inline=False
-            )
+            fields.append({
+                'name': 'Command Restrictions',
+                'value': "\n".join([f"• `{cmd}`" for cmd in perms['denied_commands']])
+            })
 
         # Add timestamps
         if perms['created_at']:
-            embed.add_field(
-                name="Joined Staff",
-                value=f"<t:{int(perms['created_at'].timestamp())}:R>",
-                inline=True
-            )
+            fields.append({
+                'name': f"{EMOJIS['time']} Joined Staff",
+                'value': f"<t:{int(perms['created_at'].timestamp())}:R>"
+            })
 
         if perms['updated_at']:
-            embed.add_field(
-                name="Last Updated",
-                value=f"<t:{int(perms['updated_at'].timestamp())}:R>",
-                inline=True
-            )
+            fields.append({
+                'name': f"{EMOJIS['time']} Last Updated",
+                'value': f"<t:{int(perms['updated_at'].timestamp())}:R>"
+            })
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        view = create_info_message(
+            f"{EMOJIS['user']} Staff Member Information - {str(target_user)}",
+            f"Information about staff member {target_user.mention}",
+            fields=fields,
+            footer=f"Requested by {message.author}"
+        )
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
 
 async def setup(bot):

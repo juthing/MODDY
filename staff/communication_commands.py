@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
+from utils.components_v2 import create_error_message, create_info_message, EMOJIS
 
 logger = logging.getLogger('moddy.communication_commands')
 
@@ -50,40 +51,32 @@ class CommunicationCommands(commands.Cog):
         )
 
         if not allowed:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=reason,
-                color=COLORS["error"]
-            )
-            await message.channel.send(embed=embed, delete_after=10)
+            view = create_error_message("Permission Denied", reason)
+            await message.channel.send(view=view, delete_after=10)
             return
 
         # Route to appropriate command
         if command_name == "help":
             await self.handle_help_command(message, args)
         else:
-            embed = discord.Embed(
-                title="❌ Unknown Command",
-                description=f"Communication command `{command_name}` not found.\n\nCommunication commands are in development.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Unknown Command",
+                f"Communication command `{command_name}` not found.\n\nCommunication commands are in development."
             )
-            await message.channel.send(embed=embed, delete_after=15)
+            await message.channel.send(view=view, delete_after=15)
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
         Handle com.help command - Show available communication commands
         Usage: <@&1386452009678278818> com.help
         """
-        embed = discord.Embed(
-            title="💬 Communication Commands",
-            description="Communication command system is in development.\n\nAvailable commands will be added soon.",
-            color=COLORS["info"],
-            timestamp=datetime.now(timezone.utc)
+        view = create_info_message(
+            "💬 Communication Commands",
+            "Communication command system is in development.\n\nAvailable commands will be added soon.",
+            footer=f"Requested by {message.author}"
         )
 
-        embed.set_footer(text=f"Requested by {message.author}")
-
-        await message.channel.send(embed=embed)
+        await message.channel.send(view=view)
 
 
 async def setup(bot):

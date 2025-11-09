@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
-from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, create_simple_message, EMOJIS
 
 logger = logging.getLogger('moddy.team_commands')
 
@@ -51,12 +51,8 @@ class TeamCommands(commands.Cog):
         )
 
         if not allowed:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=reason,
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Permission Denied", reason)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Route to appropriate command
@@ -67,12 +63,11 @@ class TeamCommands(commands.Cog):
         elif command_name == "help":
             await self.handle_help_command(message, args)
         else:
-            embed = discord.Embed(
-                title="❌ Unknown Command",
-                description=f"Team command `{command_name}` not found.\n\nUse `<@1373916203814490194> t.help` for a list of available commands.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Unknown Command",
+                f"Team command `{command_name}` not found.\n\nUse `<@1373916203814490194> t.help` for a list of available commands."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
     async def handle_invite_command(self, message: discord.Message, args: str):
         """
@@ -80,35 +75,32 @@ class TeamCommands(commands.Cog):
         Usage: <@1373916203814490194> t.invite [server_id]
         """
         if not args:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> t.invite [server_id]`\n\nProvide a server ID to get an invite link.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> t.invite [server_id]`\n\nProvide a server ID to get an invite link."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Parse server ID
         try:
             guild_id = int(args.strip())
         except ValueError:
-            embed = discord.Embed(
-                title="❌ Invalid Server ID",
-                description="Please provide a valid server ID (numbers only).",
-                color=COLORS["error"]
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Please provide a valid server ID (numbers only)."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Get guild
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            embed = discord.Embed(
-                title="❌ Server Not Found",
-                description=f"MODDY is not in a server with ID `{guild_id}`.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Server Not Found",
+                f"MODDY is not in a server with ID `{guild_id}`."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Try to create an invite
@@ -124,12 +116,11 @@ class TeamCommands(commands.Cog):
                         break
 
             if not invite_channel:
-                embed = discord.Embed(
-                    title="❌ Cannot Create Invite",
-                    description=f"MODDY doesn't have permission to create invites in **{guild.name}**.",
-                    color=COLORS["error"]
+                view = create_error_message(
+                    "Cannot Create Invite",
+                    f"MODDY doesn't have permission to create invites in **{guild.name}**."
                 )
-                await message.reply(embed=embed, mention_author=False)
+                await message.reply(view=view, mention_author=False)
                 return
 
             # Create invite (7 days, 1 use, no temporary membership)
@@ -140,58 +131,48 @@ class TeamCommands(commands.Cog):
                 reason=f"Staff invite requested by {message.author}"
             )
 
-            # Create success embed
-            embed = discord.Embed(
-                title="✅ Server Invite Created",
-                description=f"Invite link for **{guild.name}**",
-                color=COLORS["success"],
-                timestamp=datetime.now(timezone.utc)
+            # Create success view
+            fields = [
+                {
+                    'name': f"{EMOJIS['web']} Server Information",
+                    'value': f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Members:** {guild.member_count:,}"
+                },
+                {
+                    'name': "Invite Link",
+                    'value': f"[Click here to join]({invite.url})\n`{invite.url}`"
+                },
+                {
+                    'name': f"{EMOJIS['time']} Invite Details",
+                    'value': f"**Channel:** {invite_channel.mention}\n**Expires:** <t:{int((datetime.now(timezone.utc).timestamp() + 604800))}:R>\n**Max Uses:** 5"
+                }
+            ]
+
+            view = create_success_message(
+                "Server Invite Created",
+                f"Invite link for **{guild.name}**",
+                fields=fields,
+                footer=f"Requested by {message.author}"
             )
 
-            embed.add_field(
-                name="Server Information",
-                value=f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Members:** {guild.member_count:,}",
-                inline=False
-            )
-
-            embed.add_field(
-                name="Invite Link",
-                value=f"[Click here to join]({invite.url})\n`{invite.url}`",
-                inline=False
-            )
-
-            embed.add_field(
-                name="Invite Details",
-                value=f"**Channel:** {invite_channel.mention}\n**Expires:** <t:{int((datetime.now(timezone.utc).timestamp() + 604800))}:R>\n**Max Uses:** 5",
-                inline=False
-            )
-
-            if guild.icon:
-                embed.set_thumbnail(url=guild.icon.url)
-
-            embed.set_footer(text=f"Requested by {message.author}")
-
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
             # Log the action
             logger.info(f"Staff {message.author} ({message.author.id}) requested invite for {guild.name} ({guild.id})")
 
         except discord.Forbidden:
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=f"MODDY doesn't have permission to create invites in **{guild.name}**.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Permission Denied",
+                f"MODDY doesn't have permission to create invites in **{guild.name}**."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
         except Exception as e:
             logger.error(f"Error creating invite: {e}")
-            embed = discord.Embed(
-                title="❌ Error",
-                description=f"Failed to create invite: {str(e)}",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Error",
+                f"Failed to create invite: {str(e)}"
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
     async def handle_serverinfo_command(self, message: discord.Message, args: str):
         """
@@ -199,94 +180,83 @@ class TeamCommands(commands.Cog):
         Usage: <@1373916203814490194> t.serverinfo [server_id]
         """
         if not args:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> t.serverinfo [server_id]`\n\nProvide a server ID to get information.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> t.serverinfo [server_id]`\n\nProvide a server ID to get information."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Parse server ID
         try:
             guild_id = int(args.strip())
         except ValueError:
-            embed = discord.Embed(
-                title="❌ Invalid Server ID",
-                description="Please provide a valid server ID (numbers only).",
-                color=COLORS["error"]
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Please provide a valid server ID (numbers only)."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         # Get guild
         guild = self.bot.get_guild(guild_id)
         if not guild:
-            embed = discord.Embed(
-                title="❌ Server Not Found",
-                description=f"MODDY is not in a server with ID `{guild_id}`.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Server Not Found",
+                f"MODDY is not in a server with ID `{guild_id}`."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
-        # Create info embed
-        embed = discord.Embed(
-            title=f"📊 Server Information",
-            color=COLORS["info"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        # Create info view
+        fields = []
 
         # Basic info
-        embed.add_field(
-            name="Basic Information",
-            value=f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Owner:** {guild.owner.mention if guild.owner else 'Unknown'} (`{guild.owner_id}`)\n**Created:** <t:{int(guild.created_at.timestamp())}:R>",
-            inline=False
-        )
+        fields.append({
+            'name': f"{EMOJIS['info']} Basic Information",
+            'value': f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Owner:** {guild.owner.mention if guild.owner else 'Unknown'} (`{guild.owner_id}`)\n**Created:** <t:{int(guild.created_at.timestamp())}:R>"
+        })
 
         # Member stats
-        embed.add_field(
-            name="Members",
-            value=f"**Total:** {guild.member_count:,}\n**Humans:** {len([m for m in guild.members if not m.bot]):,}\n**Bots:** {len([m for m in guild.members if m.bot]):,}",
-            inline=True
-        )
+        fields.append({
+            'name': f"{EMOJIS['user']} Members",
+            'value': f"**Total:** {guild.member_count:,}\n**Humans:** {len([m for m in guild.members if not m.bot]):,}\n**Bots:** {len([m for m in guild.members if m.bot]):,}"
+        })
 
         # Channel stats
-        embed.add_field(
-            name="Channels",
-            value=f"**Text:** {len(guild.text_channels)}\n**Voice:** {len(guild.voice_channels)}\n**Categories:** {len(guild.categories)}",
-            inline=True
-        )
+        fields.append({
+            'name': "Channels",
+            'value': f"**Text:** {len(guild.text_channels)}\n**Voice:** {len(guild.voice_channels)}\n**Categories:** {len(guild.categories)}"
+        })
 
         # Role count
-        embed.add_field(
-            name="Roles",
-            value=f"**Total:** {len(guild.roles)}",
-            inline=True
-        )
+        fields.append({
+            'name': "Roles",
+            'value': f"**Total:** {len(guild.roles)}"
+        })
 
         # Boost info
-        embed.add_field(
-            name="Boost Status",
-            value=f"**Level:** {guild.premium_tier}\n**Boosts:** {guild.premium_subscription_count}",
-            inline=True
-        )
+        fields.append({
+            'name': "Boost Status",
+            'value': f"**Level:** {guild.premium_tier}\n**Boosts:** {guild.premium_subscription_count}"
+        })
 
         # Features
         if guild.features:
             features = [f.replace('_', ' ').title() for f in guild.features[:10]]
-            embed.add_field(
-                name="Features",
-                value=", ".join(features),
-                inline=False
-            )
+            fields.append({
+                'name': "Features",
+                'value': ", ".join(features)
+            })
 
-        if guild.icon:
-            embed.set_thumbnail(url=guild.icon.url)
+        view = create_info_message(
+            f"{EMOJIS['web']} Server Information - {guild.name}",
+            f"Detailed information about **{guild.name}**",
+            fields=fields,
+            footer=f"Requested by {message.author}"
+        )
 
-        embed.set_footer(text=f"Requested by {message.author}")
-
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
@@ -296,12 +266,7 @@ class TeamCommands(commands.Cog):
         # Get user roles to show relevant commands
         user_roles = await staff_permissions.get_user_roles(message.author.id)
 
-        embed = discord.Embed(
-            title="📚 MODDY Staff Commands",
-            description="Available staff commands based on your permissions.",
-            color=COLORS["primary"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        fields = []
 
         # Team commands (available to all staff)
         team_commands = [
@@ -310,11 +275,10 @@ class TeamCommands(commands.Cog):
             ("t.serverinfo [server_id]", "Get detailed information about a server")
         ]
 
-        embed.add_field(
-            name="🌐 Team Commands (All Staff)",
-            value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in team_commands]),
-            inline=False
-        )
+        fields.append({
+            'name': f"{EMOJIS['commands']} Team Commands (All Staff)",
+            'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in team_commands])
+        })
 
         # Management commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.MANAGEMENT):
@@ -325,11 +289,10 @@ class TeamCommands(commands.Cog):
                 ("m.staffinfo [@user]", "Show staff member information")
             ]
 
-            embed.add_field(
-                name="👑 Management Commands",
-                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mgmt_commands]),
-                inline=False
-            )
+            fields.append({
+                'name': "👑 Management Commands",
+                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mgmt_commands])
+            })
 
         # Developer commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.DEV):
@@ -341,11 +304,10 @@ class TeamCommands(commands.Cog):
                 ("d.jsk [code]", "Execute Python code")
             ]
 
-            embed.add_field(
-                name="💻 Developer Commands",
-                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in dev_commands]),
-                inline=False
-            )
+            fields.append({
+                'name': f"{EMOJIS['dev']} Developer Commands",
+                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in dev_commands])
+            })
 
         # Moderator commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.MODERATOR):
@@ -356,31 +318,33 @@ class TeamCommands(commands.Cog):
                 ("mod.guildinfo [guild_id]", "Get detailed guild information")
             ]
 
-            embed.add_field(
-                name="🛡️ Moderator Commands",
-                value="\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mod_commands]),
-                inline=False
-            )
+            fields.append({
+                'name': "🛡️ Moderator Commands",
+                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mod_commands])
+            })
 
         # Support commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.SUPPORT):
-            embed.add_field(
-                name="🎧 Support Commands",
-                value="Support commands are in development.",
-                inline=False
-            )
+            fields.append({
+                'name': "🎧 Support Commands",
+                'value': "Support commands are in development."
+            })
 
         # Communication commands
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.COMMUNICATION):
-            embed.add_field(
-                name="💬 Communication Commands",
-                value="Communication commands are in development.",
-                inline=False
-            )
+            fields.append({
+                'name': "💬 Communication Commands",
+                'value': "Communication commands are in development."
+            })
 
-        embed.set_footer(text=f"Requested by {message.author} | Your roles: {', '.join([r.value for r in user_roles])}")
+        view = create_info_message(
+            f"{EMOJIS['commands']} MODDY Staff Commands",
+            "Available staff commands based on your permissions.",
+            fields=fields,
+            footer=f"Requested by {message.author} | Your roles: {', '.join([r.value for r in user_roles])}"
+        )
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
 
 async def setup(bot):

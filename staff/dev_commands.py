@@ -14,7 +14,7 @@ import os
 from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
-from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message
+from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
 
 logger = logging.getLogger('moddy.dev_commands')
 
@@ -61,12 +61,8 @@ class DeveloperCommands(commands.Cog):
 
         if not allowed:
             logger.warning(f"   ❌ Permission denied: {reason}")
-            embed = discord.Embed(
-                title="❌ Permission Denied",
-                description=reason,
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Permission Denied", reason)
+            await message.reply(view=view, mention_author=False)
             return
 
         logger.info(f"   ✅ Permission granted")
@@ -83,12 +79,8 @@ class DeveloperCommands(commands.Cog):
         elif command_name == "jsk":
             await self.handle_jsk_command(message, args)
         else:
-            embed = discord.Embed(
-                title="❌ Unknown Command",
-                description=f"Developer command `{command_name}` not found.",
-                color=COLORS["error"]
-            )
-            await message.reply(embed=embed, mention_author=False)
+            view = create_error_message("Unknown Command", f"Developer command `{command_name}` not found.")
+            await message.reply(view=view, mention_author=False)
 
     async def handle_reload_command(self, message: discord.Message, args: str):
         """
@@ -97,12 +89,8 @@ class DeveloperCommands(commands.Cog):
         """
         if not args or args == "all":
             # Reload all extensions
-            embed = discord.Embed(
-                title="🔄 Reloading All Extensions",
-                description="Reloading all cogs and staff commands...",
-                color=COLORS["info"]
-            )
-            msg = await message.reply(embed=embed, mention_author=False)
+            view = create_info_message(f"{EMOJIS['sync']} Reloading All Extensions", "Reloading all cogs and staff commands...")
+            msg = await message.reply(view=view, mention_author=False)
 
             success = []
             failed = []
@@ -116,30 +104,31 @@ class DeveloperCommands(commands.Cog):
                 except Exception as e:
                     failed.append(f"{ext}: {str(e)}")
 
-            # Create result embed
-            result_embed = discord.Embed(
-                title="✅ Reload Complete" if not failed else "⚠️ Reload Complete with Errors",
-                color=COLORS["success"] if not failed else COLORS["warning"],
-                timestamp=datetime.now(timezone.utc)
-            )
+            # Create result view
+            title = f"{EMOJIS['done']} Reload Complete" if not failed else "⚠️ Reload Complete with Errors"
+            description = "Extensions reloaded successfully." if not failed else "Some extensions failed to reload."
 
+            fields = []
             if success:
-                result_embed.add_field(
-                    name=f"✅ Reloaded ({len(success)})",
-                    value="\n".join([f"• `{ext}`" for ext in success[:10]]) + (f"\n*...and {len(success) - 10} more*" if len(success) > 10 else ""),
-                    inline=False
-                )
+                fields.append({
+                    'name': f"{EMOJIS['done']} Reloaded ({len(success)})",
+                    'value': "\n".join([f"• `{ext}`" for ext in success[:10]]) + (f"\n*...and {len(success) - 10} more*" if len(success) > 10 else "")
+                })
 
             if failed:
-                result_embed.add_field(
-                    name=f"❌ Failed ({len(failed)})",
-                    value="\n".join([f"• {f}" for f in failed[:5]]) + (f"\n*...and {len(failed) - 5} more*" if len(failed) > 5 else ""),
-                    inline=False
-                )
+                fields.append({
+                    'name': f"{EMOJIS['undone']} Failed ({len(failed)})",
+                    'value': "\n".join([f"• {f}" for f in failed[:5]]) + (f"\n*...and {len(failed) - 5} more*" if len(failed) > 5 else "")
+                })
 
-            result_embed.set_footer(text=f"Executed by {message.author}")
+            footer = f"Executed by {message.author}"
 
-            await msg.edit(embed=result_embed)
+            if failed:
+                result_view = create_warning_message(title, description, fields)
+            else:
+                result_view = create_success_message(title, description, fields, footer)
+
+            await msg.edit(view=result_view)
 
         else:
             # Reload specific extension
@@ -158,44 +147,34 @@ class DeveloperCommands(commands.Cog):
             try:
                 await self.bot.reload_extension(ext_name)
 
-                embed = discord.Embed(
-                    title="✅ Extension Reloaded",
-                    description=f"Successfully reloaded `{ext_name}`",
-                    color=COLORS["success"],
-                    timestamp=datetime.now(timezone.utc)
+                view = create_success_message(
+                    "Extension Reloaded",
+                    f"Successfully reloaded `{ext_name}`",
+                    footer=f"Executed by {message.author}"
                 )
-                embed.set_footer(text=f"Executed by {message.author}")
 
-                await message.reply(embed=embed, mention_author=False)
+                await message.reply(view=view, mention_author=False)
 
             except Exception as e:
-                embed = discord.Embed(
-                    title="❌ Reload Failed",
-                    description=f"Failed to reload `{ext_name}`",
-                    color=COLORS["error"]
-                )
-                embed.add_field(
-                    name="Error",
-                    value=f"```{str(e)[:500]}```",
-                    inline=False
+                view = create_error_message(
+                    "Reload Failed",
+                    f"Failed to reload `{ext_name}`",
+                    fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
                 )
 
-                await message.reply(embed=embed, mention_author=False)
+                await message.reply(view=view, mention_author=False)
 
     async def handle_shutdown_command(self, message: discord.Message, args: str):
         """
         Handle d.shutdown command - Shutdown the bot
         Usage: <@1373916203814490194> d.shutdown
         """
-        embed = discord.Embed(
-            title="🔴 Shutting Down",
-            description="MODDY is shutting down...",
-            color=COLORS["error"],
-            timestamp=datetime.now(timezone.utc)
+        view = create_error_message(
+            f"{EMOJIS['logout']} Shutting Down" if 'logout' in EMOJIS else "🔴 Shutting Down",
+            "MODDY is shutting down..."
         )
-        embed.set_footer(text=f"Executed by {message.author}")
 
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
         logger.info(f"Bot shutdown requested by {message.author} ({message.author.id})")
         await self.bot.close()
@@ -205,40 +184,33 @@ class DeveloperCommands(commands.Cog):
         Handle d.stats command - Show bot statistics
         Usage: <@1373916203814490194> d.stats
         """
-        embed = discord.Embed(
-            title="📊 MODDY Statistics",
-            color=COLORS["developer"],
-            timestamp=datetime.now(timezone.utc)
-        )
-
         # Bot info
         uptime = datetime.now(timezone.utc) - self.bot.launch_time
         days = uptime.days
         hours, remainder = divmod(uptime.seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
 
-        embed.add_field(
-            name="Bot Information",
-            value=f"**Uptime:** {days}d {hours}h {minutes}m {seconds}s\n**Latency:** {round(self.bot.latency * 1000)}ms",
-            inline=False
-        )
+        fields = []
+
+        fields.append({
+            'name': f"{EMOJIS['moddy']} Bot Information",
+            'value': f"**Uptime:** {days}d {hours}h {minutes}m {seconds}s\n**Latency:** {round(self.bot.latency * 1000)}ms"
+        })
 
         # Server stats
-        embed.add_field(
-            name="Discord Statistics",
-            value=f"**Guilds:** {len(self.bot.guilds):,}\n**Users:** {len(self.bot.users):,}\n**Commands:** {len(self.bot.tree.get_commands())}",
-            inline=True
-        )
+        fields.append({
+            'name': f"{EMOJIS['web']} Discord Statistics",
+            'value': f"**Guilds:** {len(self.bot.guilds):,}\n**Users:** {len(self.bot.users):,}\n**Commands:** {len(self.bot.tree.get_commands())}"
+        })
 
         # Database stats
         if db:
             try:
                 stats = await db.get_stats()
-                embed.add_field(
-                    name="Database Statistics",
-                    value=f"**Users:** {stats.get('users', 0):,}\n**Guilds:** {stats.get('guilds', 0):,}\n**Errors:** {stats.get('errors', 0):,}",
-                    inline=True
-                )
+                fields.append({
+                    'name': "Database Statistics",
+                    'value': f"**Users:** {stats.get('users', 0):,}\n**Guilds:** {stats.get('guilds', 0):,}\n**Errors:** {stats.get('errors', 0):,}"
+                })
             except:
                 pass
 
@@ -247,22 +219,25 @@ class DeveloperCommands(commands.Cog):
         process = psutil.Process()
         memory_info = process.memory_info()
 
-        embed.add_field(
-            name="System Resources",
-            value=f"**RAM:** {memory_info.rss / 1024 / 1024:.2f} MB\n**CPU:** {process.cpu_percent()}%\n**Threads:** {process.num_threads()}",
-            inline=True
-        )
+        fields.append({
+            'name': "System Resources",
+            'value': f"**RAM:** {memory_info.rss / 1024 / 1024:.2f} MB\n**CPU:** {process.cpu_percent()}%\n**Threads:** {process.num_threads()}"
+        })
 
         # Extensions
-        embed.add_field(
-            name="Extensions",
-            value=f"**Loaded:** {len(self.bot.extensions)}\n**Cogs:** {len(self.bot.cogs)}",
-            inline=True
+        fields.append({
+            'name': "Extensions",
+            'value': f"**Loaded:** {len(self.bot.extensions)}\n**Cogs:** {len(self.bot.cogs)}"
+        })
+
+        view = create_info_message(
+            f"{EMOJIS['info']} MODDY Statistics",
+            "Statistiques actuelles du bot",
+            fields=fields,
+            footer=f"Requested by {message.author}"
         )
 
-        embed.set_footer(text=f"Requested by {message.author}")
-
-        await message.reply(embed=embed, mention_author=False)
+        await message.reply(view=view, mention_author=False)
 
     async def handle_sql_command(self, message: discord.Message, args: str):
         """
@@ -270,21 +245,19 @@ class DeveloperCommands(commands.Cog):
         Usage: <@1373916203814490194> d.sql [query]
         """
         if not args:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> d.sql [query]`\n\nProvide a SQL query to execute.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> d.sql [query]`\n\nProvide a SQL query to execute."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         if not db:
-            embed = discord.Embed(
-                title="❌ Database Not Available",
-                description="Database is not connected.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Database Not Available",
+                "Database is not connected."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         query = args.strip()
@@ -292,12 +265,11 @@ class DeveloperCommands(commands.Cog):
         # Warning for dangerous queries
         dangerous_keywords = ["DROP", "DELETE", "TRUNCATE", "ALTER"]
         if any(keyword in query.upper() for keyword in dangerous_keywords):
-            embed = discord.Embed(
-                title="⚠️ Dangerous Query",
-                description=f"This query contains potentially dangerous operations:\n```sql\n{query[:500]}\n```\n\nReact with ✅ to confirm execution.",
-                color=COLORS["warning"]
+            view = create_warning_message(
+                "Dangerous Query",
+                f"This query contains potentially dangerous operations:\n```sql\n{query[:500]}\n```\n\nReact with ✅ to confirm execution."
             )
-            msg = await message.reply(embed=embed, mention_author=False)
+            msg = await message.reply(view=view, mention_author=False)
             await msg.add_reaction("✅")
             await msg.add_reaction("❌")
 
@@ -308,20 +280,12 @@ class DeveloperCommands(commands.Cog):
                 reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
 
                 if str(reaction.emoji) == "❌":
-                    embed = discord.Embed(
-                        title="❌ Cancelled",
-                        description="Query execution cancelled.",
-                        color=COLORS["error"]
-                    )
-                    await msg.edit(embed=embed)
+                    cancel_view = create_error_message("Cancelled", "Query execution cancelled.")
+                    await msg.edit(view=cancel_view)
                     return
             except:
-                embed = discord.Embed(
-                    title="⏱️ Timeout",
-                    description="Query confirmation timed out.",
-                    color=COLORS["error"]
-                )
-                await msg.edit(embed=embed)
+                timeout_view = create_error_message(f"{EMOJIS['time']} Timeout", "Query confirmation timed out.")
+                await msg.edit(view=timeout_view)
                 return
 
         try:
@@ -331,12 +295,8 @@ class DeveloperCommands(commands.Cog):
                     rows = await conn.fetch(query)
 
                     if not rows:
-                        embed = discord.Embed(
-                            title="✅ Query Executed",
-                            description="No results returned.",
-                            color=COLORS["success"]
-                        )
-                        await message.reply(embed=embed, mention_author=False)
+                        view = create_success_message("Query Executed", "No results returned.")
+                        await message.reply(view=view, mention_author=False)
                         return
 
                     # Format results
@@ -348,39 +308,31 @@ class DeveloperCommands(commands.Cog):
                     if len(rows) > 10:
                         result_text += f"\n*...and {len(rows) - 10} more rows*"
 
-                    embed = discord.Embed(
-                        title="✅ Query Executed",
-                        description=f"**Rows:** {len(rows)}\n\n{result_text}",
-                        color=COLORS["success"],
-                        timestamp=datetime.now(timezone.utc)
+                    view = create_success_message(
+                        "Query Executed",
+                        f"**Rows:** {len(rows)}\n\n{result_text}",
+                        footer=f"Executed by {message.author}"
                     )
                 else:
                     # Execute non-SELECT query
                     result = await conn.execute(query)
 
-                    embed = discord.Embed(
-                        title="✅ Query Executed",
-                        description=f"```sql\n{query[:500]}\n```\n\n**Result:** {result}",
-                        color=COLORS["success"],
-                        timestamp=datetime.now(timezone.utc)
+                    view = create_success_message(
+                        "Query Executed",
+                        f"```sql\n{query[:500]}\n```\n\n**Result:** {result}",
+                        footer=f"Executed by {message.author}"
                     )
 
-                embed.set_footer(text=f"Executed by {message.author}")
-                await message.reply(embed=embed, mention_author=False)
+                await message.reply(view=view, mention_author=False)
 
         except Exception as e:
-            embed = discord.Embed(
-                title="❌ Query Failed",
-                description=f"```sql\n{query[:500]}\n```",
-                color=COLORS["error"]
-            )
-            embed.add_field(
-                name="Error",
-                value=f"```{str(e)[:500]}```",
-                inline=False
+            view = create_error_message(
+                "Query Failed",
+                f"```sql\n{query[:500]}\n```",
+                fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
             )
 
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
     async def handle_jsk_command(self, message: discord.Message, args: str):
         """
@@ -388,12 +340,11 @@ class DeveloperCommands(commands.Cog):
         Usage: <@1373916203814490194> d.jsk [code]
         """
         if not args:
-            embed = discord.Embed(
-                title="❌ Invalid Usage",
-                description="**Usage:** `<@1373916203814490194> d.jsk [code]`\n\nProvide Python code to execute.",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> d.jsk [code]`\n\nProvide Python code to execute."
             )
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
             return
 
         code = args.strip()
@@ -447,28 +398,20 @@ class DeveloperCommands(commands.Cog):
                 output += f"\n{repr(result)}"
 
             if not output:
-                output = "✅ Code executed successfully (no output)"
+                output = f"{EMOJIS['done']} Code executed successfully (no output)"
 
             # Limit output length
             if len(output) > 1900:
                 output = output[:1900] + "\n... (output truncated)"
 
-            embed = discord.Embed(
-                title="✅ Code Executed",
-                description=f"```python\n{code[:500]}\n```",
-                color=COLORS["success"],
-                timestamp=datetime.now(timezone.utc)
+            view = create_success_message(
+                f"{EMOJIS['code']} Code Executed",
+                f"```python\n{code[:500]}\n```",
+                fields=[{'name': 'Output', 'value': f"```python\n{output}\n```"}],
+                footer=f"Executed by {message.author}"
             )
 
-            embed.add_field(
-                name="Output",
-                value=f"```python\n{output}\n```",
-                inline=False
-            )
-
-            embed.set_footer(text=f"Executed by {message.author}")
-
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
         except Exception as e:
             # Format error
@@ -477,19 +420,13 @@ class DeveloperCommands(commands.Cog):
             if len(error_traceback) > 1900:
                 error_traceback = error_traceback[-1900:]
 
-            embed = discord.Embed(
-                title="❌ Execution Failed",
-                description=f"```python\n{code[:500]}\n```",
-                color=COLORS["error"]
+            view = create_error_message(
+                "Execution Failed",
+                f"```python\n{code[:500]}\n```",
+                fields=[{'name': 'Error', 'value': f"```python\n{error_traceback}\n```"}]
             )
 
-            embed.add_field(
-                name="Error",
-                value=f"```python\n{error_traceback}\n```",
-                inline=False
-            )
-
-            await message.reply(embed=embed, mention_author=False)
+            await message.reply(view=view, mention_author=False)
 
 
 async def setup(bot):
