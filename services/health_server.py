@@ -196,7 +196,7 @@ class HealthServer:
                     issues.append(f"Elevated latency: {latency_ms}ms")
 
                 # Vérification des cogs critiques
-                critical_cogs = ["ErrorTracker", "LanguageManager", "BlacklistCheck"]
+                critical_cogs = ["ErrorTracker", "BlacklistCheck"]
                 for cog_name in critical_cogs:
                     if not self.bot.get_cog(cog_name):
                         if status == "operational":
@@ -310,8 +310,6 @@ class HealthServer:
                 # Test de santé spécifique pour certains cogs
                 if cog_name == "ErrorTracker":
                     cog_info["errors_cached"] = len(cog.error_cache) if hasattr(cog, 'error_cache') else 0
-                elif cog_name == "LanguageManager":
-                    cog_info["cache_size"] = len(cog.lang_cache) if hasattr(cog, 'lang_cache') else 0
                 elif cog_name == "Translate" and hasattr(cog, 'deepl_api_key'):
                     cog_info["api_configured"] = bool(cog.deepl_api_key)
 
@@ -386,11 +384,6 @@ class HealthServer:
                 response["metrics"] = {
                     "errors_cached": len(cog.error_cache),
                     "error_channel_id": cog.error_channel_id
-                }
-            elif cog_name == "LanguageManager" and hasattr(cog, 'lang_cache'):
-                response["metrics"] = {
-                    "cache_size": len(cog.lang_cache),
-                    "pending_interactions": len(getattr(cog, 'pending_interactions', {}))
                 }
             elif cog_name == "Translate":
                 response["metrics"] = {

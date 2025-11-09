@@ -313,17 +313,12 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"❌ Error loading dev logger: {e}")
 
-        # NOTE: L'ancien LanguageManager n'est PLUS chargé
-        # Le nouveau système i18n est automatique via interaction.locale
-
         # Load user cogs
         cogs_dir = Path("cogs")
         if cogs_dir.exists():
             for file in cogs_dir.glob("*.py"):
-                # SKIP l'ancien language_manager s'il existe encore
-                if file.name.startswith("_") or file.name in ["error_handler.py", "blacklist_check.py", "dev_logger.py", "language_manager.py"]:
-                    if file.name == "language_manager.py":
-                        logger.warning("⚠️ Skipping old language_manager.py - using new i18n system")
+                # Skip special files
+                if file.name.startswith("_") or file.name in ["error_handler.py", "blacklist_check.py", "dev_logger.py"]:
                     continue
 
                 try:
