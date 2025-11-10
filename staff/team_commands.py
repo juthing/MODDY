@@ -377,7 +377,7 @@ class TeamCommands(commands.Cog):
         elif primary_role.value == "Supervisor_Mod":
             role_display = "moderation supervisor"
         elif primary_role.value == "Supervisor_Com":
-            role_display = "member"  # Communication supervisor shows as member
+            role_display = "communication supervisor"  
         elif primary_role.value == "Supervisor_Sup":
             role_display = "support agents"  # Support supervisor
         elif primary_role.value == "Moderator":
@@ -395,7 +395,7 @@ class TeamCommands(commands.Cog):
         class Components(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(content=f"{EMOJIS['verified']} {message.author.mention} **is a {role_display} of the Moddy Team**"),
-                discord.ui.TextDisplay(content="-# Moddy team are authorized to take action on your server.\n-# This message was sent to prevent identity theft. \n-# [Support](https://moddy.app/support) • [Documentation](https://docs.moddy.app/)"),
+                discord.ui.TextDisplay(content="-# Moddy team are authorized to take action on your server.\n-# This message was sent to prevent identity theft. \n-# [Report Staff](https://moddy.app/report-staff) • [Support](https://moddy.app/support) • [Documentation](https://docs.moddy.app/)"),
             )
 
         view = Components()
