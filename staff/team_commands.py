@@ -365,33 +365,40 @@ class TeamCommands(commands.Cog):
             await message.reply(view=view, mention_author=False)
             return
 
-        # Format roles in a human-readable way
-        role_names = {
-            "Dev": "Developer",
-            "Manager": "Manager",
-            "Supervisor_Mod": "Moderation Supervisor",
-            "Supervisor_Com": "Communication Supervisor",
-            "Supervisor_Sup": "Support Supervisor",
-            "Moderator": "Moderator",
-            "Communication": "Communication Specialist",
-            "Support": "Support Specialist"
-        }
-
         # Get primary role (highest in hierarchy)
-        primary_role = user_roles[0].value
-        formatted_role = role_names.get(primary_role, primary_role)
+        primary_role = user_roles[0]
+
+        # Format role name for display
+        role_display = ""
+        if primary_role.value == "Dev":
+            role_display = "developer"
+        elif primary_role.value == "Manager":
+            role_display = "manager"
+        elif primary_role.value == "Supervisor_Mod":
+            role_display = "moderation supervisor"
+        elif primary_role.value == "Supervisor_Com":
+            role_display = "member"  # Communication supervisor shows as member
+        elif primary_role.value == "Supervisor_Sup":
+            role_display = "support agents"  # Support supervisor
+        elif primary_role.value == "Moderator":
+            role_display = "moderator"
+        elif primary_role.value == "Communication":
+            role_display = "member"  # Communication shows as member
+        elif primary_role.value == "Support":
+            role_display = "support agents"  # Support shows as support agents
+        else:
+            role_display = "member"
 
         # Create the verification message with Components V2
         from discord.ui import LayoutView, Container, TextDisplay
 
-        view = LayoutView()
-        container = Container()
+        class Components(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"{EMOJIS['verified']} {message.author.mention} **is a {role_display} of the Moddy Team**"),
+                discord.ui.TextDisplay(content="-# Moddy team are authorized to take action on your server.\n-# This message was sent to prevent identity theft. \n-# [Support](https://moddy.app/support) • [Documentation](https://docs.moddy.app/)"),
+            )
 
-        # Verification message
-        verification_text = f"{EMOJIS['verified']} **{message.author.mention} is a {formatted_role} of the Moddy team.**\n\nThis message was sent to prevent identity theft. [Learn more](https://moddy.app/staff)"
-        container.add_item(TextDisplay(verification_text))
-
-        view.add_item(container)
+        view = Components()
 
         # Send in channel (not as reply) and delete command message
         try:

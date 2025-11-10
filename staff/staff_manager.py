@@ -270,6 +270,8 @@ class StaffManagement(commands.Cog):
         # Route to appropriate command
         if command_name == "rank":
             await self.handle_rank_command(message, args)
+        elif command_name == "unrank":
+            await self.handle_unrank_command(message, args)
         elif command_name == "setstaff":
             await self.handle_setstaff_command(message, args)
         elif command_name == "stafflist":
@@ -285,16 +287,30 @@ class StaffManagement(commands.Cog):
         Handle m.rank command - Add user to staff team
         Usage: <@1373916203814490194> m.rank @user
         """
-        # Parse user mention
-        if not message.mentions:
+        # Parse user mention or ID
+        target_user = None
+
+        # Try to get user from mentions (exclude bot mention)
+        for mention in message.mentions:
+            if mention.id != self.bot.user.id:
+                target_user = mention
+                break
+
+        # If no mention found, try to parse as ID
+        if not target_user and args:
+            try:
+                user_id = int(args.strip().split()[0])
+                target_user = await self.bot.fetch_user(user_id)
+            except (ValueError, discord.NotFound, discord.HTTPException):
+                pass
+
+        if not target_user:
             view = create_error_message(
                 "Invalid Usage",
-                "**Usage:** `<@1373916203814490194> m.rank @user`\n\nMention a user to add them to the staff team."
+                "**Usage:** `<@1373916203814490194> m.rank @user` or `<@1373916203814490194> m.rank [user_id]`\n\nMention a user or provide their ID to add them to the staff team."
             )
             await message.reply(view=view, mention_author=False)
             return
-
-        target_user = message.mentions[0]
 
         # Can't rank bots
         if target_user.bot:
@@ -309,11 +325,11 @@ class StaffManagement(commands.Cog):
             await message.reply(view=view, mention_author=False)
             return
 
-        # Open role selection
-        view = RoleSelectView(target_user, message.author, staff_permissions)
+        # Open role selection (must use embed for interactive views)
+        button_view = RoleSelectView(target_user, message.author, staff_permissions)
 
         embed = discord.Embed(
-            title="👥 Add Staff Member",
+            title=f"{EMOJIS['user']} Add Staff Member",
             description=f"Adding {target_user.mention} to the staff team.\n\nSelect the roles for this staff member:",
             color=COLORS["primary"],
             timestamp=datetime.now(timezone.utc)
@@ -321,23 +337,115 @@ class StaffManagement(commands.Cog):
 
         embed.set_footer(text=f"Requested by {message.author}")
 
-        await message.reply(embed=embed, view=view, mention_author=False)
+        await message.reply(embed=embed, view=button_view, mention_author=False)
+
+    async def handle_unrank_command(self, message: discord.Message, args: str):
+        """
+        Handle m.unrank command - Remove user from staff team
+        Usage: <@1373916203814490194> m.unrank @user
+        """
+        # Parse user mention or ID
+        target_user = None
+
+        # Try to get user from mentions (exclude bot mention)
+        for mention in message.mentions:
+            if mention.id != self.bot.user.id:
+                target_user = mention
+                break
+
+        # If no mention found, try to parse as ID
+        if not target_user and args:
+            try:
+                user_id = int(args.strip().split()[0])
+                target_user = await self.bot.fetch_user(user_id)
+            except (ValueError, discord.NotFound, discord.HTTPException):
+                pass
+
+        if not target_user:
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> m.unrank @user` or `<@1373916203814490194> m.unrank [user_id]`\n\nMention a user or provide their ID to remove them from the staff team."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Check if target is staff
+        user_data = await db.get_user(target_user.id)
+        if not user_data['attributes'].get('TEAM'):
+            view = create_error_message(
+                "Not Staff",
+                f"{target_user.mention} is not a staff member."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Check if modifier can modify target
+        can_modify = await staff_permissions.can_modify_user(message.author.id, target_user.id)
+        if not can_modify:
+            view = create_error_message(
+                "Permission Denied",
+                "You cannot remove this user from the staff team.\n\nYou can only modify staff members below your hierarchy level."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Remove all roles and TEAM attribute
+        try:
+            # Remove staff permissions (clears roles and denied commands)
+            await db.remove_staff_permissions(target_user.id)
+
+            # Remove TEAM attribute
+            await db.set_attribute('user', target_user.id, 'TEAM', False, message.author.id, "Removed from staff via m.unrank")
+
+            # Create success message
+            view = create_success_message(
+                f"{EMOJIS['done']} Staff Member Removed",
+                f"{target_user.mention} has been removed from the staff team.",
+                footer=f"Removed by {message.author}"
+            )
+
+            await message.reply(view=view, mention_author=False)
+
+            # Log the action
+            logger.info(f"Staff {message.author} ({message.author.id}) removed {target_user} ({target_user.id}) from staff")
+
+        except Exception as e:
+            logger.error(f"Error removing staff member: {e}")
+            view = create_error_message(
+                "Error",
+                f"Failed to remove staff member: {str(e)}"
+            )
+            await message.reply(view=view, mention_author=False)
 
     async def handle_setstaff_command(self, message: discord.Message, args: str):
         """
         Handle m.setstaff command - Manage staff permissions
         Usage: <@1373916203814490194> m.setstaff @user
         """
-        # Parse user mention
-        if not message.mentions:
+        # Parse user mention or ID
+        target_user = None
+
+        # Try to get user from mentions (exclude bot mention)
+        for mention in message.mentions:
+            if mention.id != self.bot.user.id:
+                target_user = mention
+                break
+
+        # If no mention found, try to parse as ID
+        if not target_user and args:
+            try:
+                user_id = int(args.strip().split()[0])
+                target_user = await self.bot.fetch_user(user_id)
+            except (ValueError, discord.NotFound, discord.HTTPException):
+                pass
+
+        if not target_user:
             view = create_error_message(
                 "Invalid Usage",
-                "**Usage:** `<@1373916203814490194> m.setstaff @user`\n\nMention a user to manage their permissions."
+                "**Usage:** `<@1373916203814490194> m.setstaff @user` or `<@1373916203814490194> m.setstaff [user_id]`\n\nMention a user or provide their ID to manage their permissions."
             )
             await message.reply(view=view, mention_author=False)
             return
-
-        target_user = message.mentions[0]
 
         # Check if target is staff
         user_data = await db.get_user(target_user.id)
@@ -370,12 +478,12 @@ class StaffManagement(commands.Cog):
         # Add role management button
         async def edit_roles_callback(interaction: discord.Interaction):
             if interaction.user.id != message.author.id:
-                await interaction.response.send_message("❌ Only the command initiator can use this.", ephemeral=True)
+                await interaction.response.send_message(f"{EMOJIS['undone']} Only the command initiator can use this.", ephemeral=True)
                 return
 
             role_view = RoleSelectView(target_user, message.author, staff_permissions)
             embed = discord.Embed(
-                title="✏️ Edit Roles",
+                title=f"{EMOJIS['settings']} Edit Roles",
                 description=f"Editing roles for {target_user.mention}\n\nSelect the new roles:",
                 color=COLORS["primary"]
             )
@@ -400,7 +508,7 @@ class StaffManagement(commands.Cog):
 
         # Create info embed
         embed = discord.Embed(
-            title="👤 Staff Member Management",
+            title=f"{EMOJIS['user']} Staff Member Management",
             description=f"Managing permissions for {target_user.mention}",
             color=COLORS["primary"],
             timestamp=datetime.now(timezone.utc)
@@ -408,9 +516,32 @@ class StaffManagement(commands.Cog):
 
         # Add current roles
         if current_roles:
+            # Add badge emoji to roles
+            role_display = []
+            for role in current_roles:
+                badge = ""
+                if role == StaffRole.DEV:
+                    badge = EMOJIS['dev_badge']
+                elif role == StaffRole.MANAGER:
+                    badge = EMOJIS['manager_badge']
+                elif role == StaffRole.SUPERVISOR_MOD:
+                    badge = EMOJIS['mod_supervisor_badge']
+                elif role == StaffRole.SUPERVISOR_COM:
+                    badge = EMOJIS['communication_supervisor_badge']
+                elif role == StaffRole.SUPERVISOR_SUP:
+                    badge = EMOJIS['support_supervisor_badge']
+                elif role == StaffRole.MODERATOR:
+                    badge = EMOJIS['moderator_badge']
+                elif role == StaffRole.COMMUNICATION:
+                    badge = EMOJIS['comunication_badge']
+                elif role == StaffRole.SUPPORT:
+                    badge = EMOJIS['supportagent_badge']
+
+                role_display.append(f"{badge} {role.value}")
+
             embed.add_field(
                 name="Current Roles",
-                value="\n".join([f"• {role.value}" for role in current_roles]),
+                value="\n".join(role_display),
                 inline=False
             )
         else:
@@ -488,8 +619,26 @@ class StaffManagement(commands.Cog):
         Handle m.staffinfo command - Show info about a staff member
         Usage: <@1373916203814490194> m.staffinfo @user
         """
-        # Parse user mention or use self
-        target_user = message.mentions[0] if message.mentions else message.author
+        # Parse user mention or ID or use self
+        target_user = None
+
+        # Try to get user from mentions (exclude bot mention)
+        for mention in message.mentions:
+            if mention.id != self.bot.user.id:
+                target_user = mention
+                break
+
+        # If no mention found, try to parse as ID
+        if not target_user and args:
+            try:
+                user_id = int(args.strip().split()[0])
+                target_user = await self.bot.fetch_user(user_id)
+            except (ValueError, discord.NotFound, discord.HTTPException):
+                pass
+
+        # If still no target, use command author
+        if not target_user:
+            target_user = message.author
 
         # Get permissions
         perms = await db.get_staff_permissions(target_user.id)
@@ -501,16 +650,42 @@ class StaffManagement(commands.Cog):
 
         fields = []
 
-        # Add roles
-        roles = [StaffRole(r).value for r in perms['roles']] if perms['roles'] else []
-        if self.bot.is_developer(target_user.id) and "Dev" not in roles:
-            roles.insert(0, "Dev (Auto)")
-        if self.bot.is_developer(target_user.id) and "Manager" not in roles:
-            roles.insert(0, "Manager (Auto)")
+        # Add roles with badges
+        role_display = []
+        staff_roles = [StaffRole(r) for r in perms['roles']] if perms['roles'] else []
+
+        # Add auto-assigned roles for developers
+        if self.bot.is_developer(target_user.id):
+            if StaffRole.DEV not in staff_roles:
+                role_display.append(f"{EMOJIS['dev_badge']} Dev (Auto)")
+            if StaffRole.MANAGER not in staff_roles:
+                role_display.append(f"{EMOJIS['manager_badge']} Manager (Auto)")
+
+        # Add regular roles
+        for role in staff_roles:
+            badge = ""
+            if role == StaffRole.DEV:
+                badge = EMOJIS['dev_badge']
+            elif role == StaffRole.MANAGER:
+                badge = EMOJIS['manager_badge']
+            elif role == StaffRole.SUPERVISOR_MOD:
+                badge = EMOJIS['mod_supervisor_badge']
+            elif role == StaffRole.SUPERVISOR_COM:
+                badge = EMOJIS['communication_supervisor_badge']
+            elif role == StaffRole.SUPERVISOR_SUP:
+                badge = EMOJIS['support_supervisor_badge']
+            elif role == StaffRole.MODERATOR:
+                badge = EMOJIS['moderator_badge']
+            elif role == StaffRole.COMMUNICATION:
+                badge = EMOJIS['comunication_badge']
+            elif role == StaffRole.SUPPORT:
+                badge = EMOJIS['supportagent_badge']
+
+            role_display.append(f"{badge} {role.value}")
 
         fields.append({
             'name': 'Roles',
-            'value': "\n".join([f"• {role}" for role in roles]) if roles else "*No roles*"
+            'value': "\n".join(role_display) if role_display else "*No roles*"
         })
 
         # Add denied commands

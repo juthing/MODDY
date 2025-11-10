@@ -84,6 +84,7 @@ Add a user to the staff team.
 **Usage:**
 ```
 <@1373916203814490194> m.rank @user
+<@1373916203814490194> m.rank [user_id]
 ```
 
 **Permission:** Manager or Supervisor
@@ -91,9 +92,30 @@ Add a user to the staff team.
 **Example:**
 ```
 <@1373916203814490194> m.rank @JohnDoe
+<@1373916203814490194> m.rank 123456789012345678
 ```
 
 Opens an interactive role selection menu to assign roles to the new staff member.
+
+### m.unrank @user
+
+Remove a user from the staff team.
+
+**Usage:**
+```
+<@1373916203814490194> m.unrank @user
+<@1373916203814490194> m.unrank [user_id]
+```
+
+**Permission:** Manager or Supervisor (can only remove staff below their level)
+
+**Example:**
+```
+<@1373916203814490194> m.unrank @JohnDoe
+<@1373916203814490194> m.unrank 123456789012345678
+```
+
+Removes all staff roles and permissions from the user and removes the TEAM attribute.
 
 ### m.setstaff @user
 
@@ -102,6 +124,7 @@ Manage an existing staff member's permissions.
 **Usage:**
 ```
 <@1373916203814490194> m.setstaff @user
+<@1373916203814490194> m.setstaff [user_id]
 ```
 
 **Permission:** Manager or Supervisor (can only modify staff below their level)
@@ -109,10 +132,11 @@ Manage an existing staff member's permissions.
 **Example:**
 ```
 <@1373916203814490194> m.setstaff @JohnDoe
+<@1373916203814490194> m.setstaff 123456789012345678
 ```
 
 Features:
-- Edit roles
+- Edit roles with emoji badges display
 - Manage command restrictions (deny specific commands)
 
 ### m.stafflist
@@ -133,10 +157,16 @@ Show detailed information about a staff member. If no user is mentioned, shows y
 **Usage:**
 ```
 <@1373916203814490194> m.staffinfo @user
+<@1373916203814490194> m.staffinfo [user_id]
 <@1373916203814490194> m.staffinfo
 ```
 
 **Permission:** All staff members
+
+**Features:**
+- Shows roles with emoji badges
+- Displays command restrictions
+- Shows staff join date and last update
 
 ## Team Commands (t. prefix)
 
@@ -177,6 +207,29 @@ Shows:
 - Channel counts
 - Boost status
 - Server features
+
+### t.flex
+
+Prove you are a member of the Moddy team. This command sends a verification message to prevent identity theft.
+
+**Usage:**
+```
+<@1373916203814490194> t.flex
+```
+
+**Permission:** All staff members
+
+**Features:**
+- Uses Components V2 for display
+- Shows your role (simplified for public display):
+  - Developer → "developer"
+  - Manager → "manager"
+  - Moderation Supervisor → "moderation supervisor"
+  - Communication/Communication Supervisor → "member"
+  - Support/Support Supervisor → "support agents"
+  - Moderator → "moderator"
+- Deletes the command message after sending
+- Includes links to support and documentation
 
 ## Developer Commands (d. prefix)
 
@@ -478,6 +531,47 @@ Shows all staff members organized by role.
 5. **Audit Trail:** All permission changes are logged with `created_by` and `updated_by`
 6. **Dev Team Lock:** Discord dev team members cannot be removed from Manager+Dev roles
 7. **Database Failsafe:** If database is unavailable, only Super Admin and Discord dev team members can use commands
+
+## Staff Role Emoji Badges
+
+All staff roles are displayed with custom emoji badges for visual identification:
+
+### Team Badges
+- <:dev_badge:1437514335009247274> **Dev** - Developer badge
+- <:manager_badge:1437514336355483749> **Manager** - Manager badge
+- <:mod_supervisor_badge:1437514356135821322> **Supervisor_Mod** - Moderation Supervisor badge
+- <:communication_supervisor_badge:1437514333763535068> **Supervisor_Com** - Communication Supervisor badge
+- <:support_supervisor_badge:1437514347923636435> **Supervisor_Sup** - Support Supervisor badge
+- <:moderator_badge:1437514357230796891> **Moderator** - Moderator badge
+- <:comunication_badge:1437514353304670268> **Communication** - Communication badge
+- <:supportagent_badge:1437514361861177350> **Support** - Support Agent badge
+- <:moddyteam_badge:1437514344467398837> **General Team Badge** - Moddy Team member
+
+These badges are automatically displayed in:
+- `m.setstaff` - Staff management interface
+- `m.staffinfo` - Staff member information
+- Any other staff-related displays
+
+## Recent Changes (Latest Update)
+
+**User Identification Improvements:**
+- All management commands now support both user mentions and direct user IDs
+- Bot mention is automatically excluded from user identification
+- Improved parsing: `<@1373916203814490194> m.setstaff @user` or `<@1373916203814490194> m.setstaff 123456789`
+
+**New Commands:**
+- Added `m.unrank` command to remove users from staff team
+- Command properly removes all roles, permissions, and TEAM attribute
+
+**Display Enhancements:**
+- All staff role displays now show emoji badges
+- `t.flex` command updated to use Components V2
+- Role names simplified for public display in verification messages
+
+**Bug Fixes:**
+- Fixed embed/Components V2 conflict in `m.setstaff`
+- Removed duplicate emojis from staff displays
+- Improved error handling for user identification
 
 ## Future Enhancements
 

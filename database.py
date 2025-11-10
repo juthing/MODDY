@@ -537,6 +537,14 @@ class ModdyDatabase:
             denied.remove(command)
             await self.set_denied_commands(user_id, denied, updated_by)
 
+    async def remove_staff_permissions(self, user_id: int):
+        """Supprime complètement les permissions staff d'un utilisateur"""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "DELETE FROM staff_permissions WHERE user_id = $1",
+                user_id
+            )
+
     async def get_all_staff_members(self) -> List[Dict[str, Any]]:
         """Récupère tous les membres du staff"""
         async with self.pool.acquire() as conn:
