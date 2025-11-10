@@ -656,3 +656,22 @@ edit – 1401600709824086169 – <:edit:1401600709824086169> – ✏️
 delete – 1401600770431909939 – <:delete:1401600770431909939> – 🗑️
 notifications - 1402261437493022775 - <:notifications:1402261437493022775> - 🔔
 eye_m - 1402261502492151878 - <:eye_m:1402261502492151878> - 👁️
+Pour les émojis badges :
+Badges de l'équipe : 
+<:supportagent_badge:1437514361861177350>
+<:moderator_badge:1437514357230796891>
+<:mod_supervisor_badge:1437514356135821322>
+<:comunication_badge:1437514353304670268>
+<:support_supervisor_badge:1437514347923636435>
+<:supervisor_badge:1437514346476470405>
+<:moddyteam_badge:1437514344467398837>
+<:manager_badge:1437514336355483749>
+<:dev_badge:1437514335009247274>
+<:communication_supervisor_badge:1437514333763535068>
+Les autres badges :
+<:premium_badge:1437514360758075514>
+<:partener_badge:1437514359294263388>
+<:contributor_badge:1437514354802036940>
+<:Certif_badge:1437514351774011392>
+<:BugHunter_badge:1437514350406668318>
+<:Blacklisted_badge:1437514349152571452>
