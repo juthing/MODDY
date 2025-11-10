@@ -6,6 +6,8 @@ Commands for managing staff members, roles, and permissions
 import discord
 from discord.ext import commands
 from discord import ui
+from discord.ui import LayoutView, Container, TextDisplay, Separator, ActionRow, Select, Button
+from discord import SeparatorSpacing, SelectOption, ButtonStyle
 from typing import Optional, List
 import logging
 from datetime import datetime, timezone
@@ -27,7 +29,7 @@ logger = logging.getLogger('moddy.staff_manager')
 
 
 class RoleSelectView(ui.View):
-    """View for selecting staff roles"""
+    """View for selecting staff roles - Uses ui.View to handle interactions"""
 
     def __init__(self, target_user: discord.User, modifier: discord.User, perm_manager):
         super().__init__(timeout=300)
@@ -35,58 +37,72 @@ class RoleSelectView(ui.View):
         self.modifier = modifier
         self.perm_manager = perm_manager
         self.selected_roles: List[StaffRole] = []
-        self.denied_commands: List[str] = []
 
-    @ui.select(
-        placeholder="Select roles for this staff member",
-        min_values=0,
-        max_values=7,
-        options=[
-            discord.SelectOption(
-                label="Manager",
-                value=StaffRole.MANAGER.value,
-                description="Can manage all staff and assign roles",
-                emoji="👑"
-            ),
-            discord.SelectOption(
-                label="Moderator Supervisor",
-                value=StaffRole.SUPERVISOR_MOD.value,
-                description="Supervises moderators",
-                emoji="🛡️"
-            ),
-            discord.SelectOption(
-                label="Communication Supervisor",
-                value=StaffRole.SUPERVISOR_COM.value,
-                description="Supervises communication team",
-                emoji="📢"
-            ),
-            discord.SelectOption(
-                label="Support Supervisor",
-                value=StaffRole.SUPERVISOR_SUP.value,
-                description="Supervises support team",
-                emoji="🎫"
-            ),
-            discord.SelectOption(
-                label="Moderator",
-                value=StaffRole.MODERATOR.value,
-                description="Moderation staff member",
-                emoji="🔨"
-            ),
-            discord.SelectOption(
-                label="Communication",
-                value=StaffRole.COMMUNICATION.value,
-                description="Communication staff member",
-                emoji="💬"
-            ),
-            discord.SelectOption(
-                label="Support",
-                value=StaffRole.SUPPORT.value,
-                description="Support staff member",
-                emoji="🎧"
-            )
-        ]
-    )
-    async def role_select(self, interaction: discord.Interaction, select: ui.Select):
+        # Add select menu
+        select = ui.Select(
+            placeholder="Select roles for this staff member",
+            min_values=0,
+            max_values=7,
+            custom_id="role_select_menu",
+            options=[
+                discord.SelectOption(
+                    label="Manager",
+                    value=StaffRole.MANAGER.value,
+                    description="Can manage all staff and assign roles",
+                    emoji="👑"
+                ),
+                discord.SelectOption(
+                    label="Moderator Supervisor",
+                    value=StaffRole.SUPERVISOR_MOD.value,
+                    description="Supervises moderators",
+                    emoji="🛡️"
+                ),
+                discord.SelectOption(
+                    label="Communication Supervisor",
+                    value=StaffRole.SUPERVISOR_COM.value,
+                    description="Supervises communication team",
+                    emoji="📢"
+                ),
+                discord.SelectOption(
+                    label="Support Supervisor",
+                    value=StaffRole.SUPERVISOR_SUP.value,
+                    description="Supervises support team",
+                    emoji="🎫"
+                ),
+                discord.SelectOption(
+                    label="Moderator",
+                    value=StaffRole.MODERATOR.value,
+                    description="Moderation staff member",
+                    emoji="🔨"
+                ),
+                discord.SelectOption(
+                    label="Communication",
+                    value=StaffRole.COMMUNICATION.value,
+                    description="Communication staff member",
+                    emoji="💬"
+                ),
+                discord.SelectOption(
+                    label="Support",
+                    value=StaffRole.SUPPORT.value,
+                    description="Support staff member",
+                    emoji="🎧"
+                )
+            ]
+        )
+        select.callback = self.role_select
+        self.add_item(select)
+
+        # Add confirm button
+        confirm_btn = ui.Button(label="Confirm", style=discord.ButtonStyle.green, emoji="✅", custom_id="confirm_roles")
+        confirm_btn.callback = self.confirm_button
+        self.add_item(confirm_btn)
+
+        # Add cancel button
+        cancel_btn = ui.Button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌", custom_id="cancel_roles")
+        cancel_btn.callback = self.cancel_button
+        self.add_item(cancel_btn)
+
+    async def role_select(self, interaction: discord.Interaction):
         """Handle role selection"""
         # Verify it's the modifier
         if interaction.user.id != self.modifier.id:
@@ -96,8 +112,11 @@ class RoleSelectView(ui.View):
             )
             return
 
+        # Get the select component
+        select_component = [item for item in self.children if isinstance(item, ui.Select)][0]
+
         # Convert values to StaffRole enums
-        self.selected_roles = [StaffRole(v) for v in select.values]
+        self.selected_roles = [StaffRole(v) for v in select_component.values]
 
         # Check if modifier can assign all selected roles
         invalid_roles = []
@@ -114,8 +133,7 @@ class RoleSelectView(ui.View):
 
         await interaction.response.defer()
 
-    @ui.button(label="Confirm", style=discord.ButtonStyle.green, emoji="✅")
-    async def confirm_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def confirm_button(self, interaction: discord.Interaction):
         """Confirm role assignment"""
         if interaction.user.id != self.modifier.id:
             await interaction.response.send_message(
@@ -158,8 +176,7 @@ class RoleSelectView(ui.View):
                 ephemeral=True
             )
 
-    @ui.button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌")
-    async def cancel_button(self, interaction: discord.Interaction, button: ui.Button):
+    async def cancel_button(self, interaction: discord.Interaction):
         """Cancel role assignment"""
         if interaction.user.id != self.modifier.id:
             await interaction.response.send_message(
@@ -224,6 +241,68 @@ class StaffManagement(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        # Store pending interactions context
+        self.interaction_contexts = {}
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        """Handle button interactions from Components V2"""
+        if interaction.type != discord.InteractionType.component:
+            return
+
+        custom_id = interaction.data.get('custom_id', '')
+
+        # Handle edit roles button
+        if custom_id.startswith('edit_roles_'):
+            # Extract session_id (everything after 'edit_roles_')
+            session_id = custom_id[len('edit_roles_'):]
+
+            # Get context if stored
+            context = self.interaction_contexts.get(session_id)
+            if not context:
+                await interaction.response.send_message("❌ Session expired. Please run the command again.", ephemeral=True)
+                return
+
+            if interaction.user.id != context['modifier_id']:
+                await interaction.response.send_message(f"{EMOJIS['undone']} Only the command initiator can use this.", ephemeral=True)
+                return
+
+            target_user = await self.bot.fetch_user(context['target_id'])
+            modifier = await self.bot.fetch_user(context['modifier_id'])
+
+            role_view = RoleSelectView(target_user, modifier, staff_permissions)
+
+            # Create Components V2 layout for role selection
+            class RoleSelectLayout(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"{EMOJIS['settings']} **Edit Roles**\nEditing roles for {target_user.mention}\n\nSelect the new roles below:"),
+                )
+
+            layout = RoleSelectLayout()
+            await interaction.response.send_message(view=layout, ephemeral=True)
+            # Also send the interactive view
+            await interaction.followup.send(view=role_view, ephemeral=True)
+
+        # Handle manage restrictions button
+        elif custom_id.startswith('manage_restrictions_'):
+            # Extract session_id (everything after 'manage_restrictions_')
+            session_id = custom_id[len('manage_restrictions_'):]
+
+            # Get context if stored
+            context = self.interaction_contexts.get(session_id)
+            if not context:
+                await interaction.response.send_message("❌ Session expired. Please run the command again.", ephemeral=True)
+                return
+
+            if interaction.user.id != context['modifier_id']:
+                await interaction.response.send_message("❌ Only the command initiator can use this.", ephemeral=True)
+                return
+
+            target_user = await self.bot.fetch_user(context['target_id'])
+            modifier = await self.bot.fetch_user(context['modifier_id'])
+
+            modal = DenyCommandModal(target_user, modifier)
+            await interaction.response.send_modal(modal)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -325,19 +404,23 @@ class StaffManagement(commands.Cog):
             await message.reply(view=view, mention_author=False)
             return
 
-        # Open role selection (must use embed for interactive views)
+        # Open role selection with Components V2
         button_view = RoleSelectView(target_user, message.author, staff_permissions)
 
-        embed = discord.Embed(
-            title=f"{EMOJIS['user']} Add Staff Member",
-            description=f"Adding {target_user.mention} to the staff team.\n\nSelect the roles for this staff member:",
-            color=COLORS["primary"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        # Create Components V2 layout
+        class RankLayout(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"{EMOJIS['user']} **Add Staff Member**\nAdding {target_user.mention} to the staff team.\n\nSelect the roles for this staff member:"),
+                discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"*Requested by {message.author}*"),
+            )
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        layout = RankLayout()
 
-        await message.reply(embed=embed, view=button_view, mention_author=False)
+        # Send Components V2 layout
+        await message.reply(view=layout, mention_author=False)
+        # Send interactive view as followup
+        await message.channel.send(view=button_view)
 
     async def handle_unrank_command(self, message: discord.Message, args: str):
         """
@@ -472,52 +555,9 @@ class StaffManagement(commands.Cog):
         current_roles = [StaffRole(r) for r in perms['roles']] if perms['roles'] else []
         denied_commands = perms['denied_commands']
 
-        # Create management view
-        view = ui.View(timeout=300)
-
-        # Add role management button
-        async def edit_roles_callback(interaction: discord.Interaction):
-            if interaction.user.id != message.author.id:
-                await interaction.response.send_message(f"{EMOJIS['undone']} Only the command initiator can use this.", ephemeral=True)
-                return
-
-            role_view = RoleSelectView(target_user, message.author, staff_permissions)
-            embed = discord.Embed(
-                title=f"{EMOJIS['settings']} Edit Roles",
-                description=f"Editing roles for {target_user.mention}\n\nSelect the new roles:",
-                color=COLORS["primary"]
-            )
-            await interaction.response.send_message(embed=embed, view=role_view, ephemeral=True)
-
-        edit_roles_btn = ui.Button(label="Edit Roles", style=discord.ButtonStyle.primary, emoji="✏️")
-        edit_roles_btn.callback = edit_roles_callback
-        view.add_item(edit_roles_btn)
-
-        # Add deny commands button
-        async def deny_commands_callback(interaction: discord.Interaction):
-            if interaction.user.id != message.author.id:
-                await interaction.response.send_message("❌ Only the command initiator can use this.", ephemeral=True)
-                return
-
-            modal = DenyCommandModal(target_user, message.author)
-            await interaction.response.send_modal(modal)
-
-        deny_cmd_btn = ui.Button(label="Manage Command Restrictions", style=discord.ButtonStyle.secondary, emoji="🚫")
-        deny_cmd_btn.callback = deny_commands_callback
-        view.add_item(deny_cmd_btn)
-
-        # Create info embed
-        embed = discord.Embed(
-            title=f"{EMOJIS['user']} Staff Member Management",
-            description=f"Managing permissions for {target_user.mention}",
-            color=COLORS["primary"],
-            timestamp=datetime.now(timezone.utc)
-        )
-
-        # Add current roles
+        # Build role display with badges
+        role_display_lines = []
         if current_roles:
-            # Add badge emoji to roles
-            role_display = []
             for role in current_roles:
                 badge = ""
                 if role == StaffRole.DEV:
@@ -537,31 +577,69 @@ class StaffManagement(commands.Cog):
                 elif role == StaffRole.SUPPORT:
                     badge = EMOJIS['supportagent_badge']
 
-                role_display.append(f"{badge} {role.value}")
-
-            embed.add_field(
-                name="Current Roles",
-                value="\n".join(role_display),
-                inline=False
-            )
+                role_display_lines.append(f"{badge} {role.value}")
         else:
-            embed.add_field(
-                name="Current Roles",
-                value="*No roles assigned*",
-                inline=False
-            )
+            role_display_lines.append("*No roles assigned*")
 
-        # Add denied commands
+        # Build denied commands display
+        denied_display = ""
         if denied_commands:
-            embed.add_field(
-                name="Denied Commands",
-                value="\n".join([f"• `{cmd}`" for cmd in denied_commands]),
-                inline=False
-            )
+            denied_display = "\n".join([f"• `{cmd}`" for cmd in denied_commands])
 
-        embed.set_footer(text=f"Requested by {message.author}")
+        # Build the container components list dynamically
+        container_components = [
+            discord.ui.TextDisplay(content=f"{EMOJIS['user']} **Staff Member Management**\nManaging permissions for {target_user.mention}"),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"**Current Roles**\n" + "\n".join(role_display_lines)),
+        ]
 
-        await message.reply(embed=embed, view=view, mention_author=False)
+        # Add denied commands section if exists
+        if denied_commands:
+            container_components.extend([
+                discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"**Denied Commands**\n{denied_display}")
+            ])
+
+        # Generate unique session ID for this interaction
+        import time
+        session_id = f"{int(time.time())}_{message.author.id}_{target_user.id}"
+
+        # Add action buttons
+        container_components.extend([
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    style=discord.ButtonStyle.primary,
+                    label="Edit Roles",
+                    custom_id=f"edit_roles_{session_id}",
+                    emoji="✏️"
+                ),
+                discord.ui.Button(
+                    style=discord.ButtonStyle.secondary,
+                    label="Manage Command Restrictions",
+                    custom_id=f"manage_restrictions_{session_id}",
+                    emoji="🚫"
+                ),
+            ),
+            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"*Requested by {message.author}*"),
+        ])
+
+        # Create Components V2 LayoutView
+        class StaffManagementView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*container_components)
+
+        # Create the layout view
+        layout_view = StaffManagementView()
+
+        # Store interaction context for button handling
+        self.interaction_contexts[session_id] = {
+            'modifier_id': message.author.id,
+            'target_id': target_user.id
+        }
+
+        # Send the message
+        await message.reply(view=layout_view, mention_author=False)
 
     async def handle_stafflist_command(self, message: discord.Message, args: str):
         """
