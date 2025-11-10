@@ -30,6 +30,24 @@ EMOJIS = {
     'bug': '<:bug:1401614189482475551>',
     'logout': '<:logout:1401603690858676224>',
     'verified': '<:verified:1398729677601902635>',
+    # Staff badges
+    'supportagent_badge': '<:supportagent_badge:1437514361861177350>',
+    'moderator_badge': '<:moderator_badge:1437514357230796891>',
+    'mod_supervisor_badge': '<:mod_supervisor_badge:1437514356135821322>',
+    'comunication_badge': '<:comunication_badge:1437514353304670268>',
+    'support_supervisor_badge': '<:support_supervisor_badge:1437514347923636435>',
+    'supervisor_badge': '<:supervisor_badge:1437514346476470405>',
+    'moddyteam_badge': '<:moddyteam_badge:1437514344467398837>',
+    'manager_badge': '<:manager_badge:1437514336355483749>',
+    'dev_badge': '<:dev_badge:1437514335009247274>',
+    'communication_supervisor_badge': '<:communication_supervisor_badge:1437514333763535068>',
+    # Other badges
+    'premium_badge': '<:premium_badge:1437514360758075514>',
+    'partner_badge': '<:partener_badge:1437514359294263388>',
+    'contributor_badge': '<:contributor_badge:1437514354802036940>',
+    'certif_badge': '<:Certif_badge:1437514351774011392>',
+    'bughunter_badge': '<:BugHunter_badge:1437514350406668318>',
+    'blacklisted_badge': '<:Blacklisted_badge:1437514349152571452>',
 }
 
 
