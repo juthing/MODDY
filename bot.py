@@ -21,7 +21,8 @@ from config import (
     DEFAULT_PREFIX,
     DATABASE_URL,
     DEVELOPER_IDS,
-    COLORS
+    COLORS,
+    EMOJIS
 )
 from database import setup_database, db
 # Import du nouveau système i18n
@@ -458,12 +459,12 @@ class ModdyBot(commands.Bot):
                     try:
                         embed = discord.Embed(
                             description=(
-                                "<:blacklist:1401596864784777363> You cannot add Moddy to servers while blacklisted.\n"
-                                "<:blacklist:1401596864784777363> Vous ne pouvez pas ajouter Moddy à des serveurs en étant blacklisté."
+                                f"{EMOJIS['undone']} You cannot add Moddy to servers because your account has been blacklisted by our team.\n\n"
+                                f"*Vous ne pouvez pas ajouter Moddy à des serveurs car votre compte a été blacklisté par notre équipe.*"
                             ),
                             color=COLORS["error"]
                         )
-                        embed.set_footer(text=f"ID: {guild.owner_id}")
+                        embed.set_footer(text=f"User ID: {guild.owner_id}")
 
                         # Create the button
                         view = discord.ui.View()
