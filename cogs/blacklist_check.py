@@ -38,7 +38,15 @@ class BlacklistCheck(commands.Cog):
             if message.author.bot:
                 return await original_process_commands(message)
 
-            # Vérifie si l'utilisateur est blacklisté
+            # Vérifie d'abord si c'est une commande avant de vérifier la blacklist
+            # Récupère le préfixe du serveur
+            ctx = await self.bot.get_context(message)
+
+            # Si ce n'est pas une commande valide, laisse passer sans vérifier la blacklist
+            if not ctx.valid:
+                return await original_process_commands(message)
+
+            # C'est une commande valide, vérifie maintenant si l'utilisateur est blacklisté
             if await self.is_blacklisted(message.author.id):
                 # Envoie le message de blacklist
                 embed = discord.Embed(
@@ -80,9 +88,22 @@ class BlacklistCheck(commands.Cog):
                 # BLOQUE l'interaction en y répondant immédiatement
                 # Une fois qu'on a répondu, les handlers ne peuvent plus traiter l'interaction
                 try:
-                    await self.send_blacklist_message(interaction)
+                    # Envoie directement le message de blacklist sans passer par send_blacklist_message
+                    embed = discord.Embed(
+                        description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
+                        color=COLORS["error"]
+                    )
+                    embed.set_footer(text=f"User ID: {interaction.user.id}")
+                    view = BlacklistButton()
+
+                    # Vérifie si l'interaction n'a pas déjà été répondue
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                    else:
+                        # Si déjà répondue, utilise followup
+                        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
                 except Exception as e:
-                    # Fallback si l'envoi échoue
+                    # Fallback ultime si tout échoue
                     try:
                         if not interaction.response.is_done():
                             await interaction.response.send_message(
