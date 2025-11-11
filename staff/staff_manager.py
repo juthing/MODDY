@@ -8,8 +8,9 @@ from discord.ext import commands
 from discord import ui
 from discord.ui import LayoutView, Container, TextDisplay, Separator, ActionRow, Select, Button
 from discord import SeparatorSpacing, SelectOption, ButtonStyle
-from typing import Optional, List
+from typing import Optional, List, Dict
 import logging
+import json
 from datetime import datetime, timezone
 
 from utils.staff_permissions import staff_permissions, StaffRole, CommandType
