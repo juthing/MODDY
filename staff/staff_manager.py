@@ -847,7 +847,7 @@ class StaffManagement(commands.Cog):
 
             # Create success message
             view = create_success_message(
-                f"{EMOJIS['done']} Staff Member Removed",
+                f"Staff Member Removed",
                 f"{target_user.mention} has been removed from the staff team."
             )
 
