@@ -458,10 +458,7 @@ class ModdyBot(commands.Bot):
                     # Send a message to the owner if possible
                     try:
                         embed = discord.Embed(
-                            description=(
-                                f"{EMOJIS['undone']} You cannot add Moddy to servers because your account has been blacklisted by our team.\n\n"
-                                f"*Vous ne pouvez pas ajouter Moddy à des serveurs car votre compte a été blacklisté par notre équipe.*"
-                            ),
+                            description=f"{EMOJIS['undone']} You cannot add Moddy to servers because your account has been blacklisted by our team.",
                             color=COLORS["error"]
                         )
                         embed.set_footer(text=f"User ID: {guild.owner_id}")
