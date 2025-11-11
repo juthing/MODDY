@@ -7,7 +7,7 @@ import discord
 from discord.ext import commands
 from typing import Union
 
-from config import COLORS
+from config import COLORS, EMOJIS
 
 
 class BlacklistButton(discord.ui.View):
@@ -62,12 +62,12 @@ class BlacklistCheck(commands.Cog):
                         # Pour les commandes préfixe
                         embed = discord.Embed(
                             description=(
-                                "<:blacklist:1401596864784777363> You have been blacklisted from using Moddy.\n"
-                                "<:blacklist:1401596864784777363> Vous avez été blacklisté de Moddy."
+                                f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
+                                f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
                             ),
                             color=COLORS["error"]
                         )
-                        embed.set_footer(text=f"ID: {user_id}")
+                        embed.set_footer(text=f"User ID: {user_id}")
                         view = BlacklistButton()
 
                         try:
@@ -103,13 +103,13 @@ class BlacklistCheck(commands.Cog):
         """Envoie le message de blacklist"""
         embed = discord.Embed(
             description=(
-                "<:blacklist:1401596864784777363> You have been blacklisted from using Moddy.\n"
-                "<:blacklist:1401596864784777363> Vous avez été blacklisté de Moddy."
+                f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
+                f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
             ),
             color=COLORS["error"]
         )
 
-        embed.set_footer(text=f"ID: {interaction.user.id}")
+        embed.set_footer(text=f"User ID: {interaction.user.id}")
 
         view = BlacklistButton()
 
@@ -127,12 +127,12 @@ class BlacklistCheck(commands.Cog):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
-        """Log les interactions blacklistées (le blocage est fait par le check global)"""
+        """Bloque TOUTES les interactions des utilisateurs blacklistés AVANT traitement"""
         # Ignore les interactions du bot lui-même
         if interaction.user.bot:
             return
 
-        # Vérifie seulement pour les commandes et composants
+        # Vérifie tous les types d'interactions (commandes, boutons, selects, modals, etc.)
         if interaction.type not in [
             discord.InteractionType.application_command,
             discord.InteractionType.component,
@@ -140,9 +140,24 @@ class BlacklistCheck(commands.Cog):
         ]:
             return
 
-        # Si l'utilisateur est blacklisté, log l'interaction bloquée
-        # Note: Le blocage est déjà fait par le check global, ici on log juste
+        # CRITIQUE: Vérifie le blacklist AVANT que l'interaction ne soit traitée
         if await self.is_blacklisted(interaction.user.id):
+            # Bloque l'interaction en répondant immédiatement
+            # Cela empêche les autres handlers de traiter cette interaction
+            try:
+                await self.send_blacklist_message(interaction)
+            except Exception as e:
+                # Si l'envoi échoue, essaye quand même de bloquer
+                try:
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(
+                            "🚫 You cannot interact with Moddy.",
+                            ephemeral=True
+                        )
+                except:
+                    pass
+
+            # Log l'interaction bloquée
             if log_cog := self.bot.get_cog("LoggingSystem"):
                 await log_cog.log_critical(
                     title="🚫 Interaction Blacklistée Bloquée",
@@ -150,11 +165,16 @@ class BlacklistCheck(commands.Cog):
                         f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
                         f"**Type:** {interaction.type.name}\n"
                         f"**Commande:** {getattr(interaction.command, 'name', 'N/A')}\n"
+                        f"**Custom ID:** {interaction.data.get('custom_id', 'N/A')}\n"
                         f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
-                        f"**Action:** Interaction bloquée par le check global avant exécution"
+                        f"**Action:** Interaction bloquée AVANT traitement"
                     ),
                     ping_dev=False
                 )
+
+            # IMPORTANT: Ne pas propager l'interaction aux autres handlers
+            # En répondant à l'interaction, on empêche les autres handlers de la traiter
+            return
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -217,13 +237,13 @@ class BlacklistCheck(commands.Cog):
         # Simule l'envoi du message
         embed = discord.Embed(
             description=(
-                "<:blacklist:1401596864784777363> You have been blacklisted from using Moddy.\n"
-                "<:blacklist:1401596864784777363> Vous avez été blacklisté de Moddy."
+                f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
+                f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
             ),
             color=COLORS["error"]
         )
 
-        embed.set_footer(text=f"ID: {ctx.author.id}")
+        embed.set_footer(text=f"User ID: {ctx.author.id}")
 
         view = BlacklistButton()
 
