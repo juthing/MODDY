@@ -22,6 +22,25 @@ class TeamCommands(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        # Store command message -> response message mapping for auto-deletion
+        self.command_responses = {}  # {command_msg_id: response_msg_id}
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        """Handle message deletion to auto-delete command responses"""
+        # Check if this message is a command that has a response
+        if message.id in self.command_responses:
+            response_msg_id = self.command_responses[message.id]
+            try:
+                # Try to fetch and delete the response message
+                response_msg = await message.channel.fetch_message(response_msg_id)
+                await response_msg.delete()
+                logger.info(f"Auto-deleted response {response_msg_id} for deleted command {message.id}")
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+                logger.debug(f"Could not delete response message {response_msg_id}: {e}")
+            finally:
+                # Clean up the mapping
+                del self.command_responses[message.id]
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -152,11 +171,12 @@ class TeamCommands(commands.Cog):
             view = create_success_message(
                 "Server Invite Created",
                 f"Invite link for **{guild.name}**",
-                fields=fields,
-                footer=f"Requested by {message.author}"
+                fields=fields
             )
 
-            await message.reply(view=view, mention_author=False)
+            reply_msg = await message.reply(view=view, mention_author=False)
+            # Store for auto-deletion
+            self.command_responses[message.id] = reply_msg.id
 
             # Log the action
             logger.info(f"Staff {message.author} ({message.author.id}) requested invite for {guild.name} ({guild.id})")
@@ -254,11 +274,12 @@ class TeamCommands(commands.Cog):
         view = create_info_message(
             f"{EMOJIS['web']} Server Information - {guild.name}",
             f"Detailed information about **{guild.name}**",
-            fields=fields,
-            footer=f"Requested by {message.author}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
@@ -343,11 +364,12 @@ class TeamCommands(commands.Cog):
         view = create_info_message(
             f"{EMOJIS['commands']} MODDY Staff Commands",
             "Available staff commands based on your permissions.",
-            fields=fields,
-            footer=f"Requested by {message.author} | Your roles: {', '.join([r.value for r in user_roles])}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
     async def handle_flex_command(self, message: discord.Message, args: str):
         """

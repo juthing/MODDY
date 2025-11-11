@@ -131,6 +131,7 @@ class ModdyDatabase:
                     user_id BIGINT PRIMARY KEY,
                     roles JSONB DEFAULT '[]'::jsonb,
                     denied_commands JSONB DEFAULT '[]'::jsonb,
+                    role_permissions JSONB DEFAULT '{}'::jsonb,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW(),
                     created_by BIGINT,
@@ -141,6 +142,21 @@ class ModdyDatabase:
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_staff_permissions_roles
                 ON staff_permissions USING GIN (roles)
+            """)
+
+            # Migration: Add role_permissions column if it doesn't exist
+            await conn.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'staff_permissions'
+                        AND column_name = 'role_permissions'
+                    ) THEN
+                        ALTER TABLE staff_permissions
+                        ADD COLUMN role_permissions JSONB DEFAULT '{}'::jsonb;
+                    END IF;
+                END $$;
             """)
 
             logger.info("✅ Tables initialisées")
@@ -460,6 +476,7 @@ class ModdyDatabase:
                     'user_id': user_id,
                     'roles': [],
                     'denied_commands': [],
+                    'role_permissions': {},
                     'created_at': None,
                     'updated_at': None
                 }
@@ -468,6 +485,7 @@ class ModdyDatabase:
                 'user_id': row['user_id'],
                 'roles': json.loads(row['roles']) if row['roles'] else [],
                 'denied_commands': json.loads(row['denied_commands']) if row['denied_commands'] else [],
+                'role_permissions': json.loads(row['role_permissions']) if row.get('role_permissions') else {},
                 'created_at': row.get('created_at'),
                 'updated_at': row.get('updated_at'),
                 'created_by': row.get('created_by'),
@@ -556,9 +574,29 @@ class ModdyDatabase:
                 'user_id': row['user_id'],
                 'roles': json.loads(row['roles']) if row['roles'] else [],
                 'denied_commands': json.loads(row['denied_commands']) if row['denied_commands'] else [],
+                'role_permissions': json.loads(row['role_permissions']) if row.get('role_permissions') else {},
                 'created_at': row.get('created_at'),
                 'updated_at': row.get('updated_at')
             } for row in rows]
+
+    async def set_role_permissions(self, user_id: int, role: str, permissions: List[str], updated_by: int):
+        """Définit les permissions pour un rôle spécifique d'un utilisateur"""
+        perms = await self.get_staff_permissions(user_id)
+        role_perms = perms['role_permissions']
+        role_perms[role] = permissions
+
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO staff_permissions (user_id, role_permissions, updated_by, created_by)
+                VALUES ($1, $2, $3, $3)
+                ON CONFLICT (user_id)
+                DO UPDATE SET role_permissions = $2, updated_by = $3, updated_at = NOW()
+            """, user_id, json.dumps(role_perms), updated_by)
+
+    async def get_role_permissions(self, user_id: int, role: str) -> List[str]:
+        """Récupère les permissions d'un rôle spécifique"""
+        perms = await self.get_staff_permissions(user_id)
+        return perms['role_permissions'].get(role, [])
 
 
 # Instance globale (sera initialisée dans bot.py)

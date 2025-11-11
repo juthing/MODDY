@@ -22,6 +22,25 @@ class ModeratorCommands(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        # Store command message -> response message mapping for auto-deletion
+        self.command_responses = {}  # {command_msg_id: response_msg_id}
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        """Handle message deletion to auto-delete command responses"""
+        # Check if this message is a command that has a response
+        if message.id in self.command_responses:
+            response_msg_id = self.command_responses[message.id]
+            try:
+                # Try to fetch and delete the response message
+                response_msg = await message.channel.fetch_message(response_msg_id)
+                await response_msg.delete()
+                logger.info(f"Auto-deleted response {response_msg_id} for deleted command {message.id}")
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
+                logger.debug(f"Could not delete response message {response_msg_id}: {e}")
+            finally:
+                # Clean up the mapping
+                del self.command_responses[message.id]
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -120,11 +139,12 @@ class ModeratorCommands(commands.Cog):
         view = create_success_message(
             f"{EMOJIS['blacklist']} User Blacklisted",
             f"{target_user.mention} has been blacklisted.",
-            fields=fields,
-            footer=f"Executed by {message.author}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
         logger.info(f"User {target_user} ({target_user.id}) blacklisted by {message.author} ({message.author.id})")
 
@@ -171,11 +191,12 @@ class ModeratorCommands(commands.Cog):
         view = create_success_message(
             "User Unblacklisted",
             f"{target_user.mention} has been removed from the blacklist.",
-            fields=fields,
-            footer=f"Executed by {message.author}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
         logger.info(f"User {target_user} ({target_user.id}) unblacklisted by {message.author} ({message.author.id})")
 
@@ -237,11 +258,12 @@ class ModeratorCommands(commands.Cog):
         view = create_info_message(
             f"{EMOJIS['user']} User Information - {str(target_user)}",
             f"Information about {target_user.mention}",
-            fields=fields,
-            footer=f"Requested by {message.author}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
     async def handle_guildinfo_command(self, message: discord.Message, args: str):
         """
@@ -330,11 +352,12 @@ class ModeratorCommands(commands.Cog):
         view = create_info_message(
             f"🏰 Guild Information - {guild.name}",
             f"Detailed information about **{guild.name}**",
-            fields=fields,
-            footer=f"Requested by {message.author}"
+            fields=fields
         )
 
-        await message.reply(view=view, mention_author=False)
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
 
 async def setup(bot):
