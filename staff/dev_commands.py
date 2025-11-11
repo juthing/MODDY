@@ -78,6 +78,8 @@ class DeveloperCommands(commands.Cog):
             await self.handle_sql_command(message, args)
         elif command_name == "jsk":
             await self.handle_jsk_command(message, args)
+        elif command_name == "error":
+            await self.handle_error_command(message, args)
         else:
             view = create_error_message("Unknown Command", f"Developer command `{command_name}` not found.")
             await message.reply(view=view, mention_author=False)
@@ -427,6 +429,135 @@ class DeveloperCommands(commands.Cog):
             )
 
             await message.reply(view=view, mention_author=False)
+
+    async def handle_error_command(self, message: discord.Message, args: str):
+        """
+        Handle d.error command - Get detailed error information
+        Usage: <@1373916203814490194> d.error [error_code]
+        """
+        if not args:
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> d.error [error_code]`\n\nProvide an error code to get information."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        error_code = args.strip().upper()
+
+        # First check in cache (from error_handler cog)
+        error_tracker = self.bot.get_cog('ErrorTracker')
+        cached_error = None
+
+        if error_tracker:
+            # Search in cache
+            for error in error_tracker.error_cache:
+                if error['code'] == error_code:
+                    cached_error = error
+                    break
+
+        # Then check in database
+        db_error = None
+        if db:
+            try:
+                db_error = await db.get_error(error_code)
+            except Exception as e:
+                logger.error(f"Error fetching error from database: {e}")
+
+        # If not found in either cache or database
+        if not cached_error and not db_error:
+            view = create_error_message(
+                "Error Not Found",
+                f"No error found with code `{error_code}`.\n\nThe error may have expired from cache or was never logged."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Use database error if available, otherwise use cached error
+        error_data = db_error if db_error else cached_error['data']
+        timestamp = db_error.get('timestamp') if db_error else cached_error.get('timestamp')
+
+        fields = []
+
+        # Error details
+        fields.append({
+            'name': f"{EMOJIS['info']} Error Details",
+            'value': f"**Code:** `{error_code}`\n**Type:** `{error_data.get('error_type') or error_data.get('type')}`\n**File:** `{error_data.get('file_source') or error_data.get('file')}:{error_data.get('line_number') or error_data.get('line')}`"
+        })
+
+        # Error message
+        error_message = error_data.get('message', 'No message')
+        if len(error_message) > 1000:
+            error_message = error_message[:1000] + "..."
+        fields.append({
+            'name': "Message",
+            'value': f"```{error_message}```"
+        })
+
+        # Context if available
+        if error_data.get('command'):
+            context_value = f"**Command:** `{error_data.get('command')}`"
+
+            if error_data.get('user_id'):
+                user_id = error_data.get('user_id')
+                try:
+                    user = await self.bot.fetch_user(user_id)
+                    context_value += f"\n**User:** {user} (`{user_id}`)"
+                except:
+                    context_value += f"\n**User ID:** `{user_id}`"
+
+            if error_data.get('guild_id'):
+                guild_id = error_data.get('guild_id')
+                guild = self.bot.get_guild(guild_id)
+                if guild:
+                    context_value += f"\n**Server:** {guild.name} (`{guild_id}`)"
+                else:
+                    context_value += f"\n**Server ID:** `{guild_id}`"
+
+            # Additional context from context field
+            if error_data.get('context'):
+                ctx = error_data['context']
+                if isinstance(ctx, dict):
+                    if ctx.get('channel'):
+                        context_value += f"\n**Channel:** {ctx['channel']}"
+                    if ctx.get('message'):
+                        msg = ctx['message']
+                        if len(msg) > 100:
+                            msg = msg[:100] + "..."
+                        context_value += f"\n**Message:** `{msg}`"
+
+            fields.append({
+                'name': "Context",
+                'value': context_value
+            })
+
+        # Traceback
+        traceback_text = error_data.get('traceback', 'No traceback available')
+        if len(traceback_text) > 1000:
+            traceback_text = traceback_text[-1000:]  # Get last 1000 chars
+        fields.append({
+            'name': "Traceback",
+            'value': f"```python\n{traceback_text}\n```"
+        })
+
+        # Timestamp
+        if timestamp:
+            ts_unix = int(timestamp.timestamp()) if hasattr(timestamp, 'timestamp') else int(datetime.fromisoformat(str(timestamp)).timestamp())
+            fields.append({
+                'name': f"{EMOJIS['time']} Occurred",
+                'value': f"<t:{ts_unix}:R> (<t:{ts_unix}:F>)"
+            })
+
+        # Source indicator
+        source = "Database" if db_error else "Cache"
+
+        view = create_error_message(
+            f"Error Information - {error_code}",
+            f"Detailed information about error `{error_code}` (from {source})",
+            fields=fields
+        )
+
+        await message.reply(view=view, mention_author=False)
 
 
 async def setup(bot):

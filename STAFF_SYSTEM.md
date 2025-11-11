@@ -210,7 +210,7 @@ Get an invite link to a server where MODDY is present.
 <@1373916203814490194> t.invite 1234567890
 ```
 
-Creates a 7-day invite with 5 max uses.
+Creates a 7-day invite with 5 max uses. Display shows only the server name and invite link using Components V2.
 
 ### t.serverinfo [server_id]
 
@@ -226,6 +226,55 @@ Shows:
 - Member statistics
 - Channel counts
 - Boost status
+- Server features
+
+### t.mutualserver [user_id]
+
+View mutual servers shared with a user and their permissions in those servers.
+
+**Usage:**
+```
+<@1373916203814490194> t.mutualserver 123456789012345678
+```
+
+Shows:
+- User information
+- List of mutual servers (up to 10)
+- User's top role in each server
+- User's key permissions in each server (Administrator, Manage Server, Manage Roles, etc.)
+
+### t.user [user_id]
+
+Get detailed information about a user including database attributes.
+
+**Usage:**
+```
+<@1373916203814490194> t.user 123456789012345678
+```
+
+Shows:
+- Basic user information (ID, username, display name, bot status)
+- Account creation date
+- Database attributes
+- Number of shared servers
+- First seen date
+
+### t.server [server_id]
+
+Get detailed information about a server including database attributes.
+
+**Usage:**
+```
+<@1373916203814490194> t.server 1234567890
+```
+
+Shows:
+- Basic server information
+- Member statistics
+- Channel counts
+- Role count
+- Boost status
+- Database attributes
 - Server features
 
 ### t.flex
@@ -323,6 +372,26 @@ for guild in guilds[:5]:
 \```
 ```
 
+### d.error [error_code]
+
+Get detailed information about a logged error by its error code.
+
+**Usage:**
+```
+<@1373916203814490194> d.error A1B2C3D4
+```
+
+Shows:
+- Error code and type
+- Error message
+- File and line number where error occurred
+- Context information (command, user, server)
+- Full traceback
+- Timestamp of when the error occurred
+- Source (Cache or Database)
+
+The command searches for the error in both the in-memory cache (last 100 errors) and the database.
+
 ## Moderator Commands (mod. prefix)
 
 Available to Manager, Supervisor_Mod, and Moderator.
@@ -343,24 +412,6 @@ Remove a user from the blacklist.
 **Usage:**
 ```
 <@1373916203814490194> mod.unblacklist @user Appeal accepted
-```
-
-### mod.userinfo @user
-
-Get detailed information about a user including database attributes and shared servers.
-
-**Usage:**
-```
-<@1373916203814490194> mod.userinfo @user
-```
-
-### mod.guildinfo [guild_id]
-
-Get detailed information about a guild including database attributes.
-
-**Usage:**
-```
-<@1373916203814490194> mod.guildinfo 1234567890
 ```
 
 ## Support Commands (sup. prefix)
@@ -595,6 +646,25 @@ These badges are automatically displayed in:
 - Any other staff-related displays
 
 ## Recent Changes (Latest Update)
+
+**New Team Commands Added:**
+- **t.mutualserver [user_id]:** View mutual servers shared with a user and their permissions in those servers
+- **t.user [user_id]:** Get detailed information about a user including database attributes
+- **t.server [server_id]:** Get detailed information about a server including database attributes
+
+**New Developer Command Added:**
+- **d.error [error_code]:** Get detailed information about a logged error from cache or database
+
+**Commands Removed:**
+- **mod.userinfo:** Removed (replaced by t.user)
+- **mod.guildinfo:** Removed (replaced by t.server)
+- **t.userinfo:** Does not exist (never implemented)
+
+**t.invite Command Updated:**
+- Simplified display to show only server name and invite link using Components V2
+- No longer shows detailed server information or invite details
+
+**Previous Updates:**
 
 **Major Permission System Overhaul:**
 - **Role-Based Permissions:** Completely redesigned permission system where roles have no power by default
