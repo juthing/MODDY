@@ -71,7 +71,7 @@ class SupportCommands(commands.Cog):
         Usage: <@&1386452009678278818> sup.help
         """
         view = create_info_message(
-            "🎧 Support Commands",
+            "Support Commands",
             "Support command system is in development.\n\nAvailable commands will be added soon.",
             footer=f"Requested by {message.author}"
         )
