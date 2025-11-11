@@ -30,6 +30,59 @@ class BlacklistCheck(commands.Cog):
         self.bot = bot
         self.blacklist_cache = {}  # Cache pour éviter trop de requêtes DB
 
+        # Enregistre le check global pour bloquer AVANT l'exécution des commandes
+        @bot.check
+        async def global_blacklist_check(ctx):
+            """Check global qui s'exécute avant TOUTE commande"""
+            # Pour les commandes classiques (prefix)
+            if hasattr(ctx, 'author'):
+                user_id = ctx.author.id
+                is_bot = ctx.author.bot
+                is_interaction = False
+            # Pour les interactions (slash commands, etc.)
+            elif hasattr(ctx, 'user'):
+                user_id = ctx.user.id
+                is_bot = ctx.user.bot
+                is_interaction = True
+            else:
+                return True  # Pas d'utilisateur identifiable, on laisse passer
+
+            # Ignore les bots
+            if is_bot:
+                return True
+
+            # Vérifie le blacklist
+            if await self.is_blacklisted(user_id):
+                # Envoie le message de blacklist avant de bloquer
+                try:
+                    if isinstance(ctx, discord.Interaction):
+                        # Pour les interactions (slash commands, boutons, etc.)
+                        await self.send_blacklist_message(ctx)
+                    else:
+                        # Pour les commandes préfixe
+                        embed = discord.Embed(
+                            description=(
+                                "<:blacklist:1401596864784777363> You have been blacklisted from using Moddy.\n"
+                                "<:blacklist:1401596864784777363> Vous avez été blacklisté de Moddy."
+                            ),
+                            color=COLORS["error"]
+                        )
+                        embed.set_footer(text=f"ID: {user_id}")
+                        view = BlacklistButton()
+
+                        try:
+                            await ctx.reply(embed=embed, view=view, mention_author=False)
+                        except:
+                            await ctx.send(embed=embed, view=view)
+                except Exception as e:
+                    # Si l'envoi échoue, on bloque quand même
+                    pass
+
+                # Bloque la commande en levant l'exception
+                raise commands.CheckFailure(f"User {user_id} is blacklisted")
+
+            return True
+
     async def is_blacklisted(self, user_id: int) -> bool:
         """Vérifie si un utilisateur est blacklisté (avec cache)"""
         # Vérifie le cache d'abord
@@ -74,7 +127,7 @@ class BlacklistCheck(commands.Cog):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
-        """Intercepte TOUTES les interactions Discord"""
+        """Log les interactions blacklistées (le blocage est fait par le check global)"""
         # Ignore les interactions du bot lui-même
         if interaction.user.bot:
             return
@@ -87,31 +140,25 @@ class BlacklistCheck(commands.Cog):
         ]:
             return
 
-        # Vérifie si l'utilisateur est blacklisté
+        # Si l'utilisateur est blacklisté, log l'interaction bloquée
+        # Note: Le blocage est déjà fait par le check global, ici on log juste
         if await self.is_blacklisted(interaction.user.id):
-            # Log l'interaction bloquée
             if log_cog := self.bot.get_cog("LoggingSystem"):
                 await log_cog.log_critical(
-                    title="Interaction Blacklistée",
+                    title="🚫 Interaction Blacklistée Bloquée",
                     description=(
                         f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
                         f"**Type:** {interaction.type.name}\n"
                         f"**Commande:** {getattr(interaction.command, 'name', 'N/A')}\n"
-                        f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}"
+                        f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
+                        f"**Action:** Interaction bloquée par le check global avant exécution"
                     ),
                     ping_dev=False
                 )
 
-            # Envoie le message de blacklist
-            await self.send_blacklist_message(interaction)
-
-            # IMPORTANT: Empêche la propagation de l'interaction
-            # En levant une exception spéciale, on force Discord.py à arrêter le traitement
-            raise commands.CheckFailure("User is blacklisted")
-
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        """Vérifie aussi pour les commandes texte (préfixe)"""
+        """Log les commandes préfixe blacklistées (le blocage est fait par le check global)"""
         # Ignore les bots
         if message.author.bot:
             return
@@ -124,30 +171,20 @@ class BlacklistCheck(commands.Cog):
             # Vérifie si le message commence par un préfixe
             for prefix in prefixes:
                 if message.content.startswith(prefix):
-                    # C'est une commande, vérifie le blacklist
+                    # C'est une commande, vérifie le blacklist pour log
                     if await self.is_blacklisted(message.author.id):
-                        # Crée l'embed
-                        embed = discord.Embed(
-                            description=(
-                                "<:blacklist:1401596864784777363> You have been blacklisted from using Moddy.\n"
-                                "<:blacklist:1401596864784777363> Vous avez été blacklisté de Moddy."
-                            ),
-                            color=COLORS["error"]
-                        )
-
-                        embed.set_footer(text=f"ID: {message.author.id}")
-
-                        view = BlacklistButton()
-
-                        try:
-                            await message.reply(embed=embed, view=view, mention_author=False)
-                        except:
-                            try:
-                                await message.channel.send(embed=embed, view=view)
-                            except:
-                                pass
-
-                        # Empêche le traitement de la commande
+                        if log_cog := self.bot.get_cog("LoggingSystem"):
+                            await log_cog.log_critical(
+                                title="🚫 Commande Préfixe Blacklistée Bloquée",
+                                description=(
+                                    f"**Utilisateur:** {message.author.mention} (`{message.author.id}`)\n"
+                                    f"**Commande:** `{message.content[:100]}`\n"
+                                    f"**Serveur:** {message.guild.name if message.guild else 'DM'}\n"
+                                    f"**Action:** Commande bloquée par le check global avant exécution"
+                                ),
+                                ping_dev=False
+                            )
+                        # Le check global bloquera la commande, pas besoin de répondre ici
                         return
 
     @commands.command(name="clearcache", aliases=["cc"])
