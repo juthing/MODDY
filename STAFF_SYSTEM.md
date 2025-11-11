@@ -119,7 +119,7 @@ Removes all staff roles and permissions from the user and removes the TEAM attri
 
 ### m.setstaff @user
 
-Manage an existing staff member's permissions.
+Manage an existing staff member's roles and permissions.
 
 **Usage:**
 ```
@@ -135,9 +135,29 @@ Manage an existing staff member's permissions.
 <@1373916203814490194> m.setstaff 123456789012345678
 ```
 
-Features:
-- Edit roles with emoji badges display
-- Manage command restrictions (deny specific commands)
+**Features:**
+- **Role-Based Permission System:** Assign roles to staff members, but roles have no power by default
+- **Granular Permissions:** For each assigned role, select specific permissions from dropdown menus
+- **Common Permissions:** Set permissions that apply to all roles (e.g., flex, invite, serverinfo)
+- **Role-Specific Permissions:** Configure unique permissions for each role:
+  - **Moderator:** blacklist, unblacklist, userinfo, guildinfo
+  - **Support:** ticket operations and management
+  - **Communication:** announce, broadcast
+  - **Manager:** rank, unrank, setstaff, stafflist, staffinfo
+- **Interactive Components V2 Interface:** All configuration happens through dropdown menus and buttons
+- **Real-time Updates:** The interface updates automatically as you configure roles and permissions
+- **Save/Cancel Options:** Review all changes before saving
+
+**How it works:**
+1. Run `m.setstaff @user` to open the permissions management interface
+2. Select roles from the first dropdown menu
+3. Once roles are selected, dropdown menus appear for:
+   - Common permissions (available to all roles)
+   - Specific permissions for each assigned role
+4. Configure permissions by selecting from the dropdown menus
+5. Click "Save Changes" to apply the new configuration
+
+**Important:** Roles without assigned permissions have no command access. You must explicitly grant permissions for each role.
 
 ### m.stafflist
 
@@ -393,6 +413,7 @@ CREATE TABLE staff_permissions (
     user_id BIGINT PRIMARY KEY,
     roles JSONB DEFAULT '[]'::jsonb,
     denied_commands JSONB DEFAULT '[]'::jsonb,
+    role_permissions JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_by BIGINT,
@@ -408,11 +429,31 @@ CREATE TABLE staff_permissions (
 ["Moderator"]
 ```
 
+### Role Permissions Format:
+
+The `role_permissions` field stores permissions for each role and common permissions:
+
+```json
+{
+  "Moderator": ["blacklist", "unblacklist", "userinfo", "guildinfo"],
+  "Support": ["ticket_view", "ticket_close"],
+  "common": ["flex", "invite", "serverinfo"]
+}
+```
+
+**How it works:**
+- Each role has its own array of permissions
+- The `"common"` key contains permissions available to all assigned roles
+- Roles without permissions or with an empty array have no command access
+- Permissions must be explicitly granted through `m.setstaff`
+
 ### Denied Commands Format:
 
 ```json
 ["mod.ban", "mod.kick", "t.invite"]
 ```
+
+**Note:** The denied commands system is deprecated in favor of the role permissions system.
 
 ## UI/UX Design
 
@@ -431,8 +472,9 @@ Features:
 
 - All staff command responses use `message.reply()` instead of `message.channel.send()`
 - `mention_author=False` is used to avoid unnecessary mentions
-- No automatic deletion (`delete_after` is not used)
-- This ensures command history is preserved and visible to all staff
+- **Auto-deletion on command removal:** When you delete the command message, the bot's response is automatically deleted as well
+- This keeps channels clean while allowing staff to remove accidental or outdated commands
+- No footers are displayed (e.g., no "Requested by..." text)
 
 ### Language:
 
@@ -553,6 +595,35 @@ These badges are automatically displayed in:
 - Any other staff-related displays
 
 ## Recent Changes (Latest Update)
+
+**Major Permission System Overhaul:**
+- **Role-Based Permissions:** Completely redesigned permission system where roles have no power by default
+- **Granular Control:** Each role must have permissions explicitly granted through dropdown menus
+- **Common Permissions:** New system for permissions that apply to all roles (flex, invite, serverinfo)
+- **Role-Specific Permissions:** Each role has its own set of available permissions:
+  - Moderator: blacklist, unblacklist, userinfo, guildinfo
+  - Support: ticket operations
+  - Communication: announce, broadcast
+  - Manager: staff management commands
+- **Interactive Interface:** New Components V2 interface with dynamic dropdown menus
+- **Real-time Updates:** Interface automatically updates when roles are modified
+
+**Message Behavior Improvements:**
+- **Auto-deletion:** When you delete a command message, the bot's response is automatically deleted
+- **Clean Interface:** Removed all footers ("Requested by...", "Removed by...", etc.)
+- **Improved UX:** Commands now feel more natural and less cluttered
+
+**Database Changes:**
+- Added `role_permissions` JSONB column to `staff_permissions` table
+- Stores permissions for each role and common permissions
+- Automatic migration on bot startup
+
+**Code Architecture:**
+- New `utils/staff_role_permissions.py` for permission definitions
+- New `StaffPermissionsManagementView` class for managing permissions
+- Message deletion tracking system in all staff command cogs
+
+**Previous Updates:**
 
 **User Identification Improvements:**
 - All management commands now support both user mentions and direct user IDs
