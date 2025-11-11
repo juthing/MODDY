@@ -83,6 +83,12 @@ class TeamCommands(commands.Cog):
             await self.handle_help_command(message, args)
         elif command_name == "flex":
             await self.handle_flex_command(message, args)
+        elif command_name == "mutualserver":
+            await self.handle_mutualserver_command(message, args)
+        elif command_name == "user":
+            await self.handle_user_command(message, args)
+        elif command_name == "server":
+            await self.handle_server_command(message, args)
         else:
             view = create_error_message(
                 "Unknown Command",
@@ -144,7 +150,7 @@ class TeamCommands(commands.Cog):
                 await message.reply(view=view, mention_author=False)
                 return
 
-            # Create invite (7 days, 1 use, no temporary membership)
+            # Create invite (7 days, 5 uses, no temporary membership)
             invite = await invite_channel.create_invite(
                 max_age=604800,  # 7 days
                 max_uses=5,
@@ -152,27 +158,16 @@ class TeamCommands(commands.Cog):
                 reason=f"Staff invite requested by {message.author}"
             )
 
-            # Create success view
-            fields = [
-                {
-                    'name': f"{EMOJIS['web']} Server Information",
-                    'value': f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Members:** {guild.member_count:,}"
-                },
-                {
-                    'name': "Invite Link",
-                    'value': f"[Click here to join]({invite.url})\n`{invite.url}`"
-                },
-                {
-                    'name': f"{EMOJIS['time']} Invite Details",
-                    'value': f"**Channel:** {invite_channel.mention}\n**Expires:** <t:{int((datetime.now(timezone.utc).timestamp() + 604800))}:R>\n**Max Uses:** 5"
-                }
-            ]
+            # Create simple Components V2 view with only server name and invite link
+            from discord.ui import LayoutView, Container, TextDisplay
 
-            view = create_success_message(
-                "Server Invite Created",
-                f"Invite link for **{guild.name}**",
-                fields=fields
-            )
+            class InviteComponents(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**{guild.name}**"),
+                    discord.ui.TextDisplay(content=f"{invite.url}"),
+                )
+
+            view = InviteComponents()
 
             reply_msg = await message.reply(view=view, mention_author=False)
             # Store for auto-deletion
@@ -296,6 +291,9 @@ class TeamCommands(commands.Cog):
             ("t.help", "Show this help message"),
             ("t.invite [server_id]", "Get an invite link to a server"),
             ("t.serverinfo [server_id]", "Get detailed information about a server"),
+            ("t.mutualserver [user_id]", "View mutual servers with a user and their permissions"),
+            ("t.user [user_id]", "Get detailed information about a user"),
+            ("t.server [server_id]", "Get detailed information about a server"),
             ("t.flex", "Prove you are a member of the Moddy team")
         ]
 
@@ -325,7 +323,8 @@ class TeamCommands(commands.Cog):
                 ("d.shutdown", "Shutdown the bot"),
                 ("d.stats", "Show bot statistics"),
                 ("d.sql [query]", "Execute SQL query"),
-                ("d.jsk [code]", "Execute Python code")
+                ("d.jsk [code]", "Execute Python code"),
+                ("d.error [error_code]", "Get detailed error information")
             ]
 
             fields.append({
@@ -337,9 +336,7 @@ class TeamCommands(commands.Cog):
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.MODERATOR):
             mod_commands = [
                 ("mod.blacklist @user [reason]", "Blacklist a user"),
-                ("mod.unblacklist @user [reason]", "Remove user from blacklist"),
-                ("mod.userinfo @user", "Get detailed user information"),
-                ("mod.guildinfo [guild_id]", "Get detailed guild information")
+                ("mod.unblacklist @user [reason]", "Remove user from blacklist")
             ]
 
             fields.append({
@@ -444,6 +441,317 @@ class TeamCommands(commands.Cog):
                 f"Failed to send verification message: {str(e)}"
             )
             await message.reply(view=view_error, mention_author=False)
+
+    async def handle_mutualserver_command(self, message: discord.Message, args: str):
+        """
+        Handle t.mutualserver command - View mutual servers with a user
+        Usage: <@1373916203814490194> t.mutualserver [user_id]
+        """
+        if not args:
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> t.mutualserver [user_id]`\n\nProvide a user ID to view mutual servers."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Parse user ID
+        try:
+            user_id = int(args.strip())
+        except ValueError:
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid User ID",
+                "Please provide a valid user ID (numbers only)."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Try to fetch user
+        try:
+            user = await self.bot.fetch_user(user_id)
+        except discord.NotFound:
+            view = create_error_message(
+                "User Not Found",
+                f"Could not find a user with ID `{user_id}`."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+        except Exception as e:
+            logger.error(f"Error fetching user {user_id}: {e}")
+            view = create_error_message(
+                "Error",
+                f"Failed to fetch user: {str(e)}"
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Find mutual servers
+        mutual_guilds = [g for g in self.bot.guilds if g.get_member(user_id)]
+
+        if not mutual_guilds:
+            view = create_info_message(
+                "No Mutual Servers",
+                f"MODDY and **{user}** (`{user_id}`) don't share any servers."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Create fields for each mutual server
+        fields = []
+        fields.append({
+            'name': f"{EMOJIS['user']} User Information",
+            'value': f"**Username:** {user}\n**ID:** `{user_id}`"
+        })
+
+        # Limit to first 10 servers to avoid message being too long
+        for guild in mutual_guilds[:10]:
+            member = guild.get_member(user_id)
+            if not member:
+                continue
+
+            # Get permissions in the guild
+            permissions = []
+            if member.guild_permissions.administrator:
+                permissions.append("Administrator")
+            else:
+                if member.guild_permissions.manage_guild:
+                    permissions.append("Manage Server")
+                if member.guild_permissions.manage_channels:
+                    permissions.append("Manage Channels")
+                if member.guild_permissions.manage_roles:
+                    permissions.append("Manage Roles")
+                if member.guild_permissions.kick_members:
+                    permissions.append("Kick Members")
+                if member.guild_permissions.ban_members:
+                    permissions.append("Ban Members")
+                if member.guild_permissions.moderate_members:
+                    permissions.append("Timeout Members")
+
+            perms_text = ", ".join(permissions) if permissions else "No special permissions"
+
+            # Get top role
+            top_role = member.top_role.name if member.top_role.name != "@everyone" else "No roles"
+
+            fields.append({
+                'name': f"{EMOJIS['web']} {guild.name}",
+                'value': f"**ID:** `{guild.id}`\n**Top Role:** {top_role}\n**Permissions:** {perms_text}"
+            })
+
+        if len(mutual_guilds) > 10:
+            fields.append({
+                'name': "Additional Servers",
+                'value': f"*...and {len(mutual_guilds) - 10} more servers*"
+            })
+
+        view = create_info_message(
+            f"{EMOJIS['web']} Mutual Servers - {user}",
+            f"Found **{len(mutual_guilds)}** mutual server(s) with **{user}**",
+            fields=fields
+        )
+
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
+
+    async def handle_user_command(self, message: discord.Message, args: str):
+        """
+        Handle t.user command - Get detailed user information
+        Usage: <@1373916203814490194> t.user [user_id]
+        """
+        if not args:
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> t.user [user_id]`\n\nProvide a user ID to get information."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Parse user ID
+        try:
+            user_id = int(args.strip())
+        except ValueError:
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid User ID",
+                "Please provide a valid user ID (numbers only)."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Try to fetch user
+        try:
+            user = await self.bot.fetch_user(user_id)
+        except discord.NotFound:
+            view = create_error_message(
+                "User Not Found",
+                f"Could not find a user with ID `{user_id}`."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+        except Exception as e:
+            logger.error(f"Error fetching user {user_id}: {e}")
+            view = create_error_message(
+                "Error",
+                f"Failed to fetch user: {str(e)}"
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Get user data from database
+        user_data = await db.get_user(user_id)
+
+        fields = []
+
+        # Basic info
+        fields.append({
+            'name': f"{EMOJIS['user']} Basic Information",
+            'value': f"**ID:** `{user.id}`\n**Username:** {user.name}\n**Display Name:** {user.display_name}\n**Bot:** {'Yes' if user.bot else 'No'}\n**Created:** <t:{int(user.created_at.timestamp())}:R>"
+        })
+
+        # Attributes
+        attributes = user_data['attributes']
+        if attributes:
+            attr_list = []
+            for key, value in attributes.items():
+                if value is True:
+                    attr_list.append(f"• `{key}`")
+                else:
+                    attr_list.append(f"• `{key}`: {value}")
+
+            fields.append({
+                'name': "Attributes",
+                'value': "\n".join(attr_list) if attr_list else "*None*"
+            })
+        else:
+            fields.append({
+                'name': "Attributes",
+                'value': "*None*"
+            })
+
+        # Shared servers
+        guilds = [g for g in self.bot.guilds if g.get_member(user_id)]
+        fields.append({
+            'name': f"{EMOJIS['web']} Shared Servers",
+            'value': f"{len(guilds)} server(s)"
+        })
+
+        # Database timestamps
+        if user_data.get('created_at'):
+            fields.append({
+                'name': f"{EMOJIS['time']} First Seen",
+                'value': f"<t:{int(user_data['created_at'].timestamp())}:R>"
+            })
+
+        view = create_info_message(
+            f"{EMOJIS['user']} User Information - {str(user)}",
+            f"Information about **{user}**",
+            fields=fields
+        )
+
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
+
+    async def handle_server_command(self, message: discord.Message, args: str):
+        """
+        Handle t.server command - Get detailed server information
+        Usage: <@1373916203814490194> t.server [server_id]
+        """
+        if not args:
+            view = create_error_message(
+                "Invalid Usage",
+                "**Usage:** `<@1373916203814490194> t.server [server_id]`\n\nProvide a server ID to get information."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Parse server ID
+        try:
+            guild_id = int(args.strip())
+        except ValueError:
+            view = create_error_message(
+                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Please provide a valid server ID (numbers only)."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Get guild
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            view = create_error_message(
+                "Server Not Found",
+                f"MODDY is not in a server with ID `{guild_id}`."
+            )
+            await message.reply(view=view, mention_author=False)
+            return
+
+        # Get guild data from database
+        guild_data = await db.get_guild(guild_id)
+
+        fields = []
+
+        # Basic info
+        fields.append({
+            'name': f"{EMOJIS['info']} Basic Information",
+            'value': f"**Name:** {guild.name}\n**ID:** `{guild.id}`\n**Owner:** {guild.owner.mention if guild.owner else 'Unknown'} (`{guild.owner_id}`)\n**Created:** <t:{int(guild.created_at.timestamp())}:R>"
+        })
+
+        # Members
+        fields.append({
+            'name': f"{EMOJIS['user']} Members",
+            'value': f"**Total:** {guild.member_count:,}\n**Humans:** {len([m for m in guild.members if not m.bot]):,}\n**Bots:** {len([m for m in guild.members if m.bot]):,}"
+        })
+
+        # Channels
+        fields.append({
+            'name': "Channels",
+            'value': f"**Text:** {len(guild.text_channels)}\n**Voice:** {len(guild.voice_channels)}\n**Categories:** {len(guild.categories)}"
+        })
+
+        # Roles
+        fields.append({
+            'name': "Roles",
+            'value': f"**Total:** {len(guild.roles)}"
+        })
+
+        # Boost
+        fields.append({
+            'name': "Boost Status",
+            'value': f"**Level:** {guild.premium_tier}\n**Boosts:** {guild.premium_subscription_count}"
+        })
+
+        # Attributes
+        attributes = guild_data['attributes']
+        if attributes:
+            attr_list = []
+            for key, value in attributes.items():
+                if value is True:
+                    attr_list.append(f"• `{key}`")
+                else:
+                    attr_list.append(f"• `{key}`: {value}")
+
+            fields.append({
+                'name': "Attributes",
+                'value': "\n".join(attr_list)
+            })
+
+        # Features
+        if guild.features:
+            features = [f.replace('_', ' ').title() for f in guild.features[:10]]
+            fields.append({
+                'name': "Features",
+                'value': ", ".join(features)
+            })
+
+        view = create_info_message(
+            f"🏰 Server Information - {guild.name}",
+            f"Detailed information about **{guild.name}**",
+            fields=fields
+        )
+
+        reply_msg = await message.reply(view=view, mention_author=False)
+        # Store for auto-deletion
+        self.command_responses[message.id] = reply_msg.id
 
 
 async def setup(bot):
