@@ -42,10 +42,7 @@ class BlacklistCheck(commands.Cog):
             if await self.is_blacklisted(message.author.id):
                 # Envoie le message de blacklist
                 embed = discord.Embed(
-                    description=(
-                        f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
-                        f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
-                    ),
+                    description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
                     color=COLORS["error"]
                 )
                 embed.set_footer(text=f"User ID: {message.author.id}")
@@ -141,10 +138,7 @@ class BlacklistCheck(commands.Cog):
     async def send_blacklist_message(self, interaction: discord.Interaction):
         """Envoie le message de blacklist"""
         embed = discord.Embed(
-            description=(
-                f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
-                f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
-            ),
+            description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
             color=COLORS["error"]
         )
 
@@ -193,10 +187,7 @@ class BlacklistCheck(commands.Cog):
 
         # Simule l'envoi du message
         embed = discord.Embed(
-            description=(
-                f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.\n\n"
-                f"*Vous ne pouvez pas interagir avec Moddy car votre compte a été blacklisté par notre équipe.*"
-            ),
+            description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
             color=COLORS["error"]
         )
 
