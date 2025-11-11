@@ -17,6 +17,36 @@ from utils.components_v2 import create_error_message, create_success_message, cr
 logger = logging.getLogger('moddy.team_commands')
 
 
+def parse_user_id(args: str) -> Optional[int]:
+    """
+    Parse user ID from mention or direct ID
+    Accepts: @user mention (<@123456>) or direct ID (123456)
+    Returns: user ID as int, or None if invalid
+    """
+    if not args:
+        return None
+
+    args = args.strip()
+
+    # Check if it's a mention (<@123456> or <@!123456>)
+    if args.startswith('<@') and args.endswith('>'):
+        # Remove <@ and >
+        user_id_str = args[2:-1]
+        # Remove ! if present (some mentions use <@!ID>)
+        if user_id_str.startswith('!'):
+            user_id_str = user_id_str[1:]
+        try:
+            return int(user_id_str)
+        except ValueError:
+            return None
+
+    # Otherwise, try to parse as direct ID
+    try:
+        return int(args)
+    except ValueError:
+        return None
+
+
 class TeamCommands(commands.Cog):
     """Team commands accessible to all staff (t. prefix)"""
 
@@ -114,7 +144,7 @@ class TeamCommands(commands.Cog):
             guild_id = int(args.strip())
         except ValueError:
             view = create_error_message(
-                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Invalid Server ID",
                 "Please provide a valid server ID (numbers only)."
             )
             await message.reply(view=view, mention_author=False)
@@ -209,7 +239,7 @@ class TeamCommands(commands.Cog):
             guild_id = int(args.strip())
         except ValueError:
             view = create_error_message(
-                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Invalid Server ID",
                 "Please provide a valid server ID (numbers only)."
             )
             await message.reply(view=view, mention_author=False)
@@ -267,7 +297,7 @@ class TeamCommands(commands.Cog):
             })
 
         view = create_info_message(
-            f"{EMOJIS['web']} Server Information - {guild.name}",
+            f"Server Information - {guild.name}",
             f"Detailed information about **{guild.name}**",
             fields=fields
         )
@@ -359,7 +389,7 @@ class TeamCommands(commands.Cog):
             })
 
         view = create_info_message(
-            f"{EMOJIS['commands']} MODDY Staff Commands",
+            "MODDY Staff Commands",
             "Available staff commands based on your permissions.",
             fields=fields
         )
@@ -445,23 +475,22 @@ class TeamCommands(commands.Cog):
     async def handle_mutualserver_command(self, message: discord.Message, args: str):
         """
         Handle t.mutualserver command - View mutual servers with a user
-        Usage: <@1373916203814490194> t.mutualserver [user_id]
+        Usage: <@1373916203814490194> t.mutualserver [user_id or @user]
         """
         if not args:
             view = create_error_message(
                 "Invalid Usage",
-                "**Usage:** `<@1373916203814490194> t.mutualserver [user_id]`\n\nProvide a user ID to view mutual servers."
+                "**Usage:** `<@1373916203814490194> t.mutualserver [user_id]` or `<@1373916203814490194> t.mutualserver @user`\n\nProvide a user ID or mention to view mutual servers."
             )
             await message.reply(view=view, mention_author=False)
             return
 
         # Parse user ID
-        try:
-            user_id = int(args.strip())
-        except ValueError:
+        user_id = parse_user_id(args)
+        if user_id is None:
             view = create_error_message(
-                f"{EMOJIS['snowflake']} Invalid User ID",
-                "Please provide a valid user ID (numbers only)."
+                "Invalid User ID",
+                "Please provide a valid user ID or mention a user."
             )
             await message.reply(view=view, mention_author=False)
             return
@@ -544,7 +573,7 @@ class TeamCommands(commands.Cog):
             })
 
         view = create_info_message(
-            f"{EMOJIS['web']} Mutual Servers - {user}",
+            f"Mutual Servers - {user}",
             f"Found **{len(mutual_guilds)}** mutual server(s) with **{user}**",
             fields=fields
         )
@@ -556,23 +585,22 @@ class TeamCommands(commands.Cog):
     async def handle_user_command(self, message: discord.Message, args: str):
         """
         Handle t.user command - Get detailed user information
-        Usage: <@1373916203814490194> t.user [user_id]
+        Usage: <@1373916203814490194> t.user [user_id or @user]
         """
         if not args:
             view = create_error_message(
                 "Invalid Usage",
-                "**Usage:** `<@1373916203814490194> t.user [user_id]`\n\nProvide a user ID to get information."
+                "**Usage:** `<@1373916203814490194> t.user [user_id]` or `<@1373916203814490194> t.user @user`\n\nProvide a user ID or mention to get information."
             )
             await message.reply(view=view, mention_author=False)
             return
 
         # Parse user ID
-        try:
-            user_id = int(args.strip())
-        except ValueError:
+        user_id = parse_user_id(args)
+        if user_id is None:
             view = create_error_message(
-                f"{EMOJIS['snowflake']} Invalid User ID",
-                "Please provide a valid user ID (numbers only)."
+                "Invalid User ID",
+                "Please provide a valid user ID or mention a user."
             )
             await message.reply(view=view, mention_author=False)
             return
@@ -642,7 +670,7 @@ class TeamCommands(commands.Cog):
             })
 
         view = create_info_message(
-            f"{EMOJIS['user']} User Information - {str(user)}",
+            f"User Information - {str(user)}",
             f"Information about **{user}**",
             fields=fields
         )
@@ -669,7 +697,7 @@ class TeamCommands(commands.Cog):
             guild_id = int(args.strip())
         except ValueError:
             view = create_error_message(
-                f"{EMOJIS['snowflake']} Invalid Server ID",
+                "Invalid Server ID",
                 "Please provide a valid server ID (numbers only)."
             )
             await message.reply(view=view, mention_author=False)
@@ -744,7 +772,7 @@ class TeamCommands(commands.Cog):
             })
 
         view = create_info_message(
-            f"🏰 Server Information - {guild.name}",
+            f"Server Information - {guild.name}",
             f"Detailed information about **{guild.name}**",
             fields=fields
         )

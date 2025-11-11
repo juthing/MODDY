@@ -133,7 +133,7 @@ class ModeratorCommands(commands.Cog):
         ]
 
         view = create_success_message(
-            f"{EMOJIS['blacklist']} User Blacklisted",
+            "User Blacklisted",
             f"{target_user.mention} has been blacklisted.",
             fields=fields
         )

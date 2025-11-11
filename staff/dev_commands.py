@@ -91,7 +91,7 @@ class DeveloperCommands(commands.Cog):
         """
         if not args or args == "all":
             # Reload all extensions
-            view = create_info_message(f"{EMOJIS['sync']} Reloading All Extensions", "Reloading all cogs and staff commands...")
+            view = create_info_message("Reloading All Extensions", "Reloading all cogs and staff commands...")
             msg = await message.reply(view=view, mention_author=False)
 
             success = []
@@ -107,7 +107,7 @@ class DeveloperCommands(commands.Cog):
                     failed.append(f"{ext}: {str(e)}")
 
             # Create result view
-            title = f"{EMOJIS['done']} Reload Complete" if not failed else "⚠️ Reload Complete with Errors"
+            title = "Reload Complete" if not failed else "Reload Complete with Errors"
             description = "Extensions reloaded successfully." if not failed else "Some extensions failed to reload."
 
             fields = []
@@ -172,7 +172,7 @@ class DeveloperCommands(commands.Cog):
         Usage: <@1373916203814490194> d.shutdown
         """
         view = create_error_message(
-            f"{EMOJIS['logout']} Shutting Down" if 'logout' in EMOJIS else "🔴 Shutting Down",
+            "Shutting Down",
             "MODDY is shutting down..."
         )
 
@@ -286,7 +286,7 @@ class DeveloperCommands(commands.Cog):
                     await msg.edit(view=cancel_view)
                     return
             except:
-                timeout_view = create_error_message(f"{EMOJIS['time']} Timeout", "Query confirmation timed out.")
+                timeout_view = create_error_message("Timeout", "Query confirmation timed out.")
                 await msg.edit(view=timeout_view)
                 return
 
@@ -407,7 +407,7 @@ class DeveloperCommands(commands.Cog):
                 output = output[:1900] + "\n... (output truncated)"
 
             view = create_success_message(
-                f"{EMOJIS['code']} Code Executed",
+                "Code Executed",
                 f"```python\n{code[:500]}\n```",
                 fields=[{'name': 'Output', 'value': f"```python\n{output}\n```"}],
                 footer=f"Executed by {message.author}"

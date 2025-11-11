@@ -71,7 +71,7 @@ class CommunicationCommands(commands.Cog):
         Usage: <@&1386452009678278818> com.help
         """
         view = create_info_message(
-            "💬 Communication Commands",
+            "Communication Commands",
             "Communication command system is in development.\n\nAvailable commands will be added soon.",
             footer=f"Requested by {message.author}"
         )

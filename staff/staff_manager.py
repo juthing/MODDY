@@ -941,7 +941,7 @@ class StaffManagement(commands.Cog):
         staff_members = await db.get_all_staff_members()
 
         if not staff_members:
-            view = create_info_message("📋 Staff List", "No staff members found.")
+            view = create_info_message("Staff List", "No staff members found.")
             await message.reply(view=view, mention_author=False)
             return
 
@@ -976,7 +976,7 @@ class StaffManagement(commands.Cog):
                 })
 
         view = create_info_message(
-            "📋 MODDY Staff Team",
+            "MODDY Staff Team",
             f"Total staff members: **{len(staff_members)}**",
             fields=fields
         )
@@ -1080,7 +1080,7 @@ class StaffManagement(commands.Cog):
             })
 
         view = create_info_message(
-            f"{EMOJIS['user']} Staff Member Information - {str(target_user)}",
+            f"Staff Member Information - {str(target_user)}",
             f"Information about staff member {target_user.mention}",
             fields=fields
         )
