@@ -13,6 +13,7 @@ from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, create_simple_message, EMOJIS
+from utils.staff_logger import staff_logger
 
 logger = logging.getLogger('moddy.team_commands')
 
@@ -131,6 +132,10 @@ class TeamCommands(commands.Cog):
         Handle t.invite command - Get an invite to a server
         Usage: <@1373916203814490194> t.invite [server_id]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "invite", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -226,6 +231,10 @@ class TeamCommands(commands.Cog):
         Handle t.serverinfo command - Get information about a server
         Usage: <@1373916203814490194> t.serverinfo [server_id]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "serverinfo", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -311,6 +320,10 @@ class TeamCommands(commands.Cog):
         Handle t.help command - Show available team commands
         Usage: <@1373916203814490194> t.help
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "help", message.author)
+
         # Get user roles to show relevant commands
         user_roles = await staff_permissions.get_user_roles(message.author.id)
 
@@ -403,6 +416,10 @@ class TeamCommands(commands.Cog):
         Handle t.flex command - Prove staff membership on a server
         Usage: <@1373916203814490194> t.flex
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "flex", message.author)
+
         # Get user roles
         user_roles = await staff_permissions.get_user_roles(message.author.id)
 
@@ -477,6 +494,10 @@ class TeamCommands(commands.Cog):
         Handle t.mutualserver command - View mutual servers with a user
         Usage: <@1373916203814490194> t.mutualserver [user_id or @user]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "mutualserver", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -587,6 +608,10 @@ class TeamCommands(commands.Cog):
         Handle t.user command - Get detailed user information
         Usage: <@1373916203814490194> t.user [user_id or @user]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "user", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -684,6 +709,10 @@ class TeamCommands(commands.Cog):
         Handle t.server command - Get detailed server information
         Usage: <@1373916203814490194> t.server [server_id]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("t", "server", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",

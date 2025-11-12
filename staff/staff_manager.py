@@ -25,6 +25,7 @@ from utils.components_v2 import (
     create_simple_message,
     EMOJIS
 )
+from utils.staff_logger import staff_logger
 from utils.staff_role_permissions import (
     COMMON_PERMISSIONS,
     ROLE_PERMISSIONS_MAP,
@@ -731,6 +732,10 @@ class StaffManagement(commands.Cog):
         Handle m.rank command - Add user to staff team
         Usage: <@1373916203814490194> m.rank @user
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("m", "rank", message.author, args=args)
+
         # Parse user mention or ID
         target_user = None
 
@@ -792,6 +797,10 @@ class StaffManagement(commands.Cog):
         Handle m.unrank command - Remove user from staff team
         Usage: <@1373916203814490194> m.unrank @user
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("m", "unrank", message.author, args=args)
+
         # Parse user mention or ID
         target_user = None
 
@@ -871,6 +880,10 @@ class StaffManagement(commands.Cog):
         Handle m.setstaff command - Manage staff permissions with role-based permissions
         Usage: <@1373916203814490194> m.setstaff @user
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("m", "setstaff", message.author, args=args)
+
         # Parse user mention or ID
         target_user = None
 
@@ -938,6 +951,10 @@ class StaffManagement(commands.Cog):
         Handle m.stafflist command - List all staff members
         Usage: <@1373916203814490194> m.stafflist
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("m", "stafflist", message.author)
+
         staff_members = await db.get_all_staff_members()
 
         if not staff_members:
@@ -990,6 +1007,10 @@ class StaffManagement(commands.Cog):
         Handle m.staffinfo command - Show info about a staff member
         Usage: <@1373916203814490194> m.staffinfo @user
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("m", "staffinfo", message.author, args=args if args else "self")
+
         # Parse user mention or ID or use self
         target_user = None
 

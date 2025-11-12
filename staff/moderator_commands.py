@@ -13,6 +13,7 @@ from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
+from utils.staff_logger import staff_logger
 
 logger = logging.getLogger('moddy.moderator_commands')
 
@@ -88,6 +89,10 @@ class ModeratorCommands(commands.Cog):
         Handle mod.blacklist command - Blacklist a user
         Usage: <@1373916203814490194> mod.blacklist @user [reason]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("mod", "blacklist", message.author, args=args)
+
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
             view = create_error_message(
@@ -125,6 +130,16 @@ class ModeratorCommands(commands.Cog):
             message.author.id, reason
         )
 
+        # Log the action
+        if staff_logger:
+            await staff_logger.log_action(
+                "User Blacklisted",
+                message.author,
+                f"Blacklisted user {target_user} ({target_user.id})",
+                target=f"{target_user.mention} (`{target_user.id}`)",
+                additional_info={"Reason": reason}
+            )
+
         # Create success view
         fields = [
             {'name': 'User', 'value': f"{target_user} (`{target_user.id}`)"},
@@ -149,6 +164,10 @@ class ModeratorCommands(commands.Cog):
         Handle mod.unblacklist command - Remove user from blacklist
         Usage: <@1373916203814490194> mod.unblacklist @user [reason]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("mod", "unblacklist", message.author, args=args)
+
         parts = args.split(maxsplit=1)
         if not parts or not message.mentions:
             view = create_error_message(
@@ -176,6 +195,16 @@ class ModeratorCommands(commands.Cog):
             'user', target_user.id, 'BLACKLISTED', None,
             message.author.id, reason
         )
+
+        # Log the action
+        if staff_logger:
+            await staff_logger.log_action(
+                "User Unblacklisted",
+                message.author,
+                f"Removed {target_user} ({target_user.id}) from blacklist",
+                target=f"{target_user.mention} (`{target_user.id}`)",
+                additional_info={"Reason": reason}
+            )
 
         # Create success view
         fields = [

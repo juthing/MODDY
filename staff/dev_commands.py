@@ -15,6 +15,7 @@ from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
+from utils.staff_logger import staff_logger
 
 logger = logging.getLogger('moddy.dev_commands')
 
@@ -89,6 +90,10 @@ class DeveloperCommands(commands.Cog):
         Handle d.reload command - Reload bot extensions
         Usage: <@1373916203814490194> d.reload [extension]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "reload", message.author, args=args or "all")
+
         if not args or args == "all":
             # Reload all extensions
             view = create_info_message("Reloading All Extensions", "Reloading all cogs and staff commands...")
@@ -171,6 +176,10 @@ class DeveloperCommands(commands.Cog):
         Handle d.shutdown command - Shutdown the bot
         Usage: <@1373916203814490194> d.shutdown
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "shutdown", message.author)
+
         view = create_error_message(
             "Shutting Down",
             "MODDY is shutting down..."
@@ -186,6 +195,10 @@ class DeveloperCommands(commands.Cog):
         Handle d.stats command - Show bot statistics
         Usage: <@1373916203814490194> d.stats
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "stats", message.author)
+
         # Bot info
         uptime = datetime.now(timezone.utc) - self.bot.launch_time
         days = uptime.days
@@ -246,6 +259,11 @@ class DeveloperCommands(commands.Cog):
         Handle d.sql command - Execute SQL query
         Usage: <@1373916203814490194> d.sql [query]
         """
+        # Log the command (don't log the full query for security)
+        if staff_logger:
+            query_preview = args.strip()[:50] + "..." if len(args.strip()) > 50 else args.strip()
+            await staff_logger.log_command("d", "sql", message.author, args=query_preview)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -341,6 +359,11 @@ class DeveloperCommands(commands.Cog):
         Handle d.jsk command - Execute Python code
         Usage: <@1373916203814490194> d.jsk [code]
         """
+        # Log the command (don't log the full code for security)
+        if staff_logger:
+            code_preview = args.strip()[:50] + "..." if len(args.strip()) > 50 else args.strip()
+            await staff_logger.log_command("d", "jsk", message.author, args=code_preview)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -435,6 +458,10 @@ class DeveloperCommands(commands.Cog):
         Handle d.error command - Get detailed error information
         Usage: <@1373916203814490194> d.error [error_code]
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "error", message.author, args=args)
+
         if not args:
             view = create_error_message(
                 "Invalid Usage",
@@ -494,41 +521,53 @@ class DeveloperCommands(commands.Cog):
             'value': f"```{error_message}```"
         })
 
-        # Context if available
+        # Context - always show if any context data is available
+        context_parts = []
+
+        # Command context
         if error_data.get('command'):
-            context_value = f"**Command:** `{error_data.get('command')}`"
+            context_parts.append(f"**Command:** `{error_data.get('command')}`")
 
-            if error_data.get('user_id'):
-                user_id = error_data.get('user_id')
-                try:
-                    user = await self.bot.fetch_user(user_id)
-                    context_value += f"\n**User:** {user} (`{user_id}`)"
-                except:
-                    context_value += f"\n**User ID:** `{user_id}`"
+        # User context
+        if error_data.get('user_id'):
+            user_id = error_data.get('user_id')
+            try:
+                user = await self.bot.fetch_user(user_id)
+                context_parts.append(f"**User:** {user.mention} ({user} - `{user_id}`)")
+            except:
+                context_parts.append(f"**User ID:** `{user_id}`")
 
-            if error_data.get('guild_id'):
-                guild_id = error_data.get('guild_id')
-                guild = self.bot.get_guild(guild_id)
-                if guild:
-                    context_value += f"\n**Server:** {guild.name} (`{guild_id}`)"
-                else:
-                    context_value += f"\n**Server ID:** `{guild_id}`"
+        # Guild/Server context
+        if error_data.get('guild_id'):
+            guild_id = error_data.get('guild_id')
+            guild = self.bot.get_guild(guild_id)
+            if guild:
+                context_parts.append(f"**Server:** {guild.name} (`{guild_id}`)")
+            else:
+                context_parts.append(f"**Server ID:** `{guild_id}`")
 
-            # Additional context from context field
-            if error_data.get('context'):
-                ctx = error_data['context']
-                if isinstance(ctx, dict):
-                    if ctx.get('channel'):
-                        context_value += f"\n**Channel:** {ctx['channel']}"
-                    if ctx.get('message'):
-                        msg = ctx['message']
-                        if len(msg) > 100:
-                            msg = msg[:100] + "..."
-                        context_value += f"\n**Message:** `{msg}`"
+        # Additional context from context field
+        if error_data.get('context'):
+            ctx = error_data['context']
+            if isinstance(ctx, dict):
+                if ctx.get('channel'):
+                    context_parts.append(f"**Channel:** {ctx['channel']}")
+                if ctx.get('message'):
+                    msg = ctx['message']
+                    if len(msg) > 100:
+                        msg = msg[:100] + "..."
+                    context_parts.append(f"**Message:** `{msg}`")
 
+        # Add context field if we have any context information
+        if context_parts:
             fields.append({
-                'name': "Context",
-                'value': context_value
+                'name': f"{EMOJIS['info']} Context",
+                'value': "\n".join(context_parts)
+            })
+        else:
+            fields.append({
+                'name': f"{EMOJIS['info']} Context",
+                'value': "*No context information available*"
             })
 
         # Traceback

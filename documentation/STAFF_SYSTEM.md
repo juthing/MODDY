@@ -385,12 +385,23 @@ Shows:
 - Error code and type
 - Error message
 - File and line number where error occurred
-- Context information (command, user, server)
+- **Context information** (always displayed):
+  - Command that triggered the error
+  - User who triggered the error (with mention, username, and ID)
+  - Server where the error occurred (with name and ID)
+  - Channel information (if available)
+  - Message content that caused the error (if available)
+  - *"No context information available"* if no context data exists
 - Full traceback
 - Timestamp of when the error occurred
 - Source (Cache or Database)
 
 The command searches for the error in both the in-memory cache (last 100 errors) and the database.
+
+**Recent improvements:**
+- Context section now always displayed (even if empty)
+- Enhanced user display with mention, username, and ID
+- Better structured context information
 
 ## Moderator Commands (mod. prefix)
 
@@ -645,7 +656,76 @@ These badges are automatically displayed in:
 - `m.staffinfo` - Staff member information
 - Any other staff-related displays
 
+## Staff Action Logging
+
+**All staff commands and actions are automatically logged to a dedicated Discord channel for audit and monitoring purposes.**
+
+### Log Channel Configuration
+
+- **Channel ID:** 1408872408827297952
+- **Server ID:** 1394001780148535387
+
+### What Gets Logged
+
+The staff logger tracks:
+
+1. **All Staff Commands:**
+   - Command type and name (e.g., `d.reload`, `m.rank`, `mod.blacklist`)
+   - Executor (staff member who ran the command)
+   - Command arguments (sanitized for sensitive commands like `d.sql` and `d.jsk`)
+   - Target user or server (if applicable)
+   - Success/failure status
+   - Error message (if command failed)
+   - Timestamp
+
+2. **Staff Actions:**
+   - Permission changes
+   - Role assignments/removals
+   - User blacklist/unblacklist actions
+   - Any significant staff operations
+
+### Log Format
+
+Each log entry is displayed as an embed with:
+- **Title:** Command or action type with status emoji (✅ success / ❌ failure)
+- **Executor:** Staff member who performed the action
+- **Command/Action Details:** Type, arguments, and context
+- **Target:** User, server, or other target (if applicable)
+- **Status:** Success/failure with error message if failed
+- **Additional Information:** Any relevant details specific to the command
+- **Timestamp:** When the action was performed
+
+### Implementation
+
+The staff logging system is implemented in:
+- **`utils/staff_logger.py`** - Core logging functionality
+- Integrated into all staff command cogs:
+  - `staff/dev_commands.py` (d. prefix)
+  - `staff/team_commands.py` (t. prefix)
+  - `staff/moderator_commands.py` (mod. prefix)
+  - `staff/staff_manager.py` (m. prefix)
+  - `staff/support_commands.py` (sup. prefix)
+  - `staff/communication_commands.py` (com. prefix)
+
+### Security Features
+
+- **Sensitive Data Protection:** SQL queries and Python code are truncated in logs
+- **Automatic Initialization:** Logger is set up when the bot starts
+- **Graceful Degradation:** If log channel is unavailable, operations continue normally
+- **Audit Trail:** Complete history of all staff operations
+
 ## Recent Changes (Latest Update)
+
+**Staff Logging System (New):**
+- **Comprehensive Logging:** All staff commands and actions are now logged to a dedicated channel
+- **Audit Trail:** Complete tracking of who did what, when, and why
+- **Security:** Sensitive data (SQL queries, code) is sanitized in logs
+- **Integration:** Seamlessly integrated into all staff command cogs
+
+**d.error Command Improvements:**
+- **Always Show Context:** Context section now always displayed, even if empty
+- **Enhanced User Display:** Shows mention, username, and ID for better identification
+- **Better Structure:** Context information is more clearly organized
 
 **New Team Commands Added:**
 - **t.mutualserver [user_id]:** View mutual servers shared with a user and their permissions in those servers

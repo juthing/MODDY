@@ -13,6 +13,7 @@ from utils.staff_permissions import staff_permissions, CommandType
 from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_info_message, EMOJIS
+from utils.staff_logger import staff_logger
 
 logger = logging.getLogger('moddy.communication_commands')
 
@@ -70,6 +71,10 @@ class CommunicationCommands(commands.Cog):
         Handle com.help command - Show available communication commands
         Usage: <@&1386452009678278818> com.help
         """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("com", "help", message.author)
+
         view = create_info_message(
             "Communication Commands",
             "Communication command system is in development.\n\nAvailable commands will be added soon.",
