@@ -38,15 +38,20 @@ class BlacklistCheck(commands.Cog):
             if message.author.bot:
                 return await original_process_commands(message)
 
-            # Vérifie d'abord si c'est une commande avant de vérifier la blacklist
-            # Récupère le préfixe du serveur
-            ctx = await self.bot.get_context(message)
+            # Vérifie si le message commence par un préfixe (commande ou mention)
+            # On récupère les préfixes possibles
+            prefixes = await self.bot.get_prefix(message)
+            if isinstance(prefixes, str):
+                prefixes = [prefixes]
 
-            # Si ce n'est pas une commande valide, laisse passer sans vérifier la blacklist
-            if not ctx.valid:
+            # Vérifie si le message commence par un des préfixes
+            is_command = any(message.content.startswith(prefix) for prefix in prefixes)
+
+            # Si ce n'est pas une commande (pas de préfixe), laisse passer sans vérifier la blacklist
+            if not is_command:
                 return await original_process_commands(message)
 
-            # C'est une commande valide, vérifie maintenant si l'utilisateur est blacklisté
+            # C'est une commande (commence par un préfixe), vérifie maintenant si l'utilisateur est blacklisté
             if await self.is_blacklisted(message.author.id):
                 # Envoie le message de blacklist
                 embed = discord.Embed(
