@@ -1,6 +1,10 @@
 """
-Système de vérification de blacklist
-Intercepte toutes les interactions avant traitement
+Système de vérification de blacklist - INTERCEPTION TOTALE
+Bloque TOUTES les interactions des utilisateurs blacklistés AVANT qu'elles n'arrivent à destination
+- Commandes par préfixe: bloquées dans process_commands
+- Slash commands: bloquées dans on_interaction (handler principal)
+- Boutons/Modals/Selects: bloquées dans on_interaction
+- interaction_check: sécurité supplémentaire (backup)
 """
 
 import discord
@@ -30,11 +34,12 @@ class BlacklistCheck(commands.Cog):
         self.bot = bot
         self.blacklist_cache = {}  # Cache pour éviter trop de requêtes DB
 
-        # CRITICAL: Ajoute un interaction_check global au CommandTree
-        # Ceci est appelé AVANT l'exécution de toute slash command
+        # SÉCURITÉ SUPPLÉMENTAIRE: Ajoute un interaction_check global au CommandTree
+        # Note: Le blocage principal se fait dans on_interaction (ci-dessous)
+        # Ceci sert de backup au cas où on_interaction ne serait pas appelé
         @bot.tree.interaction_check
         async def blacklist_interaction_check(interaction: discord.Interaction) -> bool:
-            """Vérifie la blacklist AVANT l'exécution de toute app command"""
+            """Vérifie la blacklist AVANT l'exécution de toute app command (BACKUP)"""
             # Ignore les bots
             if interaction.user.bot:
                 return True
@@ -128,24 +133,16 @@ class BlacklistCheck(commands.Cog):
         original_on_interaction = bot.on_interaction if hasattr(bot, 'on_interaction') else None
 
         async def blacklist_aware_on_interaction(interaction: discord.Interaction):
-            """Intercepte les interactions de type bouton/modal/select AVANT dispatch"""
+            """Intercepte TOUTES les interactions AVANT dispatch - AUCUNE EXCEPTION"""
             # Ignore les bots
             if interaction.user.bot:
                 if original_on_interaction:
                     return await original_on_interaction(interaction)
                 return
 
-            # Les app commands (slash commands) sont déjà gérées par interaction_check
-            # On ne traite ici que les autres types (boutons, modals, select menus)
-            is_app_command = interaction.type == discord.InteractionType.application_command
-
-            # Si c'est une app command, laisse passer (déjà gérée par interaction_check)
-            if is_app_command:
-                if original_on_interaction:
-                    return await original_on_interaction(interaction)
-                return
-
-            # Pour les autres interactions (boutons, modals, etc.), vérifie la blacklist
+            # CRITIQUE : Vérifie la blacklist pour TOUTES les interactions
+            # On ne fait AUCUNE exception, même pas pour les app commands
+            # Toutes les interactions des utilisateurs blacklistés sont bloquées ICI
             if await self.is_blacklisted(interaction.user.id):
                 # BLOQUE l'interaction en y répondant immédiatement
                 try:
@@ -178,16 +175,20 @@ class BlacklistCheck(commands.Cog):
                 if log_cog := self.bot.get_cog("LoggingSystem"):
                     try:
                         interaction_type = interaction.type.name
-                        custom_id = interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'
+                        # Récupère le custom_id ou le nom de commande selon le type
+                        if interaction.type == discord.InteractionType.application_command:
+                            identifier = f"Commande: {interaction.command.name if interaction.command else 'N/A'}"
+                        else:
+                            identifier = f"Custom ID: {interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'}"
 
                         await log_cog.log_critical(
-                            title="🚫 Interaction Composant Blacklistée Bloquée",
+                            title="🚫 Interaction Blacklistée Bloquée (on_interaction)",
                             description=(
                                 f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
                                 f"**Type:** {interaction_type}\n"
-                                f"**Custom ID:** {custom_id}\n"
+                                f"**{identifier}**\n"
                                 f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
-                                f"**Action:** Interaction (bouton/modal/select) bloquée AVANT dispatch"
+                                f"**Action:** Interaction bloquée AVANT dispatch (on_interaction handler)"
                             ),
                             ping_dev=False
                         )
