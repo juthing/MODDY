@@ -29,6 +29,8 @@ from database import setup_database, db
 from utils.i18n import i18n
 # Import du système de permissions staff
 from utils.staff_permissions import setup_staff_permissions
+# Import du système de logging staff
+from utils.staff_logger import init_staff_logger
 
 logger = logging.getLogger('moddy')
 
@@ -136,6 +138,11 @@ class ModdyBot(commands.Bot):
         logger.info("👥 Initializing staff permissions system...")
         setup_staff_permissions(self)
         logger.info("✅ Staff permissions system ready")
+
+        # Initialize staff logger
+        logger.info("📝 Initializing staff logger...")
+        init_staff_logger(self)
+        logger.info("✅ Staff logger ready")
 
         # Load extensions
         await self.load_extensions()
