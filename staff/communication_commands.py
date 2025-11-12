@@ -14,15 +14,16 @@ from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_info_message, EMOJIS
 from utils.staff_logger import staff_logger
+from staff.base import StaffCommandsCog
 
 logger = logging.getLogger('moddy.communication_commands')
 
 
-class CommunicationCommands(commands.Cog):
+class CommunicationCommands(StaffCommandsCog):
     """Communication commands (com. prefix)"""
 
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -53,7 +54,7 @@ class CommunicationCommands(commands.Cog):
 
         if not allowed:
             view = create_error_message("Permission Denied", reason)
-            await message.channel.send(view=view, delete_after=10)
+            await self.reply_with_tracking(message, view)
             return
 
         # Route to appropriate command
@@ -64,7 +65,7 @@ class CommunicationCommands(commands.Cog):
                 "Unknown Command",
                 f"Communication command `{command_name}` not found.\n\nCommunication commands are in development."
             )
-            await message.channel.send(view=view, delete_after=15)
+            await self.reply_with_tracking(message, view)
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
@@ -81,7 +82,7 @@ class CommunicationCommands(commands.Cog):
             footer=f"Requested by {message.author}"
         )
 
-        await message.channel.send(view=view)
+        await self.reply_with_tracking(message, view)
 
 
 async def setup(bot):
