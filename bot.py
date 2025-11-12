@@ -515,6 +515,90 @@ class ModdyBot(commands.Bot):
         # Clean the cache
         self.prefix_cache.pop(guild.id, None)
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        """
+        INTERCEPTION RADICALE - Intercepte TOUTES les interactions AVANT dispatch
+        Bloque 100% des interactions des utilisateurs blacklistés:
+        - Slash commands
+        - Boutons
+        - Selects
+        - Modals
+        - Autocomplete
+        """
+        # Ignore les bots
+        if interaction.user.bot:
+            return
+
+        # VÉRIFIE LA BLACKLIST AVANT TOUT TRAITEMENT
+        if self.db:
+            try:
+                is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
+
+                if is_blacklisted:
+                    # Message de blacklist
+                    blacklist_message = (
+                        "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
+                        "has been blacklisted by our team."
+                    )
+                    blacklist_link = "https://moddy.app/unbl_request"
+
+                    # Bouton de demande d'unblacklist
+                    view = discord.ui.View()
+                    view.add_item(discord.ui.Button(
+                        label="Unblacklist request",
+                        url=blacklist_link,
+                        style=discord.ButtonStyle.link
+                    ))
+
+                    # BLOQUE l'interaction en y répondant immédiatement
+                    try:
+                        if not interaction.response.is_done():
+                            await interaction.response.send_message(
+                                content=f"{blacklist_message}\n{blacklist_link}",
+                                view=view,
+                                ephemeral=True
+                            )
+                        else:
+                            await interaction.followup.send(
+                                content=f"{blacklist_message}\n{blacklist_link}",
+                                view=view,
+                                ephemeral=True
+                            )
+                    except Exception as e:
+                        logger.error(f"Error sending blacklist message: {e}")
+
+                    # Log l'interaction bloquée
+                    if log_cog := self.get_cog("LoggingSystem"):
+                        try:
+                            interaction_type = interaction.type.name
+                            if interaction.type == discord.InteractionType.application_command:
+                                identifier = f"Commande: {interaction.command.name if interaction.command else 'N/A'}"
+                            else:
+                                identifier = f"Custom ID: {interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'}"
+
+                            await log_cog.log_critical(
+                                title="🚫 INTERACTION BLACKLISTÉE BLOQUÉE",
+                                description=(
+                                    f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+                                    f"**Type:** {interaction_type}\n"
+                                    f"**{identifier}**\n"
+                                    f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
+                                    f"**Action:** ✋ BLOQUÉE AVANT DISPATCH (on_interaction)"
+                                ),
+                                ping_dev=False
+                            )
+                        except Exception as e:
+                            logger.error(f"Error logging blacklist: {e}")
+
+                    # NE PAS dispatcher l'interaction - BLOQUÉE COMPLÈTEMENT
+                    return
+
+            except Exception as e:
+                logger.error(f"Error checking blacklist: {e}")
+
+        # Si pas blacklisté, laisse l'interaction être dispatchée normalement
+        # discord.py s'occupera du reste
+
     async def on_message(self, message: discord.Message):
         """Process each message"""
         # Ignore its own messages
