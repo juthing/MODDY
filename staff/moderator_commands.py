@@ -14,34 +14,16 @@ from database import db
 from config import COLORS
 from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
 from utils.staff_logger import staff_logger
+from staff.base import StaffCommandsCog
 
 logger = logging.getLogger('moddy.moderator_commands')
 
 
-class ModeratorCommands(commands.Cog):
+class ModeratorCommands(StaffCommandsCog):
     """Moderator commands (mod. prefix)"""
 
     def __init__(self, bot):
-        self.bot = bot
-        # Store command message -> response message mapping for auto-deletion
-        self.command_responses = {}  # {command_msg_id: response_msg_id}
-
-    @commands.Cog.listener()
-    async def on_message_delete(self, message: discord.Message):
-        """Handle message deletion to auto-delete command responses"""
-        # Check if this message is a command that has a response
-        if message.id in self.command_responses:
-            response_msg_id = self.command_responses[message.id]
-            try:
-                # Try to fetch and delete the response message
-                response_msg = await message.channel.fetch_message(response_msg_id)
-                await response_msg.delete()
-                logger.info(f"Auto-deleted response {response_msg_id} for deleted command {message.id}")
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
-                logger.debug(f"Could not delete response message {response_msg_id}: {e}")
-            finally:
-                # Clean up the mapping
-                del self.command_responses[message.id]
+        super().__init__(bot)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
@@ -153,9 +135,7 @@ class ModeratorCommands(commands.Cog):
             fields=fields
         )
 
-        reply_msg = await message.reply(view=view, mention_author=False)
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_msg.id
+        await self.reply_with_tracking(message, view)
 
         logger.info(f"User {target_user} ({target_user.id}) blacklisted by {message.author} ({message.author.id})")
 
@@ -219,9 +199,7 @@ class ModeratorCommands(commands.Cog):
             fields=fields
         )
 
-        reply_msg = await message.reply(view=view, mention_author=False)
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_msg.id
+        await self.reply_with_tracking(message, view)
 
         logger.info(f"User {target_user} ({target_user.id}) unblacklisted by {message.author} ({message.author.id})")
 

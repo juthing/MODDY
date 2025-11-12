@@ -535,6 +535,8 @@ Features:
 - All staff command responses use `message.reply()` instead of `message.channel.send()`
 - `mention_author=False` is used to avoid unnecessary mentions
 - **Auto-deletion on command removal:** When you delete the command message, the bot's response is automatically deleted as well
+- **Automatic implementation:** All staff cogs inherit from `StaffCommandsCog` which provides automatic deletion tracking
+- **Works by default:** New staff commands automatically get this behavior when using `reply_with_tracking()`
 - This keeps channels clean while allowing staff to remove accidental or outdated commands
 - No footers are displayed (e.g., no "Requested by..." text)
 
@@ -546,6 +548,7 @@ All staff commands are in **English only** and do **NOT** use the i18n system.
 
 ### Files:
 
+- `/staff/base.py` - Base class for all staff command cogs (provides automatic deletion tracking)
 - `/utils/staff_permissions.py` - Permission manager and role hierarchy
 - `/staff/staff_manager.py` - Management commands (m. prefix)
 - `/staff/team_commands.py` - Team commands (t. prefix)
@@ -557,6 +560,10 @@ All staff commands are in **English only** and do **NOT** use the i18n system.
 
 ### Key Classes and Constants:
 
+- `StaffCommandsCog` - Base class for all staff command cogs (in `/staff/base.py`)
+  - Provides automatic message deletion tracking
+  - All staff cogs inherit from this class
+  - Provides `reply_with_tracking()` helper method for automatic deletion
 - `StaffPermissionManager` - Main permission checking logic
   - `STAFF_PREFIX` - Bot mention: `<@1373916203814490194>`
   - `SUPER_ADMIN_ID` - Super admin user ID: `1164597199594852395`
@@ -716,7 +723,19 @@ The staff logging system is implemented in:
 
 ## Recent Changes (Latest Update)
 
-**Staff Logging System (New):**
+**Automatic Message Deletion Architecture (New):**
+- **Base Class System:** All staff cogs now inherit from `StaffCommandsCog` base class
+- **Automatic Tracking:** Message deletion is now handled automatically by the base class
+- **Helper Method:** New `reply_with_tracking()` method automatically tracks command responses
+- **Works by Default:** Any new staff command automatically gets deletion tracking
+- **Zero Maintenance:** No need to manually track messages in each command
+- **Benefits:**
+  - Consistent behavior across all staff commands
+  - Future-proof for new commands
+  - Reduced code duplication
+  - Cleaner implementation
+
+**Staff Logging System:**
 - **Comprehensive Logging:** All staff commands and actions are now logged to a dedicated channel
 - **Audit Trail:** Complete tracking of who did what, when, and why
 - **Security:** Sensitive data (SQL queries, code) is sanitized in logs

@@ -32,6 +32,7 @@ from utils.staff_role_permissions import (
     get_permission_label,
     get_role_display_name
 )
+from staff.base import StaffCommandsCog
 
 logger = logging.getLogger('moddy.staff_manager')
 
@@ -583,32 +584,13 @@ class DenyCommandModal(ui.Modal, title="Deny Specific Commands"):
             )
 
 
-class StaffManagement(commands.Cog):
+class StaffManagement(StaffCommandsCog):
     """Staff management commands (m. prefix)"""
 
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         # Store pending interactions context
         self.interaction_contexts = {}
-        # Store command message -> response message mapping for auto-deletion
-        self.command_responses = {}  # {command_msg_id: response_msg_id}
-
-    @commands.Cog.listener()
-    async def on_message_delete(self, message: discord.Message):
-        """Handle message deletion to auto-delete command responses"""
-        # Check if this message is a command that has a response
-        if message.id in self.command_responses:
-            response_msg_id = self.command_responses[message.id]
-            try:
-                # Try to fetch and delete the response message
-                response_msg = await message.channel.fetch_message(response_msg_id)
-                await response_msg.delete()
-                logger.info(f"Auto-deleted response {response_msg_id} for deleted command {message.id}")
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException) as e:
-                logger.debug(f"Could not delete response message {response_msg_id}: {e}")
-            finally:
-                # Clean up the mapping
-                del self.command_responses[message.id]
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -786,9 +768,7 @@ class StaffManagement(commands.Cog):
         layout = RankLayout()
 
         # Send Components V2 layout
-        reply_msg = await message.reply(view=layout, mention_author=False)
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_msg.id
+        await self.reply_with_tracking(message, layout)
         # Send interactive view as followup
         await message.channel.send(view=button_view)
 
@@ -860,9 +840,7 @@ class StaffManagement(commands.Cog):
                 f"{target_user.mention} has been removed from the staff team."
             )
 
-            reply_msg = await message.reply(view=view, mention_author=False)
-            # Store for auto-deletion
-            self.command_responses[message.id] = reply_msg.id
+            await self.reply_with_tracking(message, view)
 
             # Log the action
             logger.info(f"Staff {message.author} ({message.author.id}) removed {target_user} ({target_user.id}) from staff")
@@ -935,10 +913,7 @@ class StaffManagement(commands.Cog):
 
         # Create and send the layout view
         layout_view = await perm_view.create_layout_view()
-        reply_message = await message.reply(view=layout_view, mention_author=False)
-
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_message.id
+        reply_message = await self.reply_with_tracking(message, layout_view)
 
         # Update the view with the message reference
         perm_view.initial_message = reply_message
@@ -998,9 +973,7 @@ class StaffManagement(commands.Cog):
             fields=fields
         )
 
-        reply_msg = await message.reply(view=view, mention_author=False)
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_msg.id
+        await self.reply_with_tracking(message, view)
 
     async def handle_staffinfo_command(self, message: discord.Message, args: str):
         """
@@ -1106,9 +1079,7 @@ class StaffManagement(commands.Cog):
             fields=fields
         )
 
-        reply_msg = await message.reply(view=view, mention_author=False)
-        # Store for auto-deletion
-        self.command_responses[message.id] = reply_msg.id
+        await self.reply_with_tracking(message, view)
 
 
 async def setup(bot):
