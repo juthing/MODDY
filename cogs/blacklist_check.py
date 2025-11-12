@@ -30,6 +30,53 @@ class BlacklistCheck(commands.Cog):
         self.bot = bot
         self.blacklist_cache = {}  # Cache pour éviter trop de requêtes DB
 
+        # CRITICAL: Ajoute un interaction_check global au CommandTree
+        # Ceci est appelé AVANT l'exécution de toute slash command
+        @bot.tree.interaction_check
+        async def blacklist_interaction_check(interaction: discord.Interaction) -> bool:
+            """Vérifie la blacklist AVANT l'exécution de toute app command"""
+            # Ignore les bots
+            if interaction.user.bot:
+                return True
+
+            # Vérifie si l'utilisateur est blacklisté
+            if await self.is_blacklisted(interaction.user.id):
+                # Envoie le message de blacklist
+                embed = discord.Embed(
+                    description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
+                    color=COLORS["error"]
+                )
+                embed.set_footer(text=f"User ID: {interaction.user.id}")
+                view = BlacklistButton()
+
+                try:
+                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                except:
+                    pass
+
+                # Log l'interaction bloquée
+                if log_cog := self.bot.get_cog("LoggingSystem"):
+                    try:
+                        await log_cog.log_critical(
+                            title="🚫 Slash Command Blacklistée Bloquée",
+                            description=(
+                                f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+                                f"**Type:** {interaction.type.name}\n"
+                                f"**Commande:** {interaction.command.name if interaction.command else 'N/A'}\n"
+                                f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
+                                f"**Action:** Slash command bloquée AVANT exécution (interaction_check)"
+                            ),
+                            ping_dev=False
+                        )
+                    except:
+                        pass
+
+                # Retourne False pour bloquer l'exécution de la commande
+                return False
+
+            # Autorise l'interaction
+            return True
+
         # Override la méthode process_commands pour bloquer AVANT le traitement
         original_process_commands = bot.process_commands
 
@@ -81,19 +128,28 @@ class BlacklistCheck(commands.Cog):
         original_on_interaction = bot.on_interaction if hasattr(bot, 'on_interaction') else None
 
         async def blacklist_aware_on_interaction(interaction: discord.Interaction):
-            """Intercepte TOUTES les interactions AVANT qu'elles soient dispatchées"""
+            """Intercepte les interactions de type bouton/modal/select AVANT dispatch"""
             # Ignore les bots
             if interaction.user.bot:
                 if original_on_interaction:
                     return await original_on_interaction(interaction)
                 return
 
-            # Vérifie si l'utilisateur est blacklisté
+            # Les app commands (slash commands) sont déjà gérées par interaction_check
+            # On ne traite ici que les autres types (boutons, modals, select menus)
+            is_app_command = interaction.type == discord.InteractionType.application_command
+
+            # Si c'est une app command, laisse passer (déjà gérée par interaction_check)
+            if is_app_command:
+                if original_on_interaction:
+                    return await original_on_interaction(interaction)
+                return
+
+            # Pour les autres interactions (boutons, modals, etc.), vérifie la blacklist
             if await self.is_blacklisted(interaction.user.id):
                 # BLOQUE l'interaction en y répondant immédiatement
-                # Une fois qu'on a répondu, les handlers ne peuvent plus traiter l'interaction
                 try:
-                    # Envoie directement le message de blacklist sans passer par send_blacklist_message
+                    # Envoie directement le message de blacklist
                     embed = discord.Embed(
                         description=f"{EMOJIS['undone']} You cannot interact with Moddy because your account has been blacklisted by our team.",
                         color=COLORS["error"]
@@ -121,14 +177,17 @@ class BlacklistCheck(commands.Cog):
                 # Log l'interaction bloquée
                 if log_cog := self.bot.get_cog("LoggingSystem"):
                     try:
+                        interaction_type = interaction.type.name
+                        custom_id = interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'
+
                         await log_cog.log_critical(
-                            title="🚫 Interaction Blacklistée Bloquée",
+                            title="🚫 Interaction Composant Blacklistée Bloquée",
                             description=(
                                 f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
-                                f"**Type:** {interaction.type.name}\n"
-                                f"**Custom ID:** {interaction.data.get('custom_id', 'N/A')}\n"
+                                f"**Type:** {interaction_type}\n"
+                                f"**Custom ID:** {custom_id}\n"
                                 f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
-                                f"**Action:** Interaction bloquée AVANT dispatch"
+                                f"**Action:** Interaction (bouton/modal/select) bloquée AVANT dispatch"
                             ),
                             ping_dev=False
                         )
