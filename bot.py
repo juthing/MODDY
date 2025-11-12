@@ -367,7 +367,8 @@ class ModdyBot(commands.Bot):
         staff_dir = Path("staff")
         if staff_dir.exists():
             for file in staff_dir.glob("*.py"):
-                if file.name.startswith("_"):
+                # Skip private files and base class file
+                if file.name.startswith("_") or file.name == "base.py":
                     continue
 
                 try:
