@@ -125,6 +125,16 @@ class ModdyBot(commands.Bot):
         # Configure error handler for slash commands
         self.tree.on_error = self.on_app_command_error
 
+        # INTERCEPTION RADICALE: Configure blacklist check pour TOUTES les app commands
+        @self.tree.interaction_check
+        async def blacklist_interaction_check(interaction: discord.Interaction) -> bool:
+            """Vérifie la blacklist AVANT l'exécution de toute app command"""
+            is_blacklisted = await self._check_blacklist_and_respond(interaction)
+            if is_blacklisted:
+                # Lève une exception pour arrêter le traitement
+                raise discord.app_commands.CheckFailure("User is blacklisted")
+            return True
+
         # Connect the database
         if DATABASE_URL:
             await self.setup_database()
@@ -168,6 +178,11 @@ class ModdyBot(commands.Bot):
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         """Slash command error handling with i18n"""
         from utils.i18n import t
+
+        # Ignore les erreurs de blacklist (déjà gérées)
+        if isinstance(error, discord.app_commands.CheckFailure):
+            if "blacklisted" in str(error).lower():
+                return  # Déjà géré par _check_blacklist_and_respond
 
         # Use the ErrorTracker cog if it's loaded
         error_cog = self.get_cog("ErrorTracker")
@@ -515,89 +530,100 @@ class ModdyBot(commands.Bot):
         # Clean the cache
         self.prefix_cache.pop(guild.id, None)
 
+    async def _check_blacklist_and_respond(self, interaction: discord.Interaction) -> bool:
+        """
+        Vérifie si un utilisateur est blacklisté et répond si c'est le cas.
+        Retourne True si l'utilisateur est blacklisté (bloqué), False sinon.
+        """
+        if not self.db or interaction.user.bot:
+            return False
+
+        try:
+            is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
+
+            if is_blacklisted:
+                # Message de blacklist
+                blacklist_message = (
+                    "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
+                    "has been blacklisted by our team."
+                )
+                blacklist_link = "https://moddy.app/unbl_request"
+
+                # Bouton de demande d'unblacklist
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(
+                    label="Unblacklist request",
+                    url=blacklist_link,
+                    style=discord.ButtonStyle.link
+                ))
+
+                # Répond à l'interaction si pas encore fait
+                try:
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(
+                            content=f"{blacklist_message}\n{blacklist_link}",
+                            view=view,
+                            ephemeral=True
+                        )
+                except discord.InteractionResponded:
+                    # L'interaction a déjà été répondue, on utilise followup
+                    try:
+                        await interaction.followup.send(
+                            content=f"{blacklist_message}\n{blacklist_link}",
+                            view=view,
+                            ephemeral=True
+                        )
+                    except:
+                        pass
+                except Exception as e:
+                    logger.error(f"Error sending blacklist message: {e}")
+
+                # Log l'interaction bloquée
+                if log_cog := self.get_cog("LoggingSystem"):
+                    try:
+                        interaction_type = interaction.type.name
+                        if interaction.type == discord.InteractionType.application_command:
+                            identifier = f"Commande: {interaction.command.name if interaction.command else 'N/A'}"
+                        else:
+                            identifier = f"Custom ID: {interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'}"
+
+                        await log_cog.log_critical(
+                            title="🚫 INTERACTION BLACKLISTÉE BLOQUÉE",
+                            description=(
+                                f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+                                f"**Type:** {interaction_type}\n"
+                                f"**{identifier}**\n"
+                                f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
+                                f"**Action:** ✋ BLOQUÉE AVANT TRAITEMENT"
+                            ),
+                            ping_dev=False
+                        )
+                    except Exception as e:
+                        logger.error(f"Error logging blacklist: {e}")
+
+                return True  # Utilisateur blacklisté
+
+        except Exception as e:
+            logger.error(f"Error checking blacklist: {e}")
+
+        return False  # Pas blacklisté
+
     async def on_interaction(self, interaction: discord.Interaction):
         """
-        INTERCEPTION RADICALE - Intercepte TOUTES les interactions AVANT dispatch
-        Bloque 100% des interactions des utilisateurs blacklistés:
-        - Slash commands
-        - Boutons
-        - Selects
-        - Modals
-        - Autocomplete
+        INTERCEPTION pour les composants (boutons, selects, modals).
+        Les app commands sont gérées par tree.interaction_check dans setup_hook.
         """
-        # Ignore les bots
-        if interaction.user.bot:
+        # On ne traite que les interactions de composants ici
+        # Les app commands sont déjà gérées par tree.interaction_check
+        if interaction.type == discord.InteractionType.application_command:
+            return  # Laisse tree.interaction_check gérer
+
+        # Pour les composants (boutons, selects, modals), on vérifie la blacklist
+        is_blacklisted = await self._check_blacklist_and_respond(interaction)
+        if is_blacklisted:
+            # L'utilisateur est blacklisté, le message a été envoyé
+            # On ne fait rien de plus - l'interaction est consommée
             return
-
-        # VÉRIFIE LA BLACKLIST AVANT TOUT TRAITEMENT
-        if self.db:
-            try:
-                is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
-
-                if is_blacklisted:
-                    # Message de blacklist
-                    blacklist_message = (
-                        "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
-                        "has been blacklisted by our team."
-                    )
-                    blacklist_link = "https://moddy.app/unbl_request"
-
-                    # Bouton de demande d'unblacklist
-                    view = discord.ui.View()
-                    view.add_item(discord.ui.Button(
-                        label="Unblacklist request",
-                        url=blacklist_link,
-                        style=discord.ButtonStyle.link
-                    ))
-
-                    # BLOQUE l'interaction en y répondant immédiatement
-                    try:
-                        if not interaction.response.is_done():
-                            await interaction.response.send_message(
-                                content=f"{blacklist_message}\n{blacklist_link}",
-                                view=view,
-                                ephemeral=True
-                            )
-                        else:
-                            await interaction.followup.send(
-                                content=f"{blacklist_message}\n{blacklist_link}",
-                                view=view,
-                                ephemeral=True
-                            )
-                    except Exception as e:
-                        logger.error(f"Error sending blacklist message: {e}")
-
-                    # Log l'interaction bloquée
-                    if log_cog := self.get_cog("LoggingSystem"):
-                        try:
-                            interaction_type = interaction.type.name
-                            if interaction.type == discord.InteractionType.application_command:
-                                identifier = f"Commande: {interaction.command.name if interaction.command else 'N/A'}"
-                            else:
-                                identifier = f"Custom ID: {interaction.data.get('custom_id', 'N/A') if hasattr(interaction, 'data') else 'N/A'}"
-
-                            await log_cog.log_critical(
-                                title="🚫 INTERACTION BLACKLISTÉE BLOQUÉE",
-                                description=(
-                                    f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
-                                    f"**Type:** {interaction_type}\n"
-                                    f"**{identifier}**\n"
-                                    f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
-                                    f"**Action:** ✋ BLOQUÉE AVANT DISPATCH (on_interaction)"
-                                ),
-                                ping_dev=False
-                            )
-                        except Exception as e:
-                            logger.error(f"Error logging blacklist: {e}")
-
-                    # NE PAS dispatcher l'interaction - BLOQUÉE COMPLÈTEMENT
-                    return
-
-            except Exception as e:
-                logger.error(f"Error checking blacklist: {e}")
-
-        # Si pas blacklisté, laisse l'interaction être dispatchée normalement
-        # discord.py s'occupera du reste
 
     async def on_message(self, message: discord.Message):
         """Process each message"""
