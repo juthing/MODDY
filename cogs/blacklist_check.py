@@ -13,26 +13,7 @@ Ce cog gère:
 
 import discord
 from discord.ext import commands
-
-BLACKLIST_MESSAGE = (
-    "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
-    "has been blacklisted by our team."
-)
-BLACKLIST_LINK = "https://moddy.app/unbl_request"
-BLACKLIST_RESPONSE = f"{BLACKLIST_MESSAGE}\n{BLACKLIST_LINK}"
-
-
-class BlacklistButton(discord.ui.View):
-    """Vue avec le bouton de demande d'unblacklist"""
-
-    def __init__(self):
-        super().__init__()
-        # Ajoute le bouton avec un lien
-        self.add_item(discord.ui.Button(
-            label="Unblacklist request",
-            url="https://moddy.app/unbl_request",
-            style=discord.ButtonStyle.link
-        ))
+from utils.components_v2 import create_blacklist_message
 
 
 class BlacklistCheck(commands.Cog):
@@ -69,19 +50,17 @@ class BlacklistCheck(commands.Cog):
 
             # C'est une commande, vérifie si l'utilisateur est blacklisté
             if await self.is_blacklisted(message.author.id):
-                # Envoie le message de blacklist
-                view = BlacklistButton()
+                # Envoie le message de blacklist avec Components V2
+                view = create_blacklist_message()
 
                 try:
                     await message.reply(
-                        content=BLACKLIST_RESPONSE,
                         view=view,
                         mention_author=False
                     )
                 except:
                     try:
                         await message.channel.send(
-                            content=BLACKLIST_RESPONSE,
                             view=view
                         )
                     except:
@@ -142,10 +121,11 @@ class BlacklistCheck(commands.Cog):
         if not self.bot.is_developer(ctx.author.id):
             return
 
-        view = BlacklistButton()
+        # Utilise le système Components V2 pour le test
+        view = create_blacklist_message()
 
         await ctx.send(
-            f"**[TEST MODE]** Voici ce que verrait un utilisateur blacklisté:\n{BLACKLIST_RESPONSE}",
+            "**[TEST MODE]** Voici ce que verrait un utilisateur blacklisté:",
             view=view
         )
 

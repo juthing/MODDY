@@ -260,3 +260,37 @@ def create_staff_info_message(
 
     view.add_item(container)
     return view
+
+
+def create_blacklist_message() -> LayoutView:
+    """
+    Create the blacklist error message using Components V2
+
+    Returns:
+        LayoutView with blacklist message and unblacklist request button
+    """
+    view = LayoutView()
+    container = Container()
+
+    # Message de blacklist avec emoji
+    blacklist_text = (
+        f"{EMOJIS['undone']} **Account Blacklisted**\n"
+        "You cannot interact with Moddy because your account has been blacklisted by our team.\n"
+        "-# If you believe this is a mistake, you can submit an unblacklist request."
+    )
+    container.add_item(TextDisplay(blacklist_text))
+
+    # Ajouter le container à la vue
+    view.add_item(container)
+
+    # Ajouter le bouton dans un ActionRow
+    button_row = discord.ui.ActionRow()
+    button = discord.ui.Button(
+        label="Unblacklist Request",
+        url="https://moddy.app/unbl_request",
+        style=discord.ButtonStyle.link
+    )
+    button_row.add_item(button)
+    view.add_item(button_row)
+
+    return view

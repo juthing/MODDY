@@ -531,25 +531,13 @@ class ModdyBot(commands.Bot):
             is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
 
             if is_blacklisted:
-                # Message de blacklist
-                blacklist_message = (
-                    "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
-                    "has been blacklisted by our team."
-                )
-                blacklist_link = "https://moddy.app/unbl_request"
-
-                # Bouton de demande d'unblacklist
-                view = discord.ui.View()
-                view.add_item(discord.ui.Button(
-                    label="Unblacklist request",
-                    url=blacklist_link,
-                    style=discord.ButtonStyle.link
-                ))
+                # Utilise le système Components V2 pour le message de blacklist
+                from utils.components_v2 import create_blacklist_message
+                view = create_blacklist_message()
 
                 # Répond à l'interaction
                 try:
                     await interaction.response.send_message(
-                        content=f"{blacklist_message}\n{blacklist_link}",
                         view=view,
                         ephemeral=True
                     )
@@ -592,26 +580,14 @@ class ModdyBot(commands.Bot):
             is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
 
             if is_blacklisted:
-                # Message de blacklist
-                blacklist_message = (
-                    "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
-                    "has been blacklisted by our team."
-                )
-                blacklist_link = "https://moddy.app/unbl_request"
-
-                # Bouton de demande d'unblacklist
-                view = discord.ui.View()
-                view.add_item(discord.ui.Button(
-                    label="Unblacklist request",
-                    url=blacklist_link,
-                    style=discord.ButtonStyle.link
-                ))
+                # Utilise le système Components V2 pour le message de blacklist
+                from utils.components_v2 import create_blacklist_message
+                view = create_blacklist_message()
 
                 # Répond à l'interaction si pas encore fait
                 try:
                     if not interaction.response.is_done():
                         await interaction.response.send_message(
-                            content=f"{blacklist_message}\n{blacklist_link}",
                             view=view,
                             ephemeral=True
                         )
@@ -619,7 +595,6 @@ class ModdyBot(commands.Bot):
                     # L'interaction a déjà été répondue, on utilise followup
                     try:
                         await interaction.followup.send(
-                            content=f"{blacklist_message}\n{blacklist_link}",
                             view=view,
                             ephemeral=True
                         )
