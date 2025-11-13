@@ -51,10 +51,11 @@ class TranslateView(ui.LayoutView):
             to_name = translator.get_language_name(self.current_to_lang, self.locale)
 
             # Create title with flags and language names
-            title = f"``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
+            title = f"<:translate:1398720130950627600> ``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
 
             # Add translation result display
-            translation_display = f"{title}\n```\n{self.translated_text}\n```\n-# Translated by **DeepL**"
+            deepl_text = i18n.get("commands.translate.deepl_attribution", locale=self.locale)
+            translation_display = f"{title}\n```\n{self.translated_text}\n```\n-# {deepl_text}"
             container.add_item(ui.TextDisplay(translation_display))
 
         # Add separator
