@@ -46,9 +46,6 @@ class TranslateView(ui.LayoutView):
         view_title = i18n.get("commands.translate.view.title", locale=self.locale)
         container.add_item(ui.TextDisplay(view_title))
 
-        # Add separator
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Get translator cog for helper functions
         translator = self.bot.get_cog("Translate")
         if translator:
@@ -64,9 +61,6 @@ class TranslateView(ui.LayoutView):
             deepl_text = i18n.get("commands.translate.deepl_attribution", locale=self.locale)
             translation_display = f"{title}\n```\n{self.translated_text}\n```\n-# {deepl_text}"
             container.add_item(ui.TextDisplay(translation_display))
-
-        # Add separator
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # Add container to view
         self.add_item(container)
