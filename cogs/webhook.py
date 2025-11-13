@@ -47,16 +47,16 @@ class WebhookView(ui.LayoutView):
         self.add_item(container)
 
         # Create buttons manually
-        delete_btn = ui.Button(label="Delete", style=discord.ButtonStyle.danger, emoji="🗑️", custom_id="delete_webhook")
+        delete_btn = ui.Button(label="Delete", style=discord.ButtonStyle.danger, emoji="<:delete:1401600770431909939>", custom_id="delete_webhook")
         delete_btn.callback = self.delete_webhook
 
-        edit_btn = ui.Button(label="Edit", style=discord.ButtonStyle.primary, emoji="✏️", custom_id="edit_webhook")
+        edit_btn = ui.Button(label="Edit", style=discord.ButtonStyle.primary, emoji="<:edit:1401600709824086169>", custom_id="edit_webhook")
         edit_btn.callback = self.show_edit_modal
 
-        send_btn = ui.Button(label="Send Message", style=discord.ButtonStyle.success, emoji="📤", custom_id="send_webhook")
+        send_btn = ui.Button(label="Send Message", style=discord.ButtonStyle.success, emoji="<:send:1438635645147938926>", custom_id="send_webhook")
         send_btn.callback = self.show_send_modal
 
-        refresh_btn = ui.Button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄", custom_id="refresh_webhook")
+        refresh_btn = ui.Button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="<:sync:1398729150885269546>", custom_id="refresh_webhook")
         refresh_btn.callback = self.refresh_webhook
 
         # Create ActionRow for buttons (required for Components V2)
@@ -87,7 +87,7 @@ class WebhookView(ui.LayoutView):
             avatar_url = f"https://cdn.discordapp.com/avatars/{data['id']}/{data['avatar']}.png?size=128"
 
         # Format info
-        info = f"## 🔗 Webhook Information\n\n"
+        info = f"## <:webhook:1438636058660045041> Webhook Information\n\n"
         info += f"**Name:** `{data.get('name', 'Unknown')}`\n"
         info += f"**ID:** `{data.get('id', 'N/A')}`\n"
         info += f"**Type:** `{webhook_type}`\n"
