@@ -60,8 +60,8 @@ class ModdyBot(commands.Bot):
             intents=intents,
             help_command=None,  # We make our own help command
             activity=discord.Activity(
-                type=discord.ActivityType.watching,
-                name="servers | /help"
+                type=discord.ActivityType.playing,
+                name="I think, therefore I am."
             ),
             status=discord.Status.online,
             case_insensitive=True,
@@ -678,30 +678,10 @@ class ModdyBot(commands.Bot):
         if not self.is_ready() or not self.ws:
             return
 
-        statuses = [
-            ("watching", f"{len(self.guilds)} servers"),
-            ("playing", "/help"),
-            ("watching", "moderators"),
-            ("playing", f"with {len(self.users)} users"),
-            ("watching", f"{len(i18n.supported_locales)} languages")  # Nouveau statut i18n
-        ]
-
-        # Add special statuses if connected to the DB
-        if self.db:
-            try:
-                stats = await self.db.get_stats()
-                if stats.get('beta_users', 0) > 0:
-                    statuses.append(("playing", f"in beta with {stats['beta_users']} testers"))
-            except:
-                pass
-
-        # Random choice
-        import random
-        activity_type, name = random.choice(statuses)
-
+        # Fixed status
         activity = discord.Activity(
-            type=getattr(discord.ActivityType, activity_type),
-            name=name
+            type=discord.ActivityType.playing,
+            name="I think, therefore I am."
         )
 
         try:
