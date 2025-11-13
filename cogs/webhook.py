@@ -59,11 +59,15 @@ class WebhookView(ui.LayoutView):
         refresh_btn = ui.Button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄", custom_id="refresh_webhook")
         refresh_btn.callback = self.refresh_webhook
 
-        # Add buttons directly to the view
-        self.add_item(delete_btn)
-        self.add_item(edit_btn)
-        self.add_item(send_btn)
-        self.add_item(refresh_btn)
+        # Create ActionRow for buttons (required for Components V2)
+        button_row = ui.ActionRow()
+        button_row.add_item(delete_btn)
+        button_row.add_item(edit_btn)
+        button_row.add_item(send_btn)
+        button_row.add_item(refresh_btn)
+
+        # Add button row to the view
+        self.add_item(button_row)
 
     def format_webhook_info(self) -> str:
         """Formats webhook information for display"""
@@ -129,10 +133,12 @@ class WebhookView(ui.LayoutView):
                             f"The webhook **{self.webhook_data.get('name')}** has been successfully deleted."
                         )
 
-                        # Disable all buttons
+                        # Disable all buttons (they're inside an ActionRow)
                         for item in self.children:
-                            if isinstance(item, ui.Button):
-                                item.disabled = True
+                            if isinstance(item, ui.ActionRow):
+                                for button in item.children:
+                                    if isinstance(button, ui.Button):
+                                        button.disabled = True
 
                         await interaction.edit_original_response(view=self)
                         await interaction.followup.send(embed=success_embed, ephemeral=True)
