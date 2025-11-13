@@ -42,6 +42,13 @@ class TranslateView(ui.LayoutView):
         # Create main container
         container = ui.Container()
 
+        # Add title at the top
+        view_title = i18n.get("commands.translate.view.title", locale=self.locale)
+        container.add_item(ui.TextDisplay(view_title))
+
+        # Add separator
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
         # Get translator cog for helper functions
         translator = self.bot.get_cog("Translate")
         if translator:
@@ -50,8 +57,8 @@ class TranslateView(ui.LayoutView):
             from_name = translator.get_language_name(self.from_lang, self.locale)
             to_name = translator.get_language_name(self.current_to_lang, self.locale)
 
-            # Create title with flags and language names
-            title = f"<:translate:1398720130950627600> ``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
+            # Create title with flags and language names (without translate emoji)
+            title = f"``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
 
             # Add translation result display
             deepl_text = i18n.get("commands.translate.deepl_attribution", locale=self.locale)
@@ -65,16 +72,16 @@ class TranslateView(ui.LayoutView):
         instruction_text = i18n.get("commands.translate.view.instruction", locale=self.locale)
         container.add_item(ui.TextDisplay(instruction_text))
 
-        # Create language select menu
-        select = self.create_select()
-
-        # Create action row for the select
-        select_row = ui.ActionRow()
-        select_row.add_item(select)
-        container.add_item(select_row)
-
         # Add container to view
         self.add_item(container)
+
+        # Create language select menu outside the container
+        select = self.create_select()
+
+        # Create action row for the select (outside container)
+        select_row = ui.ActionRow()
+        select_row.add_item(select)
+        self.add_item(select_row)
 
     def create_select(self):
         """Creates the language selection menu"""
