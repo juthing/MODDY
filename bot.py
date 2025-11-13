@@ -82,6 +82,9 @@ class ModdyBot(commands.Bot):
         # Configure global error handler
         self.setup_error_handler()
 
+        # INTERCEPTION RADICALE: Configure le check de blacklist global pour toutes les app commands
+        self.tree.interaction_check = self._global_blacklist_check
+
     def setup_error_handler(self):
         """Configure uncaught error handler"""
 
@@ -124,16 +127,6 @@ class ModdyBot(commands.Bot):
 
         # Configure error handler for slash commands
         self.tree.on_error = self.on_app_command_error
-
-        # INTERCEPTION RADICALE: Configure blacklist check pour TOUTES les app commands
-        @self.tree.interaction_check
-        async def blacklist_interaction_check(interaction: discord.Interaction) -> bool:
-            """Vérifie la blacklist AVANT l'exécution de toute app command"""
-            is_blacklisted = await self._check_blacklist_and_respond(interaction)
-            if is_blacklisted:
-                # Lève une exception pour arrêter le traitement
-                raise discord.app_commands.CheckFailure("User is blacklisted")
-            return True
 
         # Connect the database
         if DATABASE_URL:
@@ -178,11 +171,6 @@ class ModdyBot(commands.Bot):
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         """Slash command error handling with i18n"""
         from utils.i18n import t
-
-        # Ignore les erreurs de blacklist (déjà gérées)
-        if isinstance(error, discord.app_commands.CheckFailure):
-            if "blacklisted" in str(error).lower():
-                return  # Déjà géré par _check_blacklist_and_respond
 
         # Use the ErrorTracker cog if it's loaded
         error_cog = self.get_cog("ErrorTracker")
@@ -530,6 +518,68 @@ class ModdyBot(commands.Bot):
         # Clean the cache
         self.prefix_cache.pop(guild.id, None)
 
+    async def _global_blacklist_check(self, interaction: discord.Interaction) -> bool:
+        """
+        Check global pour toutes les app commands (slash commands).
+        Appelé automatiquement par discord.py AVANT l'exécution de toute app command.
+        Retourne False ou lève une exception pour bloquer l'exécution.
+        """
+        if not self.db or interaction.user.bot:
+            return True  # Autorise si pas de DB ou si c'est un bot
+
+        try:
+            is_blacklisted = await self.db.has_attribute('user', interaction.user.id, 'BLACKLISTED')
+
+            if is_blacklisted:
+                # Message de blacklist
+                blacklist_message = (
+                    "<:undone:1398729502028333218> You cannot interact with Moddy because your account "
+                    "has been blacklisted by our team."
+                )
+                blacklist_link = "https://moddy.app/unbl_request"
+
+                # Bouton de demande d'unblacklist
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(
+                    label="Unblacklist request",
+                    url=blacklist_link,
+                    style=discord.ButtonStyle.link
+                ))
+
+                # Répond à l'interaction
+                try:
+                    await interaction.response.send_message(
+                        content=f"{blacklist_message}\n{blacklist_link}",
+                        view=view,
+                        ephemeral=True
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending blacklist message: {e}")
+
+                # Log l'interaction bloquée
+                if log_cog := self.get_cog("LoggingSystem"):
+                    try:
+                        await log_cog.log_critical(
+                            title="🚫 SLASH COMMAND BLACKLISTÉE BLOQUÉE",
+                            description=(
+                                f"**Utilisateur:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+                                f"**Commande:** {interaction.command.name if interaction.command else 'N/A'}\n"
+                                f"**Serveur:** {interaction.guild.name if interaction.guild else 'DM'}\n"
+                                f"**Action:** ✋ BLOQUÉE AVANT EXÉCUTION (tree.interaction_check)"
+                            ),
+                            ping_dev=False
+                        )
+                    except Exception as e:
+                        logger.error(f"Error logging blacklist: {e}")
+
+                # Retourne False pour bloquer l'exécution
+                return False
+
+        except Exception as e:
+            logger.error(f"Error checking blacklist in _global_blacklist_check: {e}")
+
+        return True  # Autorise si pas blacklisté ou en cas d'erreur
+
     async def _check_blacklist_and_respond(self, interaction: discord.Interaction) -> bool:
         """
         Vérifie si un utilisateur est blacklisté et répond si c'est le cas.
@@ -611,18 +661,17 @@ class ModdyBot(commands.Bot):
     async def on_interaction(self, interaction: discord.Interaction):
         """
         INTERCEPTION pour les composants (boutons, selects, modals).
-        Les app commands sont gérées par tree.interaction_check dans setup_hook.
+        Les slash commands sont gérées par _global_blacklist_check via tree.interaction_check.
         """
-        # On ne traite que les interactions de composants ici
-        # Les app commands sont déjà gérées par tree.interaction_check
+        # Les app commands sont déjà gérées par _global_blacklist_check
         if interaction.type == discord.InteractionType.application_command:
-            return  # Laisse tree.interaction_check gérer
+            return
 
-        # Pour les composants (boutons, selects, modals), on vérifie la blacklist
+        # Pour les composants (boutons, selects, modals), vérifie la blacklist
         is_blacklisted = await self._check_blacklist_and_respond(interaction)
         if is_blacklisted:
             # L'utilisateur est blacklisté, le message a été envoyé
-            # On ne fait rien de plus - l'interaction est consommée
+            # L'interaction est consommée, on ne fait rien de plus
             return
 
     async def on_message(self, message: discord.Message):
