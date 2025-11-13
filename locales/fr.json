@@ -39,6 +39,105 @@
         "instruction": "**Traduire dans une autre langue**\n-# Sélectionnez une langue ci-dessous pour retraduire le texte",
         "author_only": "Seul l'auteur de la commande peut utiliser ce menu."
       }
+    },
+    "webhook": {
+      "description": "Inspecter et gérer les webhooks Discord",
+      "params": {
+        "webhook": "URL du webhook ou ID/Token",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "loading": "<a:loading:1395047662092550194> **Récupération des informations du webhook...**",
+      "buttons": {
+        "delete": "Supprimer",
+        "edit": "Modifier",
+        "send": "Envoyer un message",
+        "refresh": "Actualiser"
+      },
+      "info": {
+        "title": "## <:webhook:1438636058660045041> Informations du Webhook",
+        "instruction": "-# Utilisez les boutons ci-dessous pour gérer ce webhook",
+        "fields": {
+          "name": "**Nom :** `{name}`",
+          "id": "**ID :** `{id}`",
+          "type": "**Type :** `{type}`",
+          "channel": "**Salon :** <#{channel_id}>",
+          "guild_id": "**ID du serveur :** `{guild_id}`",
+          "avatar": "**Avatar :** [Voir]({url})"
+        }
+      },
+      "types": {
+        "incoming": "Webhook entrant",
+        "follower": "Suiveur de salon",
+        "application": "Application",
+        "unknown": "Inconnu"
+      },
+      "errors": {
+        "invalid_webhook": {
+          "title": "Webhook invalide",
+          "description": "Veuillez fournir une URL de webhook ou un ID/Token valide.\n\n**Formats valides :**\n• `https://discord.com/api/webhooks/ID/TOKEN`\n• `ID/TOKEN`"
+        },
+        "not_found": {
+          "title": "Webhook introuvable",
+          "description": "Impossible de récupérer les informations du webhook. Le webhook est peut-être invalide ou supprimé."
+        },
+        "url_not_found": {
+          "title": "Erreur",
+          "description": "URL du webhook introuvable."
+        },
+        "author_only": "Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur.",
+        "generic": {
+          "title": "Erreur",
+          "description": "Une erreur est survenue :\n```{error}```"
+        }
+      },
+      "delete": {
+        "success": {
+          "title": "Webhook supprimé",
+          "description": "Le webhook **{name}** a été supprimé avec succès."
+        },
+        "failed": {
+          "title": "Échec de la suppression",
+          "description": "Impossible de supprimer le webhook. Statut : {status}\n```{error}```"
+        }
+      },
+      "edit": {
+        "modal_title": "Modifier le webhook",
+        "name_label": "Nom du webhook",
+        "name_placeholder": "Entrez le nouveau nom du webhook",
+        "success": {
+          "title": "Webhook mis à jour",
+          "description": "Le webhook a été renommé en **{name}**."
+        },
+        "failed": {
+          "title": "Échec de la mise à jour",
+          "description": "Impossible de mettre à jour le webhook. Statut : {status}\n```{error}```"
+        }
+      },
+      "send": {
+        "modal_title": "Envoyer un message via le webhook",
+        "message_label": "Contenu du message",
+        "message_placeholder": "Entrez le message à envoyer",
+        "username_label": "Nom d'utilisateur personnalisé (Optionnel)",
+        "username_placeholder": "Laissez vide pour utiliser le nom par défaut du webhook",
+        "success": {
+          "title": "Message envoyé",
+          "description": "Votre message a été envoyé avec succès via le webhook !"
+        },
+        "failed": {
+          "title": "Échec de l'envoi",
+          "description": "Impossible d'envoyer le message. Statut : {status}\n```{error}```"
+        }
+      },
+      "refresh": {
+        "success": {
+          "title": "Actualisé",
+          "description": "Les informations du webhook ont été mises à jour."
+        },
+        "failed": {
+          "title": "Échec de l'actualisation",
+          "description": "Impossible d'actualiser le webhook. Statut : {status}"
+        }
+      }
     }
   },
   "errors": {

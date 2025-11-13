@@ -39,6 +39,105 @@
         "instruction": "**Translate to another language**\n-# Select a language below to retranslate the text",
         "author_only": "Only the command author can use this menu."
       }
+    },
+    "webhook": {
+      "description": "Inspect and manage Discord webhooks",
+      "params": {
+        "webhook": "Webhook URL or ID/Token",
+        "incognito": "Make response visible only to you"
+      },
+      "loading": "<a:loading:1395047662092550194> **Fetching webhook information...**",
+      "buttons": {
+        "delete": "Delete",
+        "edit": "Edit",
+        "send": "Send Message",
+        "refresh": "Refresh"
+      },
+      "info": {
+        "title": "## <:webhook:1438636058660045041> Webhook Information",
+        "instruction": "-# Use the buttons below to manage this webhook",
+        "fields": {
+          "name": "**Name:** `{name}`",
+          "id": "**ID:** `{id}`",
+          "type": "**Type:** `{type}`",
+          "channel": "**Channel:** <#{channel_id}>",
+          "guild_id": "**Server ID:** `{guild_id}`",
+          "avatar": "**Avatar:** [View]({url})"
+        }
+      },
+      "types": {
+        "incoming": "Incoming Webhook",
+        "follower": "Channel Follower",
+        "application": "Application",
+        "unknown": "Unknown"
+      },
+      "errors": {
+        "invalid_webhook": {
+          "title": "Invalid Webhook",
+          "description": "Please provide a valid webhook URL or ID/Token.\n\n**Valid formats:**\n• `https://discord.com/api/webhooks/ID/TOKEN`\n• `ID/TOKEN`"
+        },
+        "not_found": {
+          "title": "Webhook Not Found",
+          "description": "Could not fetch webhook information. The webhook may be invalid or deleted."
+        },
+        "url_not_found": {
+          "title": "Error",
+          "description": "Webhook URL not found."
+        },
+        "author_only": "You can't use these buttons, they belong to another user.",
+        "generic": {
+          "title": "Error",
+          "description": "An error occurred:\n```{error}```"
+        }
+      },
+      "delete": {
+        "success": {
+          "title": "Webhook Deleted",
+          "description": "The webhook **{name}** has been successfully deleted."
+        },
+        "failed": {
+          "title": "Deletion Failed",
+          "description": "Could not delete the webhook. Status: {status}\n```{error}```"
+        }
+      },
+      "edit": {
+        "modal_title": "Edit Webhook",
+        "name_label": "Webhook Name",
+        "name_placeholder": "Enter new webhook name",
+        "success": {
+          "title": "Webhook Updated",
+          "description": "The webhook has been renamed to **{name}**."
+        },
+        "failed": {
+          "title": "Update Failed",
+          "description": "Could not update the webhook. Status: {status}\n```{error}```"
+        }
+      },
+      "send": {
+        "modal_title": "Send Message via Webhook",
+        "message_label": "Message Content",
+        "message_placeholder": "Enter the message to send",
+        "username_label": "Username Override (Optional)",
+        "username_placeholder": "Leave empty to use webhook's default name",
+        "success": {
+          "title": "Message Sent",
+          "description": "Your message has been sent successfully via the webhook!"
+        },
+        "failed": {
+          "title": "Send Failed",
+          "description": "Could not send the message. Status: {status}\n```{error}```"
+        }
+      },
+      "refresh": {
+        "success": {
+          "title": "Refreshed",
+          "description": "Webhook information has been updated."
+        },
+        "failed": {
+          "title": "Refresh Failed",
+          "description": "Could not refresh webhook. Status: {status}"
+        }
+      }
     }
   },
   "errors": {
