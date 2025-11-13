@@ -4,7 +4,7 @@ Uses the DeepL API to translate text with automatic detection
 """
 
 import discord
-from discord import app_commands
+from discord import app_commands, ui
 from discord.ext import commands
 from typing import Optional
 import aiohttp
@@ -18,20 +18,47 @@ from config import COLORS, DEEPL_API_KEY
 from utils.i18n import i18n
 
 
-class TranslateView(discord.ui.View):
-    """View to re-translate into another language"""
+class TranslateView(ui.LayoutView):
+    """View to re-translate into another language using Components V2"""
 
-    def __init__(self, bot, original_text: str, from_lang: str, current_to_lang: str, locale: str, author: discord.User):
+    def __init__(self, bot, original_text: str, translated_text: str, from_lang: str, current_to_lang: str, locale: str, author: discord.User):
         super().__init__(timeout=120)
         self.bot = bot
         self.original_text = original_text
+        self.translated_text = translated_text
         self.from_lang = from_lang
         self.current_to_lang = current_to_lang
         self.locale = locale
         self.author = author
 
-        # Add the select menu
-        self.add_item(self.create_select())
+        # Create the container
+        self.build_view()
+
+    def build_view(self):
+        """Builds the Components V2 view"""
+        # Clear existing items
+        self.clear_items()
+
+        # Create main container
+        container = ui.Container()
+
+        # Add text display with instruction
+        instruction_text = i18n.get("commands.translate.view.instruction", locale=self.locale)
+        container.add_item(ui.TextDisplay(instruction_text))
+
+        # Add separator
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # Create language select menu
+        select = self.create_select()
+
+        # Create action row for the select
+        select_row = ui.ActionRow()
+        select_row.add_item(select)
+        container.add_item(select_row)
+
+        # Add container to view
+        self.add_item(container)
 
     def create_select(self):
         """Creates the language selection menu"""
@@ -82,7 +109,7 @@ class TranslateView(discord.ui.View):
 
         placeholder = i18n.get("commands.translate.view.placeholder", locale=self.locale)
 
-        select = discord.ui.Select(
+        select = ui.Select(
             placeholder=placeholder,
             options=options,
             min_values=1,
@@ -96,17 +123,14 @@ class TranslateView(discord.ui.View):
         """Checks that it's the author using the menu"""
         if interaction.user != self.author:
             locale = i18n.get_user_locale(interaction)
-            if locale == "fr":
-                msg = "Seul l'auteur de la commande peut utiliser ce menu."
-            else:
-                msg = "Only the command author can use this menu."
-            await interaction.response.send_message(msg, ephemeral=True)
+            error_msg = i18n.get("commands.translate.view.author_only", locale=locale)
+            await interaction.response.send_message(error_msg, ephemeral=True)
             return False
         return True
 
     async def translate_callback(self, interaction: discord.Interaction):
         """Callback to re-translate the text"""
-        new_lang = self.children[0].values[0]
+        new_lang = interaction.data['values'][0]
 
         await interaction.response.defer()
 
@@ -118,7 +142,6 @@ class TranslateView(discord.ui.View):
             if translated:
                 # Create the new embed
                 embed = translator.create_translation_embed(
-                    self.original_text,
                     translated,
                     self.from_lang,
                     new_lang,
@@ -127,8 +150,8 @@ class TranslateView(discord.ui.View):
 
                 # Update the view with the new language
                 self.current_to_lang = new_lang
-                self.clear_items()
-                self.add_item(self.create_select())
+                self.translated_text = translated
+                self.build_view()
 
                 await interaction.edit_original_response(embed=embed, view=self)
             else:
@@ -144,6 +167,39 @@ class Translate(commands.Cog):
         self.deepl_api_key = DEEPL_API_KEY  # Retrieved from config.py
         self.user_usage = {}  # Dict to track usage per user
         self.max_uses_per_minute = 20  # Maximum 20 uses per minute per user
+
+    def get_language_flag(self, code: str) -> str:
+        """Gets the flag emoji for a language code"""
+        flags = {
+            "EN": "🇬🇧",
+            "EN-US": "🇺🇸",
+            "EN-GB": "🇬🇧",
+            "FR": "🇫🇷",
+            "DE": "🇩🇪",
+            "ES": "🇪🇸",
+            "IT": "🇮🇹",
+            "PT": "🇵🇹",
+            "PT-PT": "🇵🇹",
+            "PT-BR": "🇧🇷",
+            "NL": "🇳🇱",
+            "PL": "🇵🇱",
+            "RU": "🇷🇺",
+            "JA": "🇯🇵",
+            "ZH": "🇨🇳",
+            "KO": "🇰🇷",
+            "TR": "🇹🇷",
+            "SV": "🇸🇪",
+            "DA": "🇩🇰",
+            "NO": "🇳🇴",
+            "FI": "🇫🇮",
+            "EL": "🇬🇷",
+            "CS": "🇨🇿",
+            "RO": "🇷🇴",
+            "HU": "🇭🇺",
+            "UK": "🇺🇦",
+            "BG": "🇧🇬"
+        }
+        return flags.get(code.upper(), "🌐")
 
     def get_language_name(self, code: str, locale: str) -> str:
         """Gets the name of a language using i18n"""
@@ -296,37 +352,68 @@ class Translate(commands.Cog):
         except Exception:
             return None
 
-    def create_translation_embed(self, original: str, translated: str, from_lang: str, to_lang: str, locale: str) -> discord.Embed:
-        """Creates the translation embed"""
-        title = i18n.get("commands.translate.response.title", locale=locale)
+    def locale_to_deepl_lang(self, locale: str) -> str:
+        """Converts a Discord locale to a DeepL language code"""
+        # Mapping Discord locale to DeepL target language codes
+        locale_mapping = {
+            "en-US": "EN-US",
+            "en-GB": "EN-GB",
+            "fr": "FR",
+            "de": "DE",
+            "es-ES": "ES",
+            "es-419": "ES",
+            "it": "IT",
+            "pt-BR": "PT-BR",
+            "pt": "PT-PT",
+            "nl": "NL",
+            "pl": "PL",
+            "ru": "RU",
+            "ja": "JA",
+            "zh-CN": "ZH",
+            "zh-TW": "ZH",
+            "ko": "KO",
+            "tr": "TR",
+            "sv-SE": "SV",
+            "da": "DA",
+            "no": "NO",
+            "fi": "FI",
+            "cs": "CS",
+            "el": "EL",
+            "bg": "BG",
+            "uk": "UK",
+            "ro": "RO",
+            "hu": "HU"
+        }
+
+        # Try exact match first
+        if locale in locale_mapping:
+            return locale_mapping[locale]
+
+        # Try base language
+        base_lang = locale.split('-')[0]
+        for key, value in locale_mapping.items():
+            if key.startswith(base_lang):
+                return value
+
+        # Default to English US
+        return "EN-US"
+
+    def create_translation_embed(self, translated: str, from_lang: str, to_lang: str, locale: str) -> discord.Embed:
+        """Creates the translation embed with new format"""
+        # Get language names and flags
+        from_flag = self.get_language_flag(from_lang)
+        to_flag = self.get_language_flag(to_lang)
+        from_name = self.get_language_name(from_lang, locale)
+        to_name = self.get_language_name(to_lang, locale)
+
+        # Create title with flags and language names
+        title = f"``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
+
+        # Create embed
         embed = discord.Embed(
             title=title,
+            description=f"```\n{translated}\n```\n-# Translated by **DeepL**",
             color=COLORS["primary"]
-        )
-
-        # Original text
-        original_display = original[:1000] + "..." if len(original) > 1000 else original
-        from_field = i18n.get("commands.translate.response.from_field", locale=locale, language=self.get_language_name(from_lang, locale))
-        embed.add_field(
-            name=from_field,
-            value=f"```\n{original_display}\n```",
-            inline=False
-        )
-
-        # Translated text
-        translated_display = translated[:1000] + "..." if len(translated) > 1000 else translated
-        to_field = i18n.get("commands.translate.response.to_field", locale=locale, language=self.get_language_name(to_lang, locale))
-        embed.add_field(
-            name=to_field,
-            value=f"```\n{translated_display}\n```",
-            inline=False
-        )
-
-        # Footer with character count
-        footer = i18n.get("commands.translate.response.footer", locale=locale, char_count=len(original))
-        embed.set_footer(
-            text=footer,
-            icon_url="https://www.deepl.com/img/logo/DeepL_Logo_darkBlue_v2.svg"
         )
 
         embed.timestamp = datetime.utcnow()
@@ -339,7 +426,7 @@ class Translate(commands.Cog):
     )
     @app_commands.describe(
         text="Le texte à traduire / The text to translate",
-        to="Langue de destination / Target language",
+        to="Langue de destination (optionnel, utilise votre langue Discord par défaut) / Target language (optional, uses your Discord language by default)",
         incognito="Rendre la réponse visible uniquement pour vous / Make response visible only to you"
     )
     @app_commands.choices(to=[
@@ -374,7 +461,7 @@ class Translate(commands.Cog):
         self,
         interaction: discord.Interaction,
         text: str,
-        to: app_commands.Choice[str],
+        to: Optional[app_commands.Choice[str]] = None,
         incognito: Optional[bool] = None
     ):
         """Main translation command"""
@@ -403,6 +490,13 @@ class Translate(commands.Cog):
         # Sanitize mentions
         sanitized_text = self.sanitize_mentions(text, interaction.guild)
 
+        # Determine target language
+        if to is None:
+            # Use user's Discord locale
+            target_lang = self.locale_to_deepl_lang(str(interaction.locale))
+        else:
+            target_lang = to.value
+
         # Loading message
         loading_msg = i18n.get("commands.translate.translating", locale=locale)
         loading_embed = ModdyResponse.loading(loading_msg)
@@ -412,15 +506,14 @@ class Translate(commands.Cog):
         source_lang = await self.detect_language(sanitized_text)
 
         # Translate the text
-        translated = await self.translate_text(sanitized_text, to.value)
+        translated = await self.translate_text(sanitized_text, target_lang)
 
         if translated and source_lang:
             # Create the result embed
             embed = self.create_translation_embed(
-                sanitized_text,
                 translated,
                 source_lang,
-                to.value,
+                target_lang,
                 locale
             )
 
@@ -428,8 +521,9 @@ class Translate(commands.Cog):
             view = TranslateView(
                 self.bot,
                 sanitized_text,
+                translated,
                 source_lang,
-                to.value,
+                target_lang,
                 locale,
                 interaction.user
             )
