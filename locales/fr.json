@@ -38,7 +38,8 @@
         "placeholder": "Traduire dans une autre langue",
         "instruction": "**Traduire dans une autre langue**\n-# Sélectionnez une langue ci-dessous pour retraduire le texte",
         "author_only": "Seul l'auteur de la commande peut utiliser ce menu."
-      }
+      },
+      "deepl_attribution": "Traduit par **DeepL**"
     },
     "webhook": {
       "description": "Inspecter et gérer les webhooks Discord",
