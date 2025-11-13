@@ -35,9 +35,8 @@
         "api_error": "Unable to contact translation API"
       },
       "view": {
-        "title": "## <:translate:1398720130950627600> Text translation",
+        "title": "### <:translate:1398720130950627600> Text translation",
         "placeholder": "Translate to another language",
-        "instruction": "**Translate to another language**\n-# Select a language below to retranslate the text",
         "author_only": "Only the command author can use this menu."
       },
       "deepl_attribution": "Translated by **DeepL**"
