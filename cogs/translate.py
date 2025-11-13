@@ -482,10 +482,12 @@ class Translate(commands.Cog):
         else:
             target_lang = to.value
 
-        # Loading message
+        # Loading message with animated emoji
         loading_msg = i18n.get("commands.translate.translating", locale=locale)
-        loading_embed = ModdyResponse.loading(loading_msg)
-        await interaction.response.send_message(embed=loading_embed, ephemeral=ephemeral)
+        await interaction.response.send_message(
+            content=f"<a:loading:1395047662092550194> **{loading_msg}**",
+            ephemeral=ephemeral
+        )
 
         # Detect the source language
         source_lang = await self.detect_language(sanitized_text)
