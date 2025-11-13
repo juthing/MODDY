@@ -68,10 +68,6 @@ class TranslateView(ui.LayoutView):
         # Add separator
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Add text display with instruction
-        instruction_text = i18n.get("commands.translate.view.instruction", locale=self.locale)
-        container.add_item(ui.TextDisplay(instruction_text))
-
         # Add container to view
         self.add_item(container)
 
