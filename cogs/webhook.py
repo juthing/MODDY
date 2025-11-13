@@ -46,30 +46,24 @@ class WebhookView(ui.LayoutView):
         # Add container to view
         self.add_item(container)
 
-        # Add button row
-        button_row = ui.ActionRow()
+        # Create buttons manually
+        delete_btn = ui.Button(label="Delete", style=discord.ButtonStyle.danger, emoji="🗑️", custom_id="delete_webhook")
+        delete_btn.callback = self.delete_webhook
 
-        # Delete button
-        @button_row.button(label="Delete", style=discord.ButtonStyle.danger, emoji="🗑️")
-        async def delete_button(interaction: discord.Interaction, button):
-            await self.delete_webhook(interaction)
+        edit_btn = ui.Button(label="Edit", style=discord.ButtonStyle.primary, emoji="✏️", custom_id="edit_webhook")
+        edit_btn.callback = self.show_edit_modal
 
-        # Edit button
-        @button_row.button(label="Edit", style=discord.ButtonStyle.primary, emoji="✏️")
-        async def edit_button(interaction: discord.Interaction, button):
-            await self.show_edit_modal(interaction)
+        send_btn = ui.Button(label="Send Message", style=discord.ButtonStyle.success, emoji="📤", custom_id="send_webhook")
+        send_btn.callback = self.show_send_modal
 
-        # Send message button
-        @button_row.button(label="Send Message", style=discord.ButtonStyle.success, emoji="📤")
-        async def send_button(interaction: discord.Interaction, button):
-            await self.show_send_modal(interaction)
+        refresh_btn = ui.Button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄", custom_id="refresh_webhook")
+        refresh_btn.callback = self.refresh_webhook
 
-        # Refresh button
-        @button_row.button(label="Refresh", style=discord.ButtonStyle.secondary, emoji="🔄")
-        async def refresh_button(interaction: discord.Interaction, button):
-            await self.refresh_webhook(interaction)
-
-        self.add_item(button_row)
+        # Add buttons directly to the view
+        self.add_item(delete_btn)
+        self.add_item(edit_btn)
+        self.add_item(send_btn)
+        self.add_item(refresh_btn)
 
     def format_webhook_info(self) -> str:
         """Formats webhook information for display"""
@@ -137,10 +131,8 @@ class WebhookView(ui.LayoutView):
 
                         # Disable all buttons
                         for item in self.children:
-                            if isinstance(item, ui.ActionRow):
-                                for button in item.children:
-                                    if isinstance(button, ui.Button):
-                                        button.disabled = True
+                            if isinstance(item, ui.Button):
+                                item.disabled = True
 
                         await interaction.edit_original_response(view=self)
                         await interaction.followup.send(embed=success_embed, ephemeral=True)
