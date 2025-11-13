@@ -18,7 +18,7 @@
       "description": "Traduit du texte dans une autre langue",
       "params": {
         "text": "Le texte à traduire",
-        "to": "Langue de destination",
+        "to": "Langue de destination (optionnel, utilise votre langue Discord par défaut)",
         "incognito": "Rendre la réponse visible uniquement pour vous"
       },
       "translating": "Traduction en cours...",
@@ -35,7 +35,9 @@
         "api_error": "Impossible de contacter l'API de traduction"
       },
       "view": {
-        "placeholder": "Traduire dans une autre langue"
+        "placeholder": "Traduire dans une autre langue",
+        "instruction": "**Traduire dans une autre langue**\n-# Sélectionnez une langue ci-dessous pour retraduire le texte",
+        "author_only": "Seul l'auteur de la commande peut utiliser ce menu."
       }
     }
   },

@@ -18,7 +18,7 @@
       "description": "Translate text to another language",
       "params": {
         "text": "The text to translate",
-        "to": "Target language",
+        "to": "Target language (optional, uses your Discord language by default)",
         "incognito": "Make response visible only to you"
       },
       "translating": "Translating...",
@@ -35,7 +35,9 @@
         "api_error": "Unable to contact translation API"
       },
       "view": {
-        "placeholder": "Translate to another language"
+        "placeholder": "Translate to another language",
+        "instruction": "**Translate to another language**\n-# Select a language below to retranslate the text",
+        "author_only": "Only the command author can use this menu."
       }
     }
   },
