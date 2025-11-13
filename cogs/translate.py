@@ -42,12 +42,27 @@ class TranslateView(ui.LayoutView):
         # Create main container
         container = ui.Container()
 
-        # Add text display with instruction
-        instruction_text = i18n.get("commands.translate.view.instruction", locale=self.locale)
-        container.add_item(ui.TextDisplay(instruction_text))
+        # Get translator cog for helper functions
+        translator = self.bot.get_cog("Translate")
+        if translator:
+            from_flag = translator.get_language_flag(self.from_lang)
+            to_flag = translator.get_language_flag(self.current_to_lang)
+            from_name = translator.get_language_name(self.from_lang, self.locale)
+            to_name = translator.get_language_name(self.current_to_lang, self.locale)
+
+            # Create title with flags and language names
+            title = f"``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
+
+            # Add translation result display
+            translation_display = f"{title}\n```\n{self.translated_text}\n```\n-# Translated by **DeepL**"
+            container.add_item(ui.TextDisplay(translation_display))
 
         # Add separator
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # Add text display with instruction
+        instruction_text = i18n.get("commands.translate.view.instruction", locale=self.locale)
+        container.add_item(ui.TextDisplay(instruction_text))
 
         # Create language select menu
         select = self.create_select()
@@ -140,20 +155,12 @@ class TranslateView(ui.LayoutView):
             translated = await translator.translate_text(self.original_text, new_lang)
 
             if translated:
-                # Create the new embed
-                embed = translator.create_translation_embed(
-                    translated,
-                    self.from_lang,
-                    new_lang,
-                    self.locale
-                )
-
                 # Update the view with the new language
                 self.current_to_lang = new_lang
                 self.translated_text = translated
                 self.build_view()
 
-                await interaction.edit_original_response(embed=embed, view=self)
+                await interaction.edit_original_response(view=self)
             else:
                 error_msg = i18n.get("common.error", locale=self.locale)
                 await interaction.followup.send(error_msg, ephemeral=True)
@@ -398,28 +405,6 @@ class Translate(commands.Cog):
         # Default to English US
         return "EN-US"
 
-    def create_translation_embed(self, translated: str, from_lang: str, to_lang: str, locale: str) -> discord.Embed:
-        """Creates the translation embed with new format"""
-        # Get language names and flags
-        from_flag = self.get_language_flag(from_lang)
-        to_flag = self.get_language_flag(to_lang)
-        from_name = self.get_language_name(from_lang, locale)
-        to_name = self.get_language_name(to_lang, locale)
-
-        # Create title with flags and language names
-        title = f"``{from_flag} {from_name}`` → ``{to_flag} {to_name}``"
-
-        # Create embed
-        embed = discord.Embed(
-            title=title,
-            description=f"```\n{translated}\n```\n-# Translated by **DeepL**",
-            color=COLORS["primary"]
-        )
-
-        embed.timestamp = datetime.utcnow()
-
-        return embed
-
     @app_commands.command(
         name="translate",
         description="Traduit du texte dans une autre langue / Translate text to another language"
@@ -497,10 +482,12 @@ class Translate(commands.Cog):
         else:
             target_lang = to.value
 
-        # Loading message
+        # Loading message with animated emoji
         loading_msg = i18n.get("commands.translate.translating", locale=locale)
-        loading_embed = ModdyResponse.loading(loading_msg)
-        await interaction.response.send_message(embed=loading_embed, ephemeral=ephemeral)
+        await interaction.response.send_message(
+            content=f"<a:loading:1395047662092550194> **{loading_msg}**",
+            ephemeral=ephemeral
+        )
 
         # Detect the source language
         source_lang = await self.detect_language(sanitized_text)
@@ -509,14 +496,6 @@ class Translate(commands.Cog):
         translated = await self.translate_text(sanitized_text, target_lang)
 
         if translated and source_lang:
-            # Create the result embed
-            embed = self.create_translation_embed(
-                translated,
-                source_lang,
-                target_lang,
-                locale
-            )
-
             # Create the view with the re-translation menu
             view = TranslateView(
                 self.bot,
@@ -528,7 +507,7 @@ class Translate(commands.Cog):
                 interaction.user
             )
 
-            await interaction.edit_original_response(embed=embed, view=view)
+            await interaction.edit_original_response(content=None, embed=None, view=view)
 
         else:
             # Translation error
