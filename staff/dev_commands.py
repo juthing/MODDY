@@ -82,6 +82,8 @@ class DeveloperCommands(StaffCommandsCog):
             await self.handle_jsk_command(message, args)
         elif command_name == "error":
             await self.handle_error_command(message, args)
+        elif command_name == "sync":
+            await self.handle_sync_command(message, args)
         else:
             view = create_error_message("Unknown Command", f"Developer command `{command_name}` not found.")
             await self.reply_with_tracking(message, view)
@@ -598,6 +600,65 @@ class DeveloperCommands(StaffCommandsCog):
         )
 
         await self.reply_with_tracking(message, view)
+
+    async def handle_sync_command(self, message: discord.Message, args: str):
+        """
+        Handle d.sync command - Sync app commands with Discord
+        Usage: <@1373916203814490194> d.sync [guild_id|global]
+        """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "sync", message.author, args=args or "global")
+
+        view = create_info_message("Syncing Commands", "Synchronizing application commands with Discord...")
+        msg = await message.reply(view=view, mention_author=False)
+
+        try:
+            if not args or args.strip().lower() == "global":
+                # Sync globally
+                synced = await self.bot.tree.sync()
+
+                view = create_success_message(
+                    "Commands Synced",
+                    f"Successfully synced **{len(synced)}** commands globally.\n\n-# Commands may take up to 1 hour to appear in all servers.",
+                    footer=f"Executed by {message.author}"
+                )
+
+            else:
+                # Sync to specific guild
+                try:
+                    guild_id = int(args.strip())
+                    guild = discord.Object(id=guild_id)
+
+                    # Copy global commands to guild and sync
+                    self.bot.tree.copy_global_to(guild=guild)
+                    synced = await self.bot.tree.sync(guild=guild)
+
+                    guild_obj = self.bot.get_guild(guild_id)
+                    guild_name = guild_obj.name if guild_obj else f"Guild {guild_id}"
+
+                    view = create_success_message(
+                        "Commands Synced",
+                        f"Successfully synced **{len(synced)}** commands to **{guild_name}**.\n\n-# Commands should appear immediately in this server.",
+                        footer=f"Executed by {message.author}"
+                    )
+
+                except ValueError:
+                    view = create_error_message(
+                        "Invalid Guild ID",
+                        "Please provide a valid guild ID (numeric) or use 'global'.\n\n**Usage:** `<@1373916203814490194> d.sync [guild_id|global]`"
+                    )
+
+            await msg.edit(view=view)
+
+        except Exception as e:
+            logger.error(f"Error syncing commands: {e}")
+            view = create_error_message(
+                "Sync Failed",
+                "Failed to sync commands with Discord.",
+                fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
+            )
+            await msg.edit(view=view)
 
 
 async def setup(bot):
