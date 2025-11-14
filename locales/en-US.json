@@ -32,6 +32,7 @@
         "rate_limit": "Rate limit reached! Maximum 20 translations per minute. Try again in {seconds} seconds",
         "too_long": "Text is too long (maximum 3000 characters)",
         "no_text": "No text provided to translate",
+        "no_content": "This message has no content to translate",
         "api_error": "Unable to contact translation API"
       },
       "view": {
