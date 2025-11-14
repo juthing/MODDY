@@ -56,13 +56,13 @@ class ModdyBot(commands.Bot):
 
         # Bot configuration
         # Get bot status from environment variable
-        bot_status = os.getenv("BOT_STATUS", "I think, therefore I am.")
+        bot_status = os.getenv("BOT_STATUS", "")
 
         super().__init__(
             command_prefix=self.get_prefix,
             intents=intents,
             help_command=None,  # We make our own help command
-            activity=discord.CustomActivity(name=bot_status),
+            activity=discord.CustomActivity(name=bot_status) if bot_status else None,
             status=discord.Status.online,
             case_insensitive=True,
             max_messages=10000,
@@ -679,8 +679,8 @@ class ModdyBot(commands.Bot):
             return
 
         # Get status from environment variable
-        bot_status = os.getenv("BOT_STATUS", "I think, therefore I am.")
-        activity = discord.CustomActivity(name=bot_status)
+        bot_status = os.getenv("BOT_STATUS", "")
+        activity = discord.CustomActivity(name=bot_status) if bot_status else None
 
         try:
             await self.change_presence(activity=activity)
