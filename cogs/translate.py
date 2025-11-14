@@ -403,6 +403,73 @@ class Translate(commands.Cog):
         # Default to English US
         return "EN-US"
 
+    async def _perform_translation(
+        self,
+        interaction: discord.Interaction,
+        text: str,
+        target_lang: Optional[str] = None,
+        ephemeral: bool = False
+    ):
+        """Common translation logic used by both slash command and context menu"""
+        # Get the user's locale from Discord
+        locale = i18n.get_user_locale(interaction)
+
+        # Check the rate limit (20 per minute per user)
+        can_use, remaining = await self.check_rate_limit(interaction.user.id)
+        if not can_use:
+            error_msg = i18n.get("commands.translate.errors.rate_limit", locale=locale, seconds=remaining)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+
+        # Check the length of the text
+        if len(text) > 3000:
+            error_msg = i18n.get("commands.translate.errors.too_long", locale=locale)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+
+        # Sanitize mentions
+        sanitized_text = self.sanitize_mentions(text, interaction.guild)
+
+        # Determine target language
+        if target_lang is None:
+            # Use user's Discord locale
+            target_lang = self.locale_to_deepl_lang(str(interaction.locale))
+
+        # Loading message with animated emoji
+        loading_msg = i18n.get("commands.translate.translating", locale=locale)
+        await interaction.response.send_message(
+            content=f"<a:loading:1395047662092550194> **{loading_msg}**",
+            ephemeral=ephemeral
+        )
+
+        # Detect the source language
+        source_lang = await self.detect_language(sanitized_text)
+
+        # Translate the text
+        translated = await self.translate_text(sanitized_text, target_lang)
+
+        if translated and source_lang:
+            # Create the view with the re-translation menu
+            view = TranslateView(
+                self.bot,
+                sanitized_text,
+                translated,
+                source_lang,
+                target_lang,
+                locale,
+                interaction.user
+            )
+
+            await interaction.edit_original_response(content=None, embed=None, view=view)
+
+        else:
+            # Translation error
+            error_msg = i18n.get("commands.translate.errors.api_error", locale=locale)
+            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
+            await interaction.edit_original_response(embed=error_embed)
+
     @app_commands.command(
         name="translate",
         description="Traduit du texte dans une autre langue / Translate text to another language"
@@ -448,70 +515,28 @@ class Translate(commands.Cog):
         incognito: Optional[bool] = None
     ):
         """Main translation command"""
-
-        # Get the user's locale from Discord
-        locale = i18n.get_user_locale(interaction)
-
         # Get the ephemeral mode
         ephemeral = get_incognito_setting(interaction)
 
-        # Check the rate limit (20 per minute per user)
-        can_use, remaining = await self.check_rate_limit(interaction.user.id)
-        if not can_use:
-            error_msg = i18n.get("commands.translate.errors.rate_limit", locale=locale, seconds=remaining)
-            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-            return
-
-        # Check the length of the text
-        if len(text) > 3000:
-            error_msg = i18n.get("commands.translate.errors.too_long", locale=locale)
-            error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
-            await interaction.response.send_message(embed=error_embed, ephemeral=True)
-            return
-
-        # Sanitize mentions
-        sanitized_text = self.sanitize_mentions(text, interaction.guild)
-
         # Determine target language
-        if to is None:
-            # Use user's Discord locale
-            target_lang = self.locale_to_deepl_lang(str(interaction.locale))
-        else:
-            target_lang = to.value
+        target_lang = to.value if to is not None else None
 
-        # Loading message with animated emoji
-        loading_msg = i18n.get("commands.translate.translating", locale=locale)
-        await interaction.response.send_message(
-            content=f"<a:loading:1395047662092550194> **{loading_msg}**",
-            ephemeral=ephemeral
-        )
+        # Call the common translation logic
+        await self._perform_translation(interaction, text, target_lang, ephemeral)
 
-        # Detect the source language
-        source_lang = await self.detect_language(sanitized_text)
-
-        # Translate the text
-        translated = await self.translate_text(sanitized_text, target_lang)
-
-        if translated and source_lang:
-            # Create the view with the re-translation menu
-            view = TranslateView(
-                self.bot,
-                sanitized_text,
-                translated,
-                source_lang,
-                target_lang,
-                locale,
-                interaction.user
-            )
-
-            await interaction.edit_original_response(content=None, embed=None, view=view)
-
-        else:
-            # Translation error
-            error_msg = i18n.get("commands.translate.errors.api_error", locale=locale)
+    @app_commands.context_menu(name="Translate")
+    async def translate_context_menu(self, interaction: discord.Interaction, message: discord.Message):
+        """Context menu command to translate a message"""
+        # Check if the message has content
+        if not message.content or message.content.strip() == "":
+            locale = i18n.get_user_locale(interaction)
+            error_msg = i18n.get("commands.translate.errors.no_content", locale=locale)
             error_embed = ModdyResponse.error(i18n.get("common.error", locale=locale), error_msg)
-            await interaction.edit_original_response(embed=error_embed)
+            await interaction.response.send_message(embed=error_embed, ephemeral=True)
+            return
+
+        # Call the common translation logic (always ephemeral for context menu)
+        await self._perform_translation(interaction, message.content, target_lang=None, ephemeral=True)
 
 
 async def setup(bot):
