@@ -173,6 +173,13 @@ class Translate(commands.Cog):
         self.user_usage = {}  # Dict to track usage per user
         self.max_uses_per_minute = 20  # Maximum 20 uses per minute per user
 
+        # Create and add context menu command
+        self.translate_message_menu = app_commands.ContextMenu(
+            name="Translate",
+            callback=self.translate_context_menu_callback
+        )
+        self.bot.tree.add_command(self.translate_message_menu)
+
     def get_language_flag(self, code: str) -> str:
         """Gets the flag emoji for a language code"""
         flags = {
@@ -524,9 +531,8 @@ class Translate(commands.Cog):
         # Call the common translation logic
         await self._perform_translation(interaction, text, target_lang, ephemeral)
 
-    @app_commands.context_menu(name="Translate")
-    async def translate_context_menu(self, interaction: discord.Interaction, message: discord.Message):
-        """Context menu command to translate a message"""
+    async def translate_context_menu_callback(self, interaction: discord.Interaction, message: discord.Message):
+        """Context menu command callback to translate a message"""
         # Check if the message has content
         if not message.content or message.content.strip() == "":
             locale = i18n.get_user_locale(interaction)
@@ -537,6 +543,10 @@ class Translate(commands.Cog):
 
         # Call the common translation logic (always ephemeral for context menu)
         await self._perform_translation(interaction, message.content, target_lang=None, ephemeral=True)
+
+    async def cog_unload(self):
+        """Remove context menu when cog is unloaded"""
+        self.bot.tree.remove_command(self.translate_message_menu.name, type=self.translate_message_menu.type)
 
 
 async def setup(bot):
