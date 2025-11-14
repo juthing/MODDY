@@ -55,7 +55,7 @@
         "refresh": "Actualiser"
       },
       "info": {
-        "title": "## <:webhook:1438636058660045041> Informations du Webhook",
+        "title": "### <:webhook:1438636058660045041> Informations du Webhook",
         "instruction": "-# Utilisez les boutons ci-dessous pour gérer ce webhook",
         "fields": {
           "name": "**Nom :** `{name}`",
