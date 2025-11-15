@@ -52,7 +52,7 @@ class AvatarView(ui.LayoutView):
 
     async def download_avatar(self) -> discord.File:
         """Download the user's avatar and return as discord.File"""
-        avatar_url = self.user.display_avatar.replace(size=1024, format="png").url
+        avatar_url = self.user.display_avatar.replace(size=256, format="png").url
 
         async with aiohttp.ClientSession() as session:
             async with session.get(avatar_url) as resp:
