@@ -479,12 +479,12 @@ class Translate(commands.Cog):
 
     @app_commands.command(
         name="translate",
-        description="Traduit du texte dans une autre langue / Translate text to another language"
+        description="Translate text to another language"
     )
     @app_commands.describe(
-        text="Le texte à traduire / The text to translate",
-        to="Langue de destination (optionnel, utilise votre langue Discord par défaut) / Target language (optional, uses your Discord language by default)",
-        incognito="Rendre la réponse visible uniquement pour vous / Make response visible only to you"
+        text="The text to translate",
+        to="Target language (optional, uses your Discord language by default)",
+        incognito="Make response visible only to you"
     )
     @app_commands.choices(to=[
         app_commands.Choice(name="🇺🇸 English (US)", value="EN-US"),
