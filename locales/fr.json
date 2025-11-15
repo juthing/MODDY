@@ -56,6 +56,18 @@
         "links": "Télécharger l'avatar :"
       }
     },
+    "roll": {
+      "description": "Lance un dé aléatoire",
+      "params": {
+        "max": "Valeur maximale du dé (optionnel, par défaut 6)",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "view": {
+        "title": "### <:random:1439043225741557820> Lancer de dé",
+        "result": "**Résultat :** `{result}`",
+        "range": "-# Dé à {max} faces (1-{max})"
+      }
+    },
     "webhook": {
       "description": "Inspecter et gérer les webhooks Discord",
       "params": {
