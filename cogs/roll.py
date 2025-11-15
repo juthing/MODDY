@@ -60,11 +60,11 @@ class Roll(commands.Cog):
 
     @app_commands.command(
         name="roll",
-        description="Lance un dé aléatoire / Roll a random dice"
+        description="Roll a random dice"
     )
     @app_commands.describe(
-        max="Valeur maximale du dé (optionnel, par défaut 6) / Maximum dice value (optional, defaults to 6)",
-        incognito="Rendre la réponse visible uniquement pour vous / Make response visible only to you"
+        max="Maximum dice value (optional, defaults to 6)",
+        incognito="Make response visible only to you"
     )
     @add_incognito_option()
     async def roll_command(
