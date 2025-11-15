@@ -72,11 +72,11 @@ class Avatar(commands.Cog):
 
     @app_commands.command(
         name="avatar",
-        description="Affiche l'avatar d'un utilisateur / Display a user's avatar"
+        description="Display a user's avatar"
     )
     @app_commands.describe(
-        user="L'utilisateur dont vous voulez voir l'avatar / The user whose avatar you want to see",
-        incognito="Rendre la réponse visible uniquement pour vous / Make response visible only to you"
+        user="The user whose avatar you want to see",
+        incognito="Make response visible only to you"
     )
     @add_incognito_option()
     async def avatar_command(
