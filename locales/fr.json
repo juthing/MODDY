@@ -49,7 +49,7 @@
         "incognito": "Rendre la réponse visible uniquement pour vous"
       },
       "view": {
-        "title": "### 🖼️ Avatar de {user}",
+        "title": "### <:face:1439042029198770289> Avatar de {user}",
         "username": "Nom d'utilisateur :",
         "user_id": "ID :",
         "bot": "Bot :",
