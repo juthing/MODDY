@@ -8,7 +8,6 @@ from discord import app_commands, ui
 from discord.ext import commands
 from typing import Optional
 
-from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
 from utils.incognito import add_incognito_option, get_incognito_setting
 from utils.i18n import i18n
 
@@ -100,15 +99,9 @@ class Avatar(commands.Cog):
         # Create the view
         view = AvatarView(user, locale)
 
-        # Create embed with the avatar image
-        embed = ModdyEmbed.create(
-            color=ModdyColors.PRIMARY,
-            image=user.display_avatar.url
-        )
-
-        # Send response
+        # Send response with Components V2
+        # Note: Components V2 cannot be used with embeds
         await interaction.response.send_message(
-            embed=embed,
             view=view,
             ephemeral=ephemeral
         )
