@@ -56,6 +56,18 @@
         "links": "Download avatar:"
       }
     },
+    "roll": {
+      "description": "Roll a random dice",
+      "params": {
+        "max": "Maximum dice value (optional, defaults to 6)",
+        "incognito": "Make response visible only to you"
+      },
+      "view": {
+        "title": "### <:random:1439043225741557820> Dice Roll",
+        "result": "**Result:** `{result}`",
+        "range": "-# {max}-sided die (1-{max})"
+      }
+    },
     "webhook": {
       "description": "Inspect and manage Discord webhooks",
       "params": {
