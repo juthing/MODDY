@@ -49,7 +49,7 @@
         "incognito": "Make response visible only to you"
       },
       "view": {
-        "title": "### 🖼️ {user}'s Avatar",
+        "title": "### <:face:1439042029198770289> {user}'s Avatar",
         "username": "Username:",
         "user_id": "ID:",
         "bot": "Bot:",
