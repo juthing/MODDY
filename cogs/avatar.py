@@ -7,6 +7,8 @@ import discord
 from discord import app_commands, ui
 from discord.ext import commands
 from typing import Optional
+import aiohttp
+import io
 
 from utils.incognito import add_incognito_option, get_incognito_setting
 from utils.i18n import i18n
@@ -35,37 +37,31 @@ class AvatarView(ui.LayoutView):
         title = i18n.get("commands.avatar.view.title", locale=self.locale, user=self.user.display_name)
         container.add_item(ui.TextDisplay(title))
 
-        # Add separator
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # User information
-        user_info = f"**{i18n.get('commands.avatar.view.username', locale=self.locale)}** `{self.user.name}`\n"
-        user_info += f"**{i18n.get('commands.avatar.view.user_id', locale=self.locale)}** `{self.user.id}`"
-
-        if self.user.bot:
-            user_info += f"\n**{i18n.get('commands.avatar.view.bot', locale=self.locale)}** {i18n.get('common.yes', locale=self.locale)}"
-
-        container.add_item(ui.TextDisplay(user_info))
-
-        # Add separator
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # Avatar links
-        links_text = i18n.get("commands.avatar.view.links", locale=self.locale)
-        avatar_url = self.user.display_avatar.url
-        avatar_url_512 = self.user.display_avatar.replace(size=512).url
-        avatar_url_1024 = self.user.display_avatar.replace(size=1024).url
-        avatar_url_2048 = self.user.display_avatar.replace(size=2048).url
-
-        links = f"**{links_text}**\n"
-        links += f"• [512x512]({avatar_url_512})\n"
-        links += f"• [1024x1024]({avatar_url_1024})\n"
-        links += f"• [2048x2048]({avatar_url_2048})"
-
-        container.add_item(ui.TextDisplay(links))
+        # Add MediaGallery with avatar
+        avatar_filename = f"avatar_{self.user.id}.png"
+        container.add_item(
+            ui.MediaGallery(
+                discord.MediaGalleryItem(
+                    media=f"attachment://{avatar_filename}",
+                ),
+            )
+        )
 
         # Add container to view
         self.add_item(container)
+
+    async def download_avatar(self) -> discord.File:
+        """Download the user's avatar and return as discord.File"""
+        avatar_url = self.user.display_avatar.replace(size=1024, format="png").url
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(avatar_url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    avatar_bytes = io.BytesIO(data)
+                    avatar_filename = f"avatar_{self.user.id}.png"
+                    return discord.File(avatar_bytes, filename=avatar_filename)
+                return None
 
 
 class Avatar(commands.Cog):
@@ -99,10 +95,14 @@ class Avatar(commands.Cog):
         # Create the view
         view = AvatarView(user, locale)
 
+        # Download the avatar
+        avatar_file = await view.download_avatar()
+
         # Send response with Components V2
         # Note: Components V2 cannot be used with embeds
         await interaction.response.send_message(
             view=view,
+            file=avatar_file,
             ephemeral=ephemeral
         )
 
