@@ -68,6 +68,62 @@
         "range": "-# {max}-sided die (1-{max})"
       }
     },
+    "user": {
+      "description": "Display detailed information about a Discord user",
+      "params": {
+        "user": "The user to lookup (defaults to yourself)",
+        "incognito": "Make response visible only to you"
+      },
+      "loading": "<a:loading:1395047662092550194> **Fetching user information...**",
+      "view": {
+        "title": "### <:user:1398729712204779571> Information about {username}",
+        "id": "<:snowflake:1398729841938792458> **ID:** `{id}`",
+        "mention": "**Mention:** {mention}",
+        "created_at": "<:time:1398729780723060736> **Account created:** {date}",
+        "discord_badges": "Discord Badges",
+        "moddy_badges": "Moddy Badges",
+        "decorations": "Profile Decorations",
+        "avatar_decoration": "Avatar Decoration",
+        "profile_decoration": "Profile Decoration"
+      },
+      "buttons": {
+        "bot_info": "Bot Info",
+        "avatar": "Avatar",
+        "banner": "Banner"
+      },
+      "bot_info": {
+        "title": "<:code:1401610523803652196> Bot Information - {name}",
+        "fields": {
+          "server_count": "Server Count",
+          "public": "Public Bot",
+          "verified": "Verified Bot",
+          "support_server": "Support Server",
+          "http_interactions": "HTTP Interactions",
+          "global_commands": "Global Commands",
+          "intents": "Intents"
+        },
+        "intents": {
+          "presence": "Presence",
+          "guild_members": "Guild Members",
+          "message_content": "Message Content"
+        }
+      },
+      "avatar": {
+        "title": "<:user:1398729712204779571> {username}'s Avatar",
+        "download": "Download avatar"
+      },
+      "banner": {
+        "title": "<:user:1398729712204779571> {username}'s Banner",
+        "download": "Download banner"
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **User Not Found**\n\nCould not fetch information for this user.",
+        "author_only": "<:undone:1398729502028333218> You can't use these buttons, they belong to another user.",
+        "no_avatar": "<:undone:1398729502028333218> This user doesn't have a custom avatar.",
+        "no_banner": "<:undone:1398729502028333218> This user doesn't have a banner.",
+        "generic": "<:undone:1398729502028333218> **Error**\n\nAn error occurred: `{error}`"
+      }
+    },
     "webhook": {
       "description": "Inspect and manage Discord webhooks",
       "params": {
@@ -193,7 +249,9 @@
     "info": "<:info:1401614681440784477> Information",
     "warning": "<:warning:1398729560895422505> Warning",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "unknown": "Unknown",
+    "none": "None"
   },
   "languages": {
     "en-US": "English (US)",

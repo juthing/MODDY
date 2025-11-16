@@ -68,6 +68,62 @@
         "range": "-# Dé à {max} faces (1-{max})"
       }
     },
+    "user": {
+      "description": "Affiche des informations détaillées sur un utilisateur Discord",
+      "params": {
+        "user": "L'utilisateur à rechercher (par défaut vous-même)",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "loading": "<a:loading:1395047662092550194> **Récupération des informations de l'utilisateur...**",
+      "view": {
+        "title": "### <:user:1398729712204779571> Informations sur {username}",
+        "id": "<:snowflake:1398729841938792458> **ID :** `{id}`",
+        "mention": "**Mention :** {mention}",
+        "created_at": "<:time:1398729780723060736> **Compte créé le :** {date}",
+        "discord_badges": "Badges Discord",
+        "moddy_badges": "Badges Moddy",
+        "decorations": "Décorations de profil",
+        "avatar_decoration": "Décoration d'avatar",
+        "profile_decoration": "Décoration de profil"
+      },
+      "buttons": {
+        "bot_info": "Infos Bot",
+        "avatar": "Avatar",
+        "banner": "Bannière"
+      },
+      "bot_info": {
+        "title": "<:code:1401610523803652196> Informations du bot - {name}",
+        "fields": {
+          "server_count": "Nombre de serveurs",
+          "public": "Bot public",
+          "verified": "Bot vérifié",
+          "support_server": "Serveur de support",
+          "http_interactions": "Interactions HTTP",
+          "global_commands": "Commandes globales",
+          "intents": "Intents"
+        },
+        "intents": {
+          "presence": "Presence",
+          "guild_members": "Guild Members",
+          "message_content": "Message Content"
+        }
+      },
+      "avatar": {
+        "title": "<:user:1398729712204779571> Avatar de {username}",
+        "download": "Télécharger l'avatar"
+      },
+      "banner": {
+        "title": "<:user:1398729712204779571> Bannière de {username}",
+        "download": "Télécharger la bannière"
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **Utilisateur introuvable**\n\nImpossible de récupérer les informations de cet utilisateur.",
+        "author_only": "<:undone:1398729502028333218> Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur.",
+        "no_avatar": "<:undone:1398729502028333218> Cet utilisateur n'a pas d'avatar personnalisé.",
+        "no_banner": "<:undone:1398729502028333218> Cet utilisateur n'a pas de bannière.",
+        "generic": "<:undone:1398729502028333218> **Erreur**\n\nUne erreur est survenue : `{error}`"
+      }
+    },
     "webhook": {
       "description": "Inspecter et gérer les webhooks Discord",
       "params": {
@@ -193,7 +249,9 @@
     "info": "<:info:1401614681440784477> Information",
     "warning": "<:warning:1398729560895422505> Avertissement",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "unknown": "Inconnu",
+    "none": "Aucun"
   },
   "languages": {
     "en-US": "Anglais (US)",
