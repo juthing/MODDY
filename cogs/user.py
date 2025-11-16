@@ -337,15 +337,6 @@ class UserInfoView(ui.LayoutView):
             bot_info_btn.callback = self.on_bot_info_click
             button_row.add_item(bot_info_btn)
 
-            # Add bot button (only if user is a bot)
-            add_bot_btn = ui.Button(
-                label=i18n.get("commands.user.buttons.add_bot", locale=self.locale),
-                style=discord.ButtonStyle.link,
-                emoji="<:add:1401608434230493254>",
-                url=f"https://discord.com/oauth2/authorize?client_id={self.user_data.get('id')}"
-            )
-            button_row.add_item(add_bot_btn)
-
         # Avatar button
         avatar_btn = ui.Button(
             label=i18n.get("commands.user.buttons.avatar", locale=self.locale),
@@ -366,6 +357,27 @@ class UserInfoView(ui.LayoutView):
             )
             banner_btn.callback = self.on_banner_click
             button_row.add_item(banner_btn)
+
+        # Description button (only if bot with description)
+        if self.bot_data:
+            description = self.bot_data.get("description", "")
+            if description:
+                desc_btn = ui.Button(
+                    label=i18n.get("commands.user.buttons.description", locale=self.locale),
+                    style=discord.ButtonStyle.secondary,
+                    emoji="<:text:1439692405317046372>",
+                    custom_id="description"
+                )
+                desc_btn.callback = self.on_description_click
+                button_row.add_item(desc_btn)
+
+            # Add bot button (only if user is a bot) - positioned at the right
+            add_bot_btn = ui.Button(
+                label=i18n.get("commands.user.buttons.add_bot", locale=self.locale),
+                style=discord.ButtonStyle.link,
+                url=f"https://discord.com/oauth2/authorize?client_id={self.user_data.get('id')}"
+            )
+            button_row.add_item(add_bot_btn)
 
         self.add_item(button_row)
 
@@ -469,40 +481,35 @@ class UserInfoView(ui.LayoutView):
 
         bot_view.add_item(bot_container)
 
-        # Add description button if bot has a description
-        description = self.bot_data.get("description", "")
-        if description:
-            desc_button_row = ui.ActionRow()
-            desc_btn = ui.Button(
-                label=i18n.get("commands.user.buttons.description", locale=self.locale),
-                style=discord.ButtonStyle.secondary,
-                emoji="<:text:1439692405317046372>",
-                custom_id="description"
-            )
-
-            # Create callback for description button
-            async def on_description_click(interaction: discord.Interaction):
-                if interaction.user.id != self.author_id:
-                    await interaction.response.send_message(
-                        i18n.get("commands.user.errors.author_only", locale=self.locale),
-                        ephemeral=True
-                    )
-                    return
-
-                # Create description view
-                desc_view = ui.LayoutView()
-                desc_container = ui.Container()
-                desc_container.add_item(ui.TextDisplay(f"### <:text:1439692405317046372> Description"))
-                desc_container.add_item(ui.TextDisplay(f"```{description}```"))
-                desc_view.add_item(desc_container)
-
-                await interaction.response.send_message(view=desc_view, ephemeral=True)
-
-            desc_btn.callback = on_description_click
-            desc_button_row.add_item(desc_btn)
-            bot_view.add_item(desc_button_row)
-
         await interaction.response.send_message(view=bot_view, ephemeral=True)
+
+    async def on_description_click(self, interaction: discord.Interaction):
+        """Handle Description button click"""
+        # Check if the user is the author
+        if interaction.user.id != self.author_id:
+            await interaction.response.send_message(
+                i18n.get("commands.user.errors.author_only", locale=self.locale),
+                ephemeral=True
+            )
+            return
+
+        # Get bot description
+        description = self.bot_data.get("description", "")
+        if not description:
+            await interaction.response.send_message(
+                i18n.get("commands.user.errors.no_description", locale=self.locale),
+                ephemeral=True
+            )
+            return
+
+        # Create description view
+        desc_view = ui.LayoutView()
+        desc_container = ui.Container()
+        desc_container.add_item(ui.TextDisplay(f"### <:text:1439692405317046372> Description"))
+        desc_container.add_item(ui.TextDisplay(f"```{description}```"))
+        desc_view.add_item(desc_container)
+
+        await interaction.response.send_message(view=desc_view, ephemeral=True)
 
     async def on_avatar_click(self, interaction: discord.Interaction):
         """Handle Avatar button click"""

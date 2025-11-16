@@ -131,6 +131,7 @@
         "author_only": "<:undone:1398729502028333218> You can't use these buttons, they belong to another user.",
         "no_avatar": "<:undone:1398729502028333218> This user doesn't have a custom avatar.",
         "no_banner": "<:undone:1398729502028333218> This user doesn't have a banner.",
+        "no_description": "<:undone:1398729502028333218> This bot doesn't have a description.",
         "generic": "<:undone:1398729502028333218> **Error**\n\nAn error occurred: `{error}`"
       }
     },

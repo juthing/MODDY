@@ -131,6 +131,7 @@
         "author_only": "<:undone:1398729502028333218> Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur.",
         "no_avatar": "<:undone:1398729502028333218> Cet utilisateur n'a pas d'avatar personnalisé.",
         "no_banner": "<:undone:1398729502028333218> Cet utilisateur n'a pas de bannière.",
+        "no_description": "<:undone:1398729502028333218> Ce bot n'a pas de description.",
         "generic": "<:undone:1398729502028333218> **Erreur**\n\nUne erreur est survenue : `{error}`"
       }
     },
