@@ -51,6 +51,20 @@ MODDY_BADGES = {
     "SUPPORTAGENT": "<:supportagent_badge:1437514361861177350>",
 }
 
+# Auto-assigned Moddy badges based on attributes
+AUTO_MODDY_BADGES = {
+    "TEAM": "<:moddyteam_badge:1437514344467398837>",
+    "SUPPORT": "<:supportagent_badge:1437514361861177350>",
+    "VERIFIED": "<:Certif_badge:1437514351774011392>",
+}
+
+# Special emojis
+VERIFIED_EMOJI = "<:verified:1398729677601902635>"
+MINI_VERIFIED_EMOJI = "<:miniverified:1439667456737280021>"
+
+# Discord badge support article URL
+DISCORD_BADGE_URL = "https://support.discord.com/hc/fr/articles/360035962891-Le-b-a-ba-des-Badges-de-Profil"
+
 
 class UserInfoView(ui.LayoutView):
     """View for displaying user information using Components V2"""
@@ -80,9 +94,18 @@ class UserInfoView(ui.LayoutView):
         username = self.user_data.get("username", "Unknown")
         discriminator = self.user_data.get("discriminator", "0")
         global_name = self.user_data.get("global_name", username)
+        is_bot = self.user_data.get("bot", False)
 
-        # Build title with mention
-        title = f"### <:user:1398729712204779571> Information about **<@{user_id}>**"
+        # Check if user should have verified emoji
+        public_flags = self.user_data.get("public_flags", 0)
+        is_discord_staff = bool(public_flags & (1 << 0))
+        is_verified_attr = self.moddy_attributes.get("VERIFIED", False)
+        is_team_attr = self.moddy_attributes.get("TEAM", False)
+        should_show_verified = is_discord_staff or is_verified_attr or is_team_attr
+
+        # Build title with mention and verified emoji if applicable
+        verified_suffix = f" {VERIFIED_EMOJI}" if should_show_verified else ""
+        title = f"### <:user:1398729712204779571> Information about **<@{user_id}>**{verified_suffix}"
         container.add_item(ui.TextDisplay(title))
 
         # Build info block with quotes
@@ -100,11 +123,15 @@ class UserInfoView(ui.LayoutView):
         # ID
         info_lines.append(f"> **ID:** `{user_id}`")
 
+        # Bot status
+        bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
+        info_lines.append(f"> **Bot:** {bot_emoji}")
+
         # Discord badges
         discord_badges = self._get_discord_badges()
         if discord_badges:
-            badges_str = " ".join(discord_badges)
-            info_lines.append(f"> **Badges:** {badges_str}")
+            badges_str = "".join(discord_badges)  # No spaces between Discord badges
+            info_lines.append(f"> **Badges:** {badges_str} ([En savoir plus]({DISCORD_BADGE_URL}))")
 
         # Moddy badges (avec -# pour griser)
         moddy_badges = self._get_moddy_badges()
@@ -129,9 +156,8 @@ class UserInfoView(ui.LayoutView):
         clan = self.user_data.get("clan")
         if clan:
             clan_tag = clan.get("tag", "")
-            clan_name = clan.get("identity_guild", {}).get("name", "")
             if clan_tag:
-                info_lines.append(f"> **Clan:** `{clan_name} ({clan_tag})`")
+                info_lines.append(f"> **Clan:** `{clan_tag}`")
 
         # Avatar decoration
         avatar_decoration = self.user_data.get("avatar_decoration_data")
@@ -149,8 +175,29 @@ class UserInfoView(ui.LayoutView):
                 if nameplate_sku:
                     info_lines.append(f"> **Profile decoration:** https://discord.com/shop#itemSkuId={nameplate_sku}")
 
+        # Spammer detection (bit 20 of flags)
+        flags = self.user_data.get("flags", 0)
+        is_spammer = bool(flags & (1 << 20))
+        spammer_emoji = EMOJIS.get("done") if is_spammer else EMOJIS.get("undone")
+        info_lines.append(f"> **Spammer:** {spammer_emoji}")
+
+        # Provisional account detection (bit 23 of flags)
+        is_provisional = bool(flags & (1 << 23))
+        provisional_emoji = EMOJIS.get("done") if is_provisional else EMOJIS.get("undone")
+        info_lines.append(f"> **Compte provisoire:** {provisional_emoji}")
+
         # Add all info lines to container
         container.add_item(ui.TextDisplay("\n".join(info_lines)))
+
+        # Add special notices for Discord staff and Moddy team
+        notices = []
+        if is_discord_staff:
+            notices.append(f"-# {MINI_VERIFIED_EMOJI} Cette personne est un employé de Discord")
+        if is_team_attr:
+            notices.append(f"-# {MINI_VERIFIED_EMOJI} Cette personne fait partie de l'équipe Moddy")
+
+        if notices:
+            container.add_item(ui.TextDisplay("\n".join(notices)))
 
         # Add container to view
         self.add_item(container)
@@ -193,11 +240,62 @@ class UserInfoView(ui.LayoutView):
         """Get Moddy badges based on user attributes"""
         badges = []
 
-        for attr_name, badge_emoji in MODDY_BADGES.items():
+        # First check auto-assigned badges (TEAM, SUPPORT, VERIFIED)
+        for attr_name, badge_emoji in AUTO_MODDY_BADGES.items():
             if self.moddy_attributes.get(attr_name):
                 badges.append(badge_emoji)
 
+        # Then check regular badges (but skip if already added via auto-badges)
+        for attr_name, badge_emoji in MODDY_BADGES.items():
+            if self.moddy_attributes.get(attr_name):
+                # Skip MODDYTEAM if TEAM was already added
+                if attr_name == "MODDYTEAM" and self.moddy_attributes.get("TEAM"):
+                    continue
+                # Skip SUPPORTAGENT if SUPPORT was already added
+                if attr_name == "SUPPORTAGENT" and self.moddy_attributes.get("SUPPORT"):
+                    continue
+                # Skip CERTIF if VERIFIED was already added
+                if attr_name == "CERTIF" and self.moddy_attributes.get("VERIFIED"):
+                    continue
+                badges.append(badge_emoji)
+
         return badges
+
+    async def _get_server_info(self, guild_id: str) -> dict:
+        """Try to get server information from Discord API using widget, preview, or invite"""
+        result = {}
+
+        async with aiohttp.ClientSession() as session:
+            # Try 1: Guild Widget (public, no auth needed)
+            try:
+                async with session.get(f"https://discord.com/api/v10/guilds/{guild_id}/widget.json") as resp:
+                    if resp.status == 200:
+                        widget_data = await resp.json()
+                        result["name"] = widget_data.get("name")
+                        if "instant_invite" in widget_data and widget_data["instant_invite"]:
+                            # Extract invite code from full URL
+                            invite_url = widget_data["instant_invite"]
+                            if "discord.gg/" in invite_url:
+                                result["invite_code"] = invite_url.split("discord.gg/")[-1]
+                        return result
+            except:
+                pass
+
+            # Try 2: Guild Preview (requires bot token, works for Discovery servers)
+            try:
+                headers = {
+                    "Authorization": f"Bot {self.bot.http.token}",
+                    "User-Agent": "DiscordBot (Moddy, 1.0)"
+                }
+                async with session.get(f"https://discord.com/api/v10/guilds/{guild_id}/preview", headers=headers) as resp:
+                    if resp.status == 200:
+                        preview_data = await resp.json()
+                        result["name"] = preview_data.get("name")
+                        return result
+            except:
+                pass
+
+        return result
 
     def _add_buttons(self):
         """Add action buttons to the view"""
@@ -265,7 +363,7 @@ class UserInfoView(ui.LayoutView):
         # Description
         description = self.bot_data.get("description", "")
         if description:
-            info_lines.append(f"> **Description:** {description[:200]}")
+            info_lines.append(f"> **Description:** ```{description[:200]}```")
 
         # Server count
         if "approximate_guild_count" in self.bot_data:
@@ -274,29 +372,39 @@ class UserInfoView(ui.LayoutView):
 
         # Is public
         is_public = self.bot_data.get("bot_public", False)
-        public_text = i18n.get("common.yes" if is_public else "common.no", locale=self.locale)
-        info_lines.append(f"> **Public Bot:** `{public_text}`")
+        public_emoji = EMOJIS.get("done") if is_public else EMOJIS.get("undone")
+        info_lines.append(f"> **Public Bot:** {public_emoji}")
 
         # Is verified
         is_verified = self.bot_data.get("is_verified", False)
-        verified_text = i18n.get("common.yes" if is_verified else "common.no", locale=self.locale)
-        info_lines.append(f"> **Verified Bot:** `{verified_text}`")
+        verified_emoji = EMOJIS.get("done") if is_verified else EMOJIS.get("undone")
+        info_lines.append(f"> **Verified Bot:** {verified_emoji}")
 
-        # Support server
+        # Support server - try to get server info from Discord API
         guild_id = self.bot_data.get("guild_id")
         if guild_id:
-            info_lines.append(f"> **Support Server:** https://discord.gg/{guild_id}")
+            # Try to fetch guild widget or preview info
+            server_info = await self._get_server_info(guild_id)
+            if server_info:
+                server_name = server_info.get("name", "")
+                invite_code = server_info.get("invite_code", "")
+                if invite_code:
+                    info_lines.append(f"> **Support Server:** [{server_name}](https://discord.gg/{invite_code})" if server_name else f"> **Support Server:** https://discord.gg/{invite_code}")
+                else:
+                    info_lines.append(f"> **Support Server:** {server_name} (ID: `{guild_id}`)" if server_name else f"> **Support Server ID:** `{guild_id}`")
+            else:
+                info_lines.append(f"> **Support Server ID:** `{guild_id}`")
 
         # HTTP interactions
         hook = self.bot_data.get("hook", False)
-        http_text = i18n.get("common.yes" if hook else "common.no", locale=self.locale)
-        info_lines.append(f"> **HTTP Interactions:** `{http_text}`")
+        http_emoji = EMOJIS.get("done") if hook else EMOJIS.get("undone")
+        info_lines.append(f"> **HTTP Interactions:** {http_emoji}")
 
         # Global commands (check integration types)
         integration_config = self.bot_data.get("integration_types_config", {})
         has_global = "1" in integration_config  # User install
-        global_text = i18n.get("common.yes" if has_global else "common.no", locale=self.locale)
-        info_lines.append(f"> **Global Commands:** `{global_text}`")
+        global_emoji = EMOJIS.get("done") if has_global else EMOJIS.get("undone")
+        info_lines.append(f"> **Global Commands:** {global_emoji}")
 
         # Intents (based on flags)
         flags = self.bot_data.get("flags", 0)
