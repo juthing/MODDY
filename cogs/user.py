@@ -103,9 +103,9 @@ class UserInfoView(ui.LayoutView):
         is_team_attr = self.moddy_attributes.get("TEAM", False)
         should_show_verified = is_discord_staff or is_verified_attr or is_team_attr
 
-        # Build title with mention and verified emoji if applicable
+        # Build title with display name and verified emoji if applicable
         verified_suffix = f" {VERIFIED_EMOJI}" if should_show_verified else ""
-        title = f"### <:user:1398729712204779571> Information about **<@{user_id}>**{verified_suffix}"
+        title = f"### <:user:1398729712204779571> Information about **{global_name}**{verified_suffix}"
         container.add_item(ui.TextDisplay(title))
 
         # Build info block with quotes
@@ -123,17 +123,11 @@ class UserInfoView(ui.LayoutView):
         # ID
         info_lines.append(f"> **ID:** `{user_id}`")
 
-        # Bot status
-        bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
-        bot_label = i18n.get("commands.user.view.bot", locale=self.locale)
-        info_lines.append(f"> **{bot_label}:** {bot_emoji}")
-
         # Discord badges
         discord_badges = self._get_discord_badges()
         if discord_badges:
             badges_str = "".join(discord_badges)  # No spaces between Discord badges
-            learn_more_text = i18n.get("commands.user.view.badges_learn_more", locale=self.locale)
-            info_lines.append(f"> **Badges:** {badges_str} ([{learn_more_text}]({DISCORD_BADGE_URL}))")
+            info_lines.append(f"> **Badges:** [{badges_str}]({DISCORD_BADGE_URL})")
 
         # Moddy badges (avec -# pour griser)
         moddy_badges = self._get_moddy_badges()
@@ -176,6 +170,11 @@ class UserInfoView(ui.LayoutView):
                 nameplate_sku = nameplate.get("sku_id")
                 if nameplate_sku:
                     info_lines.append(f"> **Profile decoration:** https://discord.com/shop#itemSkuId={nameplate_sku}")
+
+        # Bot status
+        bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
+        bot_label = i18n.get("commands.user.view.bot", locale=self.locale)
+        info_lines.append(f"> **{bot_label}:** {bot_emoji}")
 
         # Spammer detection (bit 20 of flags)
         flags = self.user_data.get("flags", 0)
@@ -264,6 +263,18 @@ class UserInfoView(ui.LayoutView):
                 if attr_name == "CERTIF" and self.moddy_attributes.get("VERIFIED"):
                     continue
                 badges.append(badge_emoji)
+
+        # Check if user should have verified emoji (add Certif badge at the end)
+        public_flags = self.user_data.get("public_flags", 0)
+        is_discord_staff = bool(public_flags & (1 << 0))
+        is_verified_attr = self.moddy_attributes.get("VERIFIED", False)
+        is_team_attr = self.moddy_attributes.get("TEAM", False)
+        should_show_verified = is_discord_staff or is_verified_attr or is_team_attr
+
+        # Add Certif badge at the end if user has verified emoji and badge not already present
+        certif_badge = "<:Certif_badge:1437514351774011392>"
+        if should_show_verified and certif_badge not in badges:
+            badges.append(certif_badge)
 
         return badges
 
@@ -366,11 +377,6 @@ class UserInfoView(ui.LayoutView):
         # Bot ID
         info_lines.append(f"> **Bot ID:** `{self.user_data.get('id', 'Unknown')}`")
 
-        # Description
-        description = self.bot_data.get("description", "")
-        if description:
-            info_lines.append(f"> **Description:** ```{description[:200]}```")
-
         # Server count
         if "approximate_guild_count" in self.bot_data:
             server_count = f"{self.bot_data['approximate_guild_count']:,}"
@@ -440,6 +446,11 @@ class UserInfoView(ui.LayoutView):
         if tags:
             tags_str = ", ".join([f"`{tag}`" for tag in tags[:5]])
             info_lines.append(f"> **Tags:** {tags_str}")
+
+        # Description (at the end)
+        description = self.bot_data.get("description", "")
+        if description:
+            info_lines.append(f"> **Description:** ```{description[:200]}```")
 
         # Add all info to container
         bot_container.add_item(ui.TextDisplay("\n".join(info_lines)))
