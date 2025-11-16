@@ -8,7 +8,6 @@ from discord import app_commands, ui
 from discord.ext import commands
 from typing import Optional
 import aiohttp
-import io
 
 from utils.incognito import add_incognito_option, get_incognito_setting
 from utils.i18n import i18n
@@ -17,9 +16,9 @@ from utils.i18n import i18n
 class AvatarView(ui.LayoutView):
     """View to display user avatar using Components V2"""
 
-    def __init__(self, user: discord.User, locale: str):
+    def __init__(self, user_data: dict, locale: str):
         super().__init__(timeout=180)
-        self.user = user
+        self.user_data = user_data
         self.locale = locale
 
         # Build the view
@@ -33,35 +32,42 @@ class AvatarView(ui.LayoutView):
         # Create main container
         container = ui.Container()
 
-        # Add title
-        title = i18n.get("commands.avatar.view.title", locale=self.locale, user=self.user.display_name)
-        container.add_item(ui.TextDisplay(title))
+        # Get user info
+        user_id = self.user_data.get("id")
+        avatar_hash = self.user_data.get("avatar")
+        username = self.user_data.get("username", "Unknown")
 
-        # Add MediaGallery with avatar
-        avatar_filename = f"avatar_{self.user.id}.png"
+        if not avatar_hash:
+            # User has no custom avatar
+            container.add_item(ui.TextDisplay(f"### <:face:1439042029198770289> Avatar de **{username}**"))
+            container.add_item(ui.TextDisplay(i18n.get("commands.user.errors.no_avatar", locale=self.locale)))
+            self.add_item(container)
+            return
+
+        # Build avatar URL with proper extension (GIF for animated, PNG otherwise)
+        extension = "gif" if avatar_hash.startswith("a_") else "png"
+        avatar_url_base = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.{extension}"
+
+        # Avatar displayed in gallery is 256px
+        avatar_url_display = f"{avatar_url_base}?size=256"
+
+        # Add title
+        container.add_item(ui.TextDisplay(f"### <:face:1439042029198770289> Avatar de **{username}**"))
+
+        # Add MediaGallery with avatar URL (256px)
         container.add_item(
             ui.MediaGallery(
-                discord.MediaGalleryItem(
-                    media=f"attachment://{avatar_filename}",
-                ),
+                discord.MediaGalleryItem(media=avatar_url_display)
             )
+        )
+
+        # Add download links with different sizes
+        container.add_item(
+            ui.TextDisplay(f"**Download:** [256]({avatar_url_base}?size=256) • [512]({avatar_url_base}?size=512) • [1024]({avatar_url_base}?size=1024) • [2048]({avatar_url_base}?size=2048)")
         )
 
         # Add container to view
         self.add_item(container)
-
-    async def download_avatar(self) -> discord.File:
-        """Download the user's avatar and return as discord.File"""
-        avatar_url = self.user.display_avatar.replace(size=256, format="png").url
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(avatar_url) as resp:
-                if resp.status == 200:
-                    data = await resp.read()
-                    avatar_bytes = io.BytesIO(data)
-                    avatar_filename = f"avatar_{self.user.id}.png"
-                    return discord.File(avatar_bytes, filename=avatar_filename)
-                return None
 
 
 class Avatar(commands.Cog):
@@ -92,18 +98,35 @@ class Avatar(commands.Cog):
         # Get the user's locale
         locale = i18n.get_user_locale(interaction)
 
-        # Create the view
-        view = AvatarView(user, locale)
+        # Send loading message
+        loading_msg = i18n.get("commands.user.loading", locale=locale)
+        await interaction.response.send_message(loading_msg, ephemeral=ephemeral)
 
-        # Download the avatar
-        avatar_file = await view.download_avatar()
+        # Fetch user data from Discord API
+        user_id = str(user.id)
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Authorization": f"Bot {self.bot.http.token}",
+                "User-Agent": "DiscordBot (Moddy, 1.0)"
+            }
+
+            # Get user data
+            async with session.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers) as resp:
+                if resp.status != 200:
+                    error_msg = i18n.get("commands.user.errors.not_found", locale=locale)
+                    await interaction.edit_original_response(content=error_msg)
+                    return
+
+                user_data = await resp.json()
+
+        # Create the view with user data
+        view = AvatarView(user_data, locale)
 
         # Send response with Components V2
         # Note: Components V2 cannot be used with embeds
-        await interaction.response.send_message(
-            view=view,
-            file=avatar_file,
-            ephemeral=ephemeral
+        await interaction.edit_original_response(
+            content=None,
+            view=view
         )
 
 
