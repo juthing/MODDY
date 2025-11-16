@@ -125,13 +125,15 @@ class UserInfoView(ui.LayoutView):
 
         # Bot status
         bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
-        info_lines.append(f"> **Bot:** {bot_emoji}")
+        bot_label = i18n.get("commands.user.view.bot", locale=self.locale)
+        info_lines.append(f"> **{bot_label}:** {bot_emoji}")
 
         # Discord badges
         discord_badges = self._get_discord_badges()
         if discord_badges:
             badges_str = "".join(discord_badges)  # No spaces between Discord badges
-            info_lines.append(f"> **Badges:** {badges_str} ([En savoir plus]({DISCORD_BADGE_URL}))")
+            learn_more_text = i18n.get("commands.user.view.badges_learn_more", locale=self.locale)
+            info_lines.append(f"> **Badges:** {badges_str} ([{learn_more_text}]({DISCORD_BADGE_URL}))")
 
         # Moddy badges (avec -# pour griser)
         moddy_badges = self._get_moddy_badges()
@@ -179,12 +181,14 @@ class UserInfoView(ui.LayoutView):
         flags = self.user_data.get("flags", 0)
         is_spammer = bool(flags & (1 << 20))
         spammer_emoji = EMOJIS.get("done") if is_spammer else EMOJIS.get("undone")
-        info_lines.append(f"> **Spammer:** {spammer_emoji}")
+        spammer_label = i18n.get("commands.user.view.spammer", locale=self.locale)
+        info_lines.append(f"> **{spammer_label}:** {spammer_emoji}")
 
         # Provisional account detection (bit 23 of flags)
         is_provisional = bool(flags & (1 << 23))
         provisional_emoji = EMOJIS.get("done") if is_provisional else EMOJIS.get("undone")
-        info_lines.append(f"> **Compte provisoire:** {provisional_emoji}")
+        provisional_label = i18n.get("commands.user.view.provisional_account", locale=self.locale)
+        info_lines.append(f"> **{provisional_label}:** {provisional_emoji}")
 
         # Add all info lines to container
         container.add_item(ui.TextDisplay("\n".join(info_lines)))
@@ -192,9 +196,11 @@ class UserInfoView(ui.LayoutView):
         # Add special notices for Discord staff and Moddy team
         notices = []
         if is_discord_staff:
-            notices.append(f"-# {MINI_VERIFIED_EMOJI} Cette personne est un employé de Discord")
+            discord_employee_text = i18n.get("commands.user.view.discord_employee_notice", locale=self.locale)
+            notices.append(f"-# {MINI_VERIFIED_EMOJI} {discord_employee_text}")
         if is_team_attr:
-            notices.append(f"-# {MINI_VERIFIED_EMOJI} Cette personne fait partie de l'équipe Moddy")
+            moddy_team_text = i18n.get("commands.user.view.moddy_team_notice", locale=self.locale)
+            notices.append(f"-# {MINI_VERIFIED_EMOJI} {moddy_team_text}")
 
         if notices:
             container.add_item(ui.TextDisplay("\n".join(notices)))

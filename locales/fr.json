@@ -84,7 +84,13 @@
         "moddy_badges": "Badges Moddy",
         "decorations": "Décorations de profil",
         "avatar_decoration": "Décoration d'avatar",
-        "profile_decoration": "Décoration de profil"
+        "profile_decoration": "Décoration de profil",
+        "bot": "Bot",
+        "badges_learn_more": "En savoir plus",
+        "spammer": "Spammer",
+        "provisional_account": "Compte provisoire",
+        "discord_employee_notice": "Cette personne est un employé de Discord",
+        "moddy_team_notice": "Cette personne fait partie de l'équipe Moddy"
       },
       "buttons": {
         "bot_info": "Infos Bot",
@@ -94,10 +100,12 @@
       "bot_info": {
         "title": "<:code:1401610523803652196> Informations du bot - {name}",
         "fields": {
+          "description": "Description",
           "server_count": "Nombre de serveurs",
           "public": "Bot public",
           "verified": "Bot vérifié",
           "support_server": "Serveur de support",
+          "support_server_id": "ID du serveur de support",
           "http_interactions": "Interactions HTTP",
           "global_commands": "Commandes globales",
           "intents": "Intents"
