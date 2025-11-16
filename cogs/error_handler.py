@@ -56,17 +56,17 @@ class ErrorTracker(commands.Cog):
                 "user_id": None,
                 "guild_id": None,
                 "command": error_data.get("command"),
-                "context": {}
+                "context": None
             }
 
             # Add context info if available
             if ctx:
                 db_data["user_id"] = ctx.author.id
                 db_data["guild_id"] = ctx.guild.id if ctx.guild else None
-                db_data["context"] = {
+                db_data["context"] = json.dumps({
                     "channel": str(ctx.channel),
                     "message": ctx.message.content[:200] if hasattr(ctx, 'message') else None
-                }
+                })
 
             # Store in the DB
             await self.bot.db.log_error(error_code, db_data)
