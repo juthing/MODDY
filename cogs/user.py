@@ -186,8 +186,8 @@ class UserInfoView(ui.LayoutView):
             if nameplate:
                 nameplate_sku = nameplate.get("sku_id")
                 if nameplate_sku:
-                    profile_decoration_label = i18n.get("commands.user.view.profile_decoration", locale=self.locale)
-                    info_lines.append(f"> **{profile_decoration_label}:** https://discord.com/shop#itemSkuId={nameplate_sku}")
+                    nameplate_label = i18n.get("commands.user.view.nameplate", locale=self.locale)
+                    info_lines.append(f"> **{nameplate_label}:** https://discord.com/shop#itemSkuId={nameplate_sku}")
 
         # Bot status
         bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
