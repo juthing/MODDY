@@ -365,7 +365,7 @@ class UserInfoView(ui.LayoutView):
                 desc_btn = ui.Button(
                     label=i18n.get("commands.user.buttons.description", locale=self.locale),
                     style=discord.ButtonStyle.secondary,
-                    emoji="📝",
+                    emoji="<:text:1439692405317046372>",
                     custom_id="description"
                 )
                 desc_btn.callback = self.on_description_click
@@ -505,7 +505,7 @@ class UserInfoView(ui.LayoutView):
         # Create description view
         desc_view = ui.LayoutView()
         desc_container = ui.Container()
-        desc_container.add_item(ui.TextDisplay(f"### 📝 Description"))
+        desc_container.add_item(ui.TextDisplay(f"### <:text:1439692405317046372> Description"))
         desc_container.add_item(ui.TextDisplay(f"```{description}```"))
         desc_view.add_item(desc_container)
 
