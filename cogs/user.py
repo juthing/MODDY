@@ -62,8 +62,11 @@ AUTO_MODDY_BADGES = {
 VERIFIED_EMOJI = "<:verified:1398729677601902635>"
 MINI_VERIFIED_EMOJI = "<:miniverified:1439667456737280021>"
 
-# Discord badge support article URL
-DISCORD_BADGE_URL = "https://support.discord.com/hc/fr/articles/360035962891-Le-b-a-ba-des-Badges-de-Profil"
+# Discord badge support article URLs (locale-specific)
+DISCORD_BADGE_URLS = {
+    "fr": "https://support.discord.com/hc/fr/articles/360035962891-Le-b-a-ba-des-Badges-de-Profil",
+    "en-US": "https://support.discord.com/hc/en-us/articles/360035962891-Profile-Badges-101"
+}
 
 
 class UserInfoView(ui.LayoutView):
@@ -103,16 +106,19 @@ class UserInfoView(ui.LayoutView):
         is_team_attr = self.moddy_attributes.get("TEAM", False)
         should_show_verified = is_discord_staff or is_verified_attr or is_team_attr
 
-        # Build title with display name and verified emoji if applicable
+        # Build title with display name or username (for bots) and verified emoji if applicable
         verified_suffix = f" {VERIFIED_EMOJI}" if should_show_verified else ""
-        title = f"### <:user:1398729712204779571> Information about **{global_name}**{verified_suffix}"
+        # For bots, use username in title instead of display name
+        title_name = username if is_bot else global_name
+        title = f"### <:user:1398729712204779571> Information about **{title_name}**{verified_suffix}"
         container.add_item(ui.TextDisplay(title))
 
         # Build info block with quotes
         info_lines = []
 
-        # Display name
-        info_lines.append(f"> **Display name:** `{global_name}`")
+        # Display name (only for non-bots)
+        if not is_bot:
+            info_lines.append(f"> **Display name:** `{global_name}`")
 
         # Username
         if discriminator != "0":
@@ -127,7 +133,9 @@ class UserInfoView(ui.LayoutView):
         discord_badges = self._get_discord_badges()
         if discord_badges:
             badges_str = "".join(discord_badges)  # No spaces between Discord badges
-            info_lines.append(f"> **Badges:** [{badges_str}]({DISCORD_BADGE_URL})")
+            # Get locale-specific badge URL
+            badge_url = DISCORD_BADGE_URLS.get(self.locale, DISCORD_BADGE_URLS.get("en-US"))
+            info_lines.append(f"> **Badges:** [{badges_str}]({badge_url})")
 
         # Moddy badges (avec -# pour griser)
         moddy_badges = self._get_moddy_badges()
@@ -323,11 +331,20 @@ class UserInfoView(ui.LayoutView):
             bot_info_btn = ui.Button(
                 label=i18n.get("commands.user.buttons.bot_info", locale=self.locale),
                 style=discord.ButtonStyle.primary,
-                emoji="<:code:1401610523803652196>",
+                emoji="<:extension:1439692401760272435>",
                 custom_id="bot_info"
             )
             bot_info_btn.callback = self.on_bot_info_click
             button_row.add_item(bot_info_btn)
+
+            # Add bot button (only if user is a bot)
+            add_bot_btn = ui.Button(
+                label=i18n.get("commands.user.buttons.add_bot", locale=self.locale),
+                style=discord.ButtonStyle.link,
+                emoji="<:add:1401608434230493254>",
+                url=f"https://discord.com/oauth2/authorize?client_id={self.user_data.get('id')}"
+            )
+            button_row.add_item(add_bot_btn)
 
         # Avatar button
         avatar_btn = ui.Button(
@@ -368,7 +385,7 @@ class UserInfoView(ui.LayoutView):
 
         # Title
         bot_name = self.bot_data.get("name", "Unknown")
-        title = f"### <:code:1401610523803652196> Bot Information - **{bot_name}**"
+        title = f"### <:extension:1439692401760272435> Bot Information - **{bot_name}**"
         bot_container.add_item(ui.TextDisplay(title))
 
         # Build info lines
@@ -447,15 +464,43 @@ class UserInfoView(ui.LayoutView):
             tags_str = ", ".join([f"`{tag}`" for tag in tags[:5]])
             info_lines.append(f"> **Tags:** {tags_str}")
 
-        # Description (at the end)
-        description = self.bot_data.get("description", "")
-        if description:
-            info_lines.append(f"> **Description:** ```{description[:200]}```")
-
         # Add all info to container
         bot_container.add_item(ui.TextDisplay("\n".join(info_lines)))
 
         bot_view.add_item(bot_container)
+
+        # Add description button if bot has a description
+        description = self.bot_data.get("description", "")
+        if description:
+            desc_button_row = ui.ActionRow()
+            desc_btn = ui.Button(
+                label=i18n.get("commands.user.buttons.description", locale=self.locale),
+                style=discord.ButtonStyle.secondary,
+                emoji="<:text:1439692405317046372>",
+                custom_id="description"
+            )
+
+            # Create callback for description button
+            async def on_description_click(interaction: discord.Interaction):
+                if interaction.user.id != self.author_id:
+                    await interaction.response.send_message(
+                        i18n.get("commands.user.errors.author_only", locale=self.locale),
+                        ephemeral=True
+                    )
+                    return
+
+                # Create description view
+                desc_view = ui.LayoutView()
+                desc_container = ui.Container()
+                desc_container.add_item(ui.TextDisplay(f"### <:text:1439692405317046372> Description"))
+                desc_container.add_item(ui.TextDisplay(f"```{description}```"))
+                desc_view.add_item(desc_container)
+
+                await interaction.response.send_message(view=desc_view, ephemeral=True)
+
+            desc_btn.callback = on_description_click
+            desc_button_row.add_item(desc_btn)
+            bot_view.add_item(desc_button_row)
 
         await interaction.response.send_message(view=bot_view, ephemeral=True)
 

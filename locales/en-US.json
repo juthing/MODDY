@@ -94,6 +94,8 @@
       },
       "buttons": {
         "bot_info": "Bot Info",
+        "add_bot": "Add Bot",
+        "description": "Description",
         "avatar": "Avatar",
         "banner": "Banner"
       },
