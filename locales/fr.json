@@ -56,6 +56,22 @@
         "links": "Télécharger l'avatar :"
       }
     },
+    "banner": {
+      "description": "Affiche la bannière d'un utilisateur",
+      "params": {
+        "user": "L'utilisateur dont vous voulez voir la bannière",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "loading": "<a:loading:1395047662092550194> **Récupération de la bannière...**",
+      "view": {
+        "title": "Bannière de **{username}**",
+        "download": "Télécharger"
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **Utilisateur introuvable**\n\nImpossible de récupérer les informations de cet utilisateur.",
+        "no_banner": "<:undone:1398729502028333218> Cet utilisateur n'a pas de bannière."
+      }
+    },
     "roll": {
       "description": "Lance un dé aléatoire",
       "params": {

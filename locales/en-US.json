@@ -56,6 +56,22 @@
         "links": "Download avatar:"
       }
     },
+    "banner": {
+      "description": "Display a user's banner",
+      "params": {
+        "user": "The user whose banner you want to see",
+        "incognito": "Make response visible only to you"
+      },
+      "loading": "<a:loading:1395047662092550194> **Fetching banner...**",
+      "view": {
+        "title": "**{username}**'s Banner",
+        "download": "Download"
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **User Not Found**\n\nCould not fetch information for this user.",
+        "no_banner": "<:undone:1398729502028333218> This user doesn't have a banner."
+      }
+    },
     "roll": {
       "description": "Roll a random dice",
       "params": {
