@@ -14,20 +14,21 @@ from utils.i18n import i18n
 
 
 # Discord badge emojis mapping
-# TODO: Add correct emoji IDs from https://github.com/mezotv/discord-badges
-# For now, using text representation
 DISCORD_BADGES = {
-    "staff": "Discord Staff",
-    "partner": "Partner",
-    "hypesquad": "HypeSquad Events",
-    "bug_hunter_level_1": "Bug Hunter",
-    "bug_hunter_level_2": "Bug Hunter Gold",
-    "hypesquad_bravery": "HypeSquad Bravery",
-    "hypesquad_brilliance": "HypeSquad Brilliance",
-    "hypesquad_balance": "HypeSquad Balance",
-    "early_supporter": "Early Supporter",
-    "verified_bot_developer": "Early Verified Bot Developer",
-    "active_developer": "Active Developer",
+    "staff": "<:discordstaff:1439636927321079890>",
+    "partner": "<:discordpartner:1439636926159126739>",
+    "hypesquad": "<:hypesquadevents:1439636933058760735>",
+    "bug_hunter_level_1": "<:discordbughunter1:1439636911999418589>",
+    "bug_hunter_level_2": "<:discordbughunter2:1439636913697853562>",
+    "hypesquad_bravery": "<:hypesquadbravery:1439636930399572090>",
+    "hypesquad_brilliance": "<:hypesquadbrilliance:1439636931549069454>",
+    "hypesquad_balance": "<:hypesquadbalance:1439636929195933706>",
+    "early_supporter": "<:discordearlysupporter:1439636915900125194>",
+    "verified_bot_developer": "<:discordbotdevcertif:1439636910845989005>",
+    "active_developer": "<:activedeveloper:1439636908274618448>",
+    "nitro": "<:discordnitro:1439636918668099767>",
+    "discord_mod": "<:discordmod:1439636917338509435>",
+    "supports_commands": "<:supportscommands:1439636938372944012>",
 }
 
 # Moddy badge emojis from AGENTS.MD
