@@ -118,16 +118,19 @@ class UserInfoView(ui.LayoutView):
 
         # Display name (only for non-bots)
         if not is_bot:
-            info_lines.append(f"> **Display name:** `{global_name}`")
+            display_name_label = i18n.get("commands.user.view.display_name", locale=self.locale)
+            info_lines.append(f"> **{display_name_label}:** `{global_name}`")
 
         # Username
+        username_label = i18n.get("commands.user.view.username", locale=self.locale)
         if discriminator != "0":
-            info_lines.append(f"> **Username:** `{username}#{discriminator}`")
+            info_lines.append(f"> **{username_label}:** `{username}#{discriminator}`")
         else:
-            info_lines.append(f"> **Username:** `@{username}`")
+            info_lines.append(f"> **{username_label}:** `@{username}`")
 
         # ID
-        info_lines.append(f"> **ID:** `{user_id}`")
+        id_label = i18n.get("commands.user.view.id", locale=self.locale)
+        info_lines.append(f"> **{id_label}:** `{user_id}`")
 
         # Discord badges
         discord_badges = self._get_discord_badges()
@@ -135,40 +138,46 @@ class UserInfoView(ui.LayoutView):
             badges_str = "".join(discord_badges)  # No spaces between Discord badges
             # Get locale-specific badge URL
             badge_url = DISCORD_BADGE_URLS.get(self.locale, DISCORD_BADGE_URLS.get("en-US"))
-            info_lines.append(f"> **Badges:** [{badges_str}]({badge_url})")
+            badges_label = i18n.get("commands.user.view.badges", locale=self.locale)
+            info_lines.append(f"> **{badges_label}:** [{badges_str}]({badge_url})")
 
         # Moddy badges (avec -# pour griser)
         moddy_badges = self._get_moddy_badges()
         if moddy_badges:
             badges_str = " ".join(moddy_badges)
-            info_lines.append(f"-# > **Moddy Badges:** {badges_str}")
+            moddy_badges_label = i18n.get("commands.user.view.moddy_badges", locale=self.locale)
+            info_lines.append(f"-# > **{moddy_badges_label}:** {badges_str}")
 
         # Account creation date
         try:
             snowflake_id = int(user_id)
             timestamp = ((snowflake_id >> 22) + 1420070400000) // 1000
-            info_lines.append(f"> **Created:** <t:{timestamp}:R>")
+            created_label = i18n.get("commands.user.view.created", locale=self.locale)
+            info_lines.append(f"> **{created_label}:** <t:{timestamp}:R>")
         except:
             pass
 
         # Banner color
         banner_color = self.user_data.get("banner_color")
         if banner_color:
-            info_lines.append(f"> **Banner color:** `{banner_color}`")
+            banner_color_label = i18n.get("commands.user.view.banner_color", locale=self.locale)
+            info_lines.append(f"> **{banner_color_label}:** `{banner_color}`")
 
         # Clan
         clan = self.user_data.get("clan")
         if clan:
             clan_tag = clan.get("tag", "")
             if clan_tag:
-                info_lines.append(f"> **Clan:** `{clan_tag}`")
+                clan_label = i18n.get("commands.user.view.clan", locale=self.locale)
+                info_lines.append(f"> **{clan_label}:** `{clan_tag}`")
 
         # Avatar decoration
         avatar_decoration = self.user_data.get("avatar_decoration_data")
         if avatar_decoration:
             sku_id = avatar_decoration.get("sku_id")
             if sku_id:
-                info_lines.append(f"> **Avatar decoration:** https://discord.com/shop#itemSkuId={sku_id}")
+                avatar_decoration_label = i18n.get("commands.user.view.avatar_decoration", locale=self.locale)
+                info_lines.append(f"> **{avatar_decoration_label}:** https://discord.com/shop#itemSkuId={sku_id}")
 
         # Profile decoration
         collectibles = self.user_data.get("collectibles")
@@ -177,7 +186,8 @@ class UserInfoView(ui.LayoutView):
             if nameplate:
                 nameplate_sku = nameplate.get("sku_id")
                 if nameplate_sku:
-                    info_lines.append(f"> **Profile decoration:** https://discord.com/shop#itemSkuId={nameplate_sku}")
+                    profile_decoration_label = i18n.get("commands.user.view.profile_decoration", locale=self.locale)
+                    info_lines.append(f"> **{profile_decoration_label}:** https://discord.com/shop#itemSkuId={nameplate_sku}")
 
         # Bot status
         bot_emoji = EMOJIS.get("done") if is_bot else EMOJIS.get("undone")
