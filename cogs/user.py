@@ -75,83 +75,82 @@ class UserInfoView(ui.LayoutView):
         # Create main container
         container = ui.Container()
 
-        # Title
-        title = i18n.get("commands.user.view.title", locale=self.locale, username=self.user_data.get("username", "Unknown"))
-        container.add_item(ui.TextDisplay(title))
-
-        # Add separator
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-        # Basic info
+        # Get user info
         user_id = self.user_data.get("id", "Unknown")
         username = self.user_data.get("username", "Unknown")
         discriminator = self.user_data.get("discriminator", "0")
         global_name = self.user_data.get("global_name", username)
 
+        # Build title with mention
+        title = f"### <:user:1398729712204779571> Information about **<@{user_id}>**"
+        container.add_item(ui.TextDisplay(title))
+
+        # Build info block with quotes
+        info_lines = []
+
         # Display name
+        info_lines.append(f"> **Display name:** `{global_name}`")
+
+        # Username
         if discriminator != "0":
-            display = f"**{global_name}** (`{username}#{discriminator}`)"
+            info_lines.append(f"> **Username:** `{username}#{discriminator}`")
         else:
-            display = f"**{global_name}** (`@{username}`)"
+            info_lines.append(f"> **Username:** `@{username}`")
 
-        container.add_item(ui.TextDisplay(display))
+        # ID
+        info_lines.append(f"> **ID:** `{user_id}`")
 
-        # User ID
-        id_text = i18n.get("commands.user.view.id", locale=self.locale, id=user_id)
-        container.add_item(ui.TextDisplay(id_text))
+        # Discord badges
+        discord_badges = self._get_discord_badges()
+        if discord_badges:
+            badges_str = " ".join(discord_badges)
+            info_lines.append(f"> **Badges:** {badges_str}")
 
-        # User mention
-        mention_text = i18n.get("commands.user.view.mention", locale=self.locale, mention=f"<@{user_id}>")
-        container.add_item(ui.TextDisplay(mention_text))
+        # Moddy badges (avec -# pour griser)
+        moddy_badges = self._get_moddy_badges()
+        if moddy_badges:
+            badges_str = " ".join(moddy_badges)
+            info_lines.append(f"-# > **Moddy Badges:** {badges_str}")
 
         # Account creation date
         try:
             snowflake_id = int(user_id)
             timestamp = ((snowflake_id >> 22) + 1420070400000) // 1000
-            created_at = f"<t:{timestamp}:D> (<t:{timestamp}:R>)"
+            info_lines.append(f"> **Created:** <t:{timestamp}:R>")
         except:
-            created_at = i18n.get("common.unknown", locale=self.locale)
+            pass
 
-        creation_text = i18n.get("commands.user.view.created_at", locale=self.locale, date=created_at)
-        container.add_item(ui.TextDisplay(creation_text))
+        # Banner color
+        banner_color = self.user_data.get("banner_color")
+        if banner_color:
+            info_lines.append(f"> **Banner color:** `{banner_color}`")
 
-        # Add separator before badges
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        # Clan
+        clan = self.user_data.get("clan")
+        if clan:
+            clan_tag = clan.get("tag", "")
+            clan_name = clan.get("identity_guild", {}).get("name", "")
+            if clan_tag:
+                info_lines.append(f"> **Clan:** `{clan_name} ({clan_tag})`")
 
-        # Discord badges
-        discord_badges = self._get_discord_badges()
-        if discord_badges:
-            badges_title = i18n.get("commands.user.view.discord_badges", locale=self.locale)
-            container.add_item(ui.TextDisplay(f"**{badges_title}**"))
-            container.add_item(ui.TextDisplay(" ".join(discord_badges)))
-
-        # Moddy badges
-        moddy_badges = self._get_moddy_badges()
-        if moddy_badges:
-            badges_title = i18n.get("commands.user.view.moddy_badges", locale=self.locale)
-            container.add_item(ui.TextDisplay(f"**{badges_title}**"))
-            container.add_item(ui.TextDisplay(" ".join(moddy_badges)))
-
-        # Profile decorations
+        # Avatar decoration
         avatar_decoration = self.user_data.get("avatar_decoration_data")
-        collectibles = self.user_data.get("collectibles", {})
+        if avatar_decoration:
+            sku_id = avatar_decoration.get("sku_id")
+            if sku_id:
+                info_lines.append(f"> **Avatar decoration:** https://discord.com/shop#itemSkuId={sku_id}")
 
-        if avatar_decoration or collectibles.get("nameplate"):
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-            deco_title = i18n.get("commands.user.view.decorations", locale=self.locale)
-            container.add_item(ui.TextDisplay(f"**{deco_title}**"))
-
-            if avatar_decoration:
-                sku_id = avatar_decoration.get("sku_id")
-                if sku_id:
-                    deco_link = f"[{i18n.get('commands.user.view.avatar_decoration', locale=self.locale)}](https://discord.com/shop#itemSkuId={sku_id})"
-                    container.add_item(ui.TextDisplay(deco_link))
-
-            if collectibles.get("nameplate"):
-                nameplate_sku = collectibles["nameplate"].get("sku_id")
+        # Profile decoration
+        collectibles = self.user_data.get("collectibles")
+        if collectibles and isinstance(collectibles, dict):
+            nameplate = collectibles.get("nameplate")
+            if nameplate:
+                nameplate_sku = nameplate.get("sku_id")
                 if nameplate_sku:
-                    nameplate_link = f"[{i18n.get('commands.user.view.profile_decoration', locale=self.locale)}](https://discord.com/shop#itemSkuId={nameplate_sku})"
-                    container.add_item(ui.TextDisplay(nameplate_link))
+                    info_lines.append(f"> **Profile decoration:** https://discord.com/shop#itemSkuId={nameplate_sku}")
+
+        # Add all info lines to container
+        container.add_item(ui.TextDisplay("\n".join(info_lines)))
 
         # Add container to view
         self.add_item(container)
@@ -219,6 +218,7 @@ class UserInfoView(ui.LayoutView):
         avatar_btn = ui.Button(
             label=i18n.get("commands.user.buttons.avatar", locale=self.locale),
             style=discord.ButtonStyle.secondary,
+            emoji="<:face:1439042029198770289>",
             custom_id="avatar"
         )
         avatar_btn.callback = self.on_avatar_click
@@ -229,6 +229,7 @@ class UserInfoView(ui.LayoutView):
             banner_btn = ui.Button(
                 label=i18n.get("commands.user.buttons.banner", locale=self.locale),
                 style=discord.ButtonStyle.secondary,
+                emoji="<:banner:1439659080472989726>",
                 custom_id="banner"
             )
             banner_btn.callback = self.on_banner_click
@@ -246,88 +247,92 @@ class UserInfoView(ui.LayoutView):
             )
             return
 
-        # Create bot info embed
-        embed = discord.Embed(
-            title=i18n.get("commands.user.bot_info.title", locale=self.locale, name=self.bot_data.get("name", "Unknown")),
-            color=COLORS["primary"]
-        )
+        # Create bot info view with Components V2
+        bot_view = ui.LayoutView()
+        bot_container = ui.Container()
+
+        # Title
+        bot_name = self.bot_data.get("name", "Unknown")
+        title = f"### <:code:1401610523803652196> Bot Information - **{bot_name}**"
+        bot_container.add_item(ui.TextDisplay(title))
+
+        # Build info lines
+        info_lines = []
+
+        # Bot ID
+        info_lines.append(f"> **Bot ID:** `{self.user_data.get('id', 'Unknown')}`")
+
+        # Description
+        description = self.bot_data.get("description", "")
+        if description:
+            info_lines.append(f"> **Description:** {description[:200]}")
 
         # Server count
-        server_count = i18n.get("common.unknown", locale=self.locale)
         if "approximate_guild_count" in self.bot_data:
             server_count = f"{self.bot_data['approximate_guild_count']:,}"
+            info_lines.append(f"> **Server Count:** `{server_count}`")
 
         # Is public
         is_public = self.bot_data.get("bot_public", False)
         public_text = i18n.get("common.yes" if is_public else "common.no", locale=self.locale)
+        info_lines.append(f"> **Public Bot:** `{public_text}`")
 
         # Is verified
         is_verified = self.bot_data.get("is_verified", False)
         verified_text = i18n.get("common.yes" if is_verified else "common.no", locale=self.locale)
+        info_lines.append(f"> **Verified Bot:** `{verified_text}`")
 
         # Support server
         guild_id = self.bot_data.get("guild_id")
-        support_server = f"https://discord.gg/{guild_id}" if guild_id else i18n.get("common.none", locale=self.locale)
+        if guild_id:
+            info_lines.append(f"> **Support Server:** https://discord.gg/{guild_id}")
 
         # HTTP interactions
         hook = self.bot_data.get("hook", False)
         http_text = i18n.get("common.yes" if hook else "common.no", locale=self.locale)
+        info_lines.append(f"> **HTTP Interactions:** `{http_text}`")
 
         # Global commands (check integration types)
         integration_config = self.bot_data.get("integration_types_config", {})
         has_global = "1" in integration_config  # User install
         global_text = i18n.get("common.yes" if has_global else "common.no", locale=self.locale)
+        info_lines.append(f"> **Global Commands:** `{global_text}`")
 
         # Intents (based on flags)
         flags = self.bot_data.get("flags", 0)
         intents = []
         if flags & (1 << 12):  # GATEWAY_PRESENCE
-            intents.append(i18n.get("commands.user.bot_info.intents.presence", locale=self.locale))
+            intents.append("Presence")
         if flags & (1 << 14):  # GATEWAY_GUILD_MEMBERS
-            intents.append(i18n.get("commands.user.bot_info.intents.guild_members", locale=self.locale))
+            intents.append("Guild Members")
         if flags & (1 << 18):  # GATEWAY_MESSAGE_CONTENT
-            intents.append(i18n.get("commands.user.bot_info.intents.message_content", locale=self.locale))
+            intents.append("Message Content")
 
-        intents_text = ", ".join(intents) if intents else i18n.get("common.none", locale=self.locale)
+        if intents:
+            intents_text = ", ".join(intents)
+            info_lines.append(f"> **Intents:** `{intents_text}`")
 
-        # Add fields
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.server_count", locale=self.locale),
-            value=server_count,
-            inline=True
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.public", locale=self.locale),
-            value=public_text,
-            inline=True
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.verified", locale=self.locale),
-            value=verified_text,
-            inline=True
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.support_server", locale=self.locale),
-            value=support_server,
-            inline=False
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.http_interactions", locale=self.locale),
-            value=http_text,
-            inline=True
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.global_commands", locale=self.locale),
-            value=global_text,
-            inline=True
-        )
-        embed.add_field(
-            name=i18n.get("commands.user.bot_info.fields.intents", locale=self.locale),
-            value=intents_text,
-            inline=False
-        )
+        # Terms of Service and Privacy Policy
+        tos = self.bot_data.get("terms_of_service_url")
+        if tos:
+            info_lines.append(f"> **Terms of Service:** {tos}")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        privacy = self.bot_data.get("privacy_policy_url")
+        if privacy:
+            info_lines.append(f"> **Privacy Policy:** {privacy}")
+
+        # Tags
+        tags = self.bot_data.get("tags", [])
+        if tags:
+            tags_str = ", ".join([f"`{tag}`" for tag in tags[:5]])
+            info_lines.append(f"> **Tags:** {tags_str}")
+
+        # Add all info to container
+        bot_container.add_item(ui.TextDisplay("\n".join(info_lines)))
+
+        bot_view.add_item(bot_container)
+
+        await interaction.response.send_message(view=bot_view, ephemeral=True)
 
     async def on_avatar_click(self, interaction: discord.Interaction):
         """Handle Avatar button click"""
@@ -353,19 +358,18 @@ class UserInfoView(ui.LayoutView):
         extension = "gif" if avatar_hash.startswith("a_") else "png"
         avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_hash}.{extension}?size=1024"
 
-        # Create embed
-        embed = discord.Embed(
-            title=i18n.get("commands.user.avatar.title", locale=self.locale, username=self.user_data.get("username", "Unknown")),
-            color=COLORS["primary"]
-        )
-        embed.set_image(url=avatar_url)
-        embed.add_field(
-            name=i18n.get("commands.user.avatar.download", locale=self.locale),
-            value=f"[256]({avatar_url}?size=256) • [512]({avatar_url}?size=512) • [1024]({avatar_url}?size=1024) • [2048]({avatar_url}?size=2048)",
-            inline=False
+        # Create Components V2 view with MediaGallery
+        avatar_view = ui.LayoutView()
+        avatar_container = ui.Container(
+            ui.TextDisplay(f"### <:face:1439042029198770289> Avatar de **{self.user_data.get('username', 'Unknown')}**"),
+            ui.MediaGallery(
+                discord.MediaGalleryItem(media=avatar_url)
+            ),
+            ui.TextDisplay(f"**Download:** [256]({avatar_url}?size=256) • [512]({avatar_url}?size=512) • [1024]({avatar_url}?size=1024) • [2048]({avatar_url}?size=2048)")
         )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        avatar_view.add_item(avatar_container)
+        await interaction.response.send_message(view=avatar_view, ephemeral=True)
 
     async def on_banner_click(self, interaction: discord.Interaction):
         """Handle Banner button click"""
@@ -391,19 +395,18 @@ class UserInfoView(ui.LayoutView):
         extension = "gif" if banner_hash.startswith("a_") else "png"
         banner_url = f"https://cdn.discordapp.com/banners/{user_id}/{banner_hash}.{extension}?size=1024"
 
-        # Create embed
-        embed = discord.Embed(
-            title=i18n.get("commands.user.banner.title", locale=self.locale, username=self.user_data.get("username", "Unknown")),
-            color=COLORS["primary"]
-        )
-        embed.set_image(url=banner_url)
-        embed.add_field(
-            name=i18n.get("commands.user.banner.download", locale=self.locale),
-            value=f"[256]({banner_url}?size=256) • [512]({banner_url}?size=512) • [1024]({banner_url}?size=1024) • [2048]({banner_url}?size=2048)",
-            inline=False
+        # Create Components V2 view with MediaGallery
+        banner_view = ui.LayoutView()
+        banner_container = ui.Container(
+            ui.TextDisplay(f"### <:banner:1439659080472989726> Bannière de **{self.user_data.get('username', 'Unknown')}**"),
+            ui.MediaGallery(
+                discord.MediaGalleryItem(media=banner_url)
+            ),
+            ui.TextDisplay(f"**Download:** [256]({banner_url}?size=256) • [512]({banner_url}?size=512) • [1024]({banner_url}?size=1024) • [2048]({banner_url}?size=2048)")
         )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        banner_view.add_item(banner_container)
+        await interaction.response.send_message(view=banner_view, ephemeral=True)
 
 
 class User(commands.Cog):
@@ -417,13 +420,13 @@ class User(commands.Cog):
         description="Display detailed information about a Discord user"
     )
     @app_commands.describe(
-        user="The user to lookup (defaults to yourself)",
+        user="The user to lookup",
         incognito="Make response visible only to you"
     )
     async def user_command(
         self,
         interaction: discord.Interaction,
-        user: Optional[discord.User] = None,
+        user: discord.User,
         incognito: Optional[bool] = None
     ):
         """Display user information"""
@@ -441,70 +444,59 @@ class User(commands.Cog):
         # Get locale
         locale = i18n.get_user_locale(interaction)
 
-        # If no user specified, use the command author
-        target_user = user if user else interaction.user
-        user_id = str(target_user.id)
+        user_id = str(user.id)
 
         # Send loading message
         loading_msg = i18n.get("commands.user.loading", locale=locale)
         await interaction.response.send_message(loading_msg, ephemeral=ephemeral)
 
-        try:
-            # Fetch user data from Discord API
-            async with aiohttp.ClientSession() as session:
-                headers = {
-                    "Authorization": f"Bot {self.bot.http.token}",
-                    "User-Agent": "DiscordBot (Moddy, 1.0)"
-                }
+        # Fetch user data from Discord API
+        async with aiohttp.ClientSession() as session:
+            headers = {
+                "Authorization": f"Bot {self.bot.http.token}",
+                "User-Agent": "DiscordBot (Moddy, 1.0)"
+            }
 
-                # Get user data
-                async with session.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers) as resp:
-                    if resp.status != 200:
-                        error_msg = i18n.get("commands.user.errors.not_found", locale=locale)
-                        await interaction.edit_original_response(content=error_msg)
-                        return
+            # Get user data
+            async with session.get(f"https://discord.com/api/v10/users/{user_id}", headers=headers) as resp:
+                if resp.status != 200:
+                    error_msg = i18n.get("commands.user.errors.not_found", locale=locale)
+                    await interaction.edit_original_response(content=error_msg)
+                    return
 
-                    user_data = await resp.json()
+                user_data = await resp.json()
 
-                # Check if user is a bot
-                bot_data = None
-                if user_data.get("bot"):
-                    # Get bot/application data
-                    async with session.get(f"https://discord.com/api/v10/applications/{user_id}/rpc", headers=headers) as resp:
-                        if resp.status == 200:
-                            bot_data = await resp.json()
+            # Check if user is a bot
+            bot_data = None
+            if user_data.get("bot"):
+                # Get bot/application data
+                async with session.get(f"https://discord.com/api/v10/applications/{user_id}/rpc", headers=headers) as resp:
+                    if resp.status == 200:
+                        bot_data = await resp.json()
 
-            # Get Moddy attributes for the user
-            moddy_attributes = {}
-            if self.bot.db:
-                try:
-                    user_db_data = await self.bot.db.get_user(int(user_id))
-                    if user_db_data:
-                        moddy_attributes = user_db_data.get("attributes", {})
-                except Exception as e:
-                    # If user not in DB, that's okay
-                    pass
+        # Get Moddy attributes for the user
+        moddy_attributes = {}
+        if self.bot.db:
+            try:
+                user_db_data = await self.bot.db.get_user(int(user_id))
+                if user_db_data:
+                    moddy_attributes = user_db_data.get("attributes", {})
+            except Exception:
+                # If user not in DB, that's okay
+                pass
 
-            # Create the view
-            view = UserInfoView(
-                user_data=user_data,
-                bot_data=bot_data,
-                moddy_attributes=moddy_attributes,
-                locale=locale,
-                author_id=interaction.user.id,
-                bot=self.bot
-            )
+        # Create the view
+        view = UserInfoView(
+            user_data=user_data,
+            bot_data=bot_data,
+            moddy_attributes=moddy_attributes,
+            locale=locale,
+            author_id=interaction.user.id,
+            bot=self.bot
+        )
 
-            # Update the message with the view
-            await interaction.edit_original_response(content=None, view=view)
-
-        except Exception as e:
-            import logging
-            logger = logging.getLogger('moddy')
-            logger.error(f"Error in user command: {e}", exc_info=True)
-
-            error_msg = i18n.get("commands.user.errors.generic", locale=locale, error=str(e))
-            await interaction.edit_original_response(content=error_msg)
+        # Update the message with the view
+        await interaction.edit_original_response(content=None, view=view)
 
 
 async def setup(bot):
