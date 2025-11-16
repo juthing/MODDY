@@ -72,6 +72,25 @@
         "no_banner": "<:undone:1398729502028333218> Cet utilisateur n'a pas de bannière."
       }
     },
+    "emoji": {
+      "description": "Affiche les informations d'un émoji Discord",
+      "params": {
+        "emoji": "L'émoji à rechercher",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "loading": "<a:loading:1395047662092550194> **Récupération des informations de l'émoji...**",
+      "view": {
+        "title": "Émoji **{name}**",
+        "name": "Nom",
+        "id": "ID",
+        "created": "Créé",
+        "animated": "Animé"
+      },
+      "errors": {
+        "invalid_emoji": "<:undone:1398729502028333218> **Émoji invalide**\n\nVeuillez fournir un émoji Discord personnalisé valide.\n\n**Formats valides :**\n• `<:emoji_name:emoji_id>`\n• `<a:emoji_name:emoji_id>` (animé)",
+        "default_emoji": "<:undone:1398729502028333218> **Émoji par défaut**\n\nCette commande ne fonctionne qu'avec les émojis Discord personnalisés.\nLes émojis Unicode par défaut comme {emoji} ne peuvent pas être analysés."
+      }
+    },
     "roll": {
       "description": "Lance un dé aléatoire",
       "params": {

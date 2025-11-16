@@ -72,6 +72,25 @@
         "no_banner": "<:undone:1398729502028333218> This user doesn't have a banner."
       }
     },
+    "emoji": {
+      "description": "Display information about a Discord emoji",
+      "params": {
+        "emoji": "The emoji to lookup",
+        "incognito": "Make response visible only to you"
+      },
+      "loading": "<a:loading:1395047662092550194> **Fetching emoji information...**",
+      "view": {
+        "title": "Emoji **{name}**",
+        "name": "Name",
+        "id": "ID",
+        "created": "Created",
+        "animated": "Animated"
+      },
+      "errors": {
+        "invalid_emoji": "<:undone:1398729502028333218> **Invalid Emoji**\n\nPlease provide a valid custom Discord emoji.\n\n**Valid formats:**\n• `<:emoji_name:emoji_id>`\n• `<a:emoji_name:emoji_id>` (animated)",
+        "default_emoji": "<:undone:1398729502028333218> **Default Emoji**\n\nThis command only works with custom Discord emojis.\nDefault Unicode emojis like {emoji} cannot be analyzed."
+      }
+    },
     "roll": {
       "description": "Roll a random dice",
       "params": {
