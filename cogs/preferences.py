@@ -158,13 +158,10 @@ class PreferencesView(LayoutView):
 
             container.add_item(TextDisplay(t("commands.preferences.timezone.current", locale=self.locale, timezone=tz_display)))
 
-            # Timezone select
+            # Timezone select - add directly to container (no ActionRow needed for ui.Select)
             container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
-
-            tz_row = discord.ui.ActionRow()
             tz_select = TimezoneSelect(self.locale, current_tz, self.bot, self)
-            tz_row.add_item(tz_select)
-            container.add_item(tz_row)
+            container.add_item(tz_select)
 
             # Back button
             back_row = discord.ui.ActionRow()
