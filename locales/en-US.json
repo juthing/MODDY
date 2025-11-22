@@ -178,7 +178,8 @@
       "params": {
         "message": "What should I remind you?",
         "time": "When to remind (e.g. 1h30m, 2d, tomorrow 3pm)",
-        "send_here": "Send reminder in this channel instead of DM"
+        "send_here": "Send reminder in this channel instead of DM",
+        "incognito": "Make response visible only to you"
       },
       "timezone_setup": {
         "title": "### <:time:1398729780723060736> Timezone Setup",
@@ -199,14 +200,14 @@
       "manage": {
         "title": "### <:notifications:1402261437493022775> Your Reminders",
         "no_reminders": "You don't have any upcoming reminders.",
-        "reminder_item": "**{index}.** {message}\n-# {relative} • {time}",
-        "reminder_item_channel": "**{index}.** {message}\n-# {relative} • {time} • <#{channel_id}>",
-        "footer": "{count} upcoming reminder(s) • Timezone: {timezone}",
+        "reminder_item": "{message} | #{id}\n-# {relative} • {time}",
+        "reminder_item_channel": "{message} | #{id}\n-# {relative} • {time} • <#{channel_id}>",
+        "footer": "-# {count} upcoming reminder(s) • Timezone: {timezone}",
         "history_title": "### <:history:1401600464587456512> Past Reminders",
         "history_empty": "You don't have any past reminders.",
-        "history_item": "**{index}.** {message}\n-# Sent {time}",
-        "history_item_failed": "**{index}.** {message}\n-# Failed to send {time}",
-        "history_footer": "{count} past reminder(s)"
+        "history_item": "{message} | #{id}\n-# Sent {time}",
+        "history_item_failed": "{message} | #{id}\n-# Failed to send {time}",
+        "history_footer": "-# {count} past reminder(s)"
       },
       "buttons": {
         "add": "Add",
@@ -230,6 +231,7 @@
         "select_reminder_delete": "Select a reminder to delete..."
       },
       "success": {
+        "created": "<:done:1398729525277229066> Reminder #{id} created.",
         "deleted": "<:done:1398729525277229066> Reminder #{id} deleted.",
         "edited": "<:done:1398729525277229066> Reminder #{id} updated.",
         "timezone_changed": "<:done:1398729525277229066> Timezone changed to **{timezone}**."
@@ -253,16 +255,24 @@
     },
     "preferences": {
       "description": "Manage your personal preferences",
-      "title": "### <:settings:1398729780723060736> Preferences",
-      "description": "Customize your Moddy experience. Changes are saved automatically.",
+      "params": {
+        "incognito": "Make response visible only to you"
+      },
+      "title": "### <:settings:1398729549323440208> Preferences",
+      "main_description": "Customize your Moddy experience.",
+      "buttons": {
+        "manage_timezone": "Manage timezone",
+        "back": "Back"
+      },
       "timezone": {
-        "label": "**Timezone**",
+        "title": "### <:time:1398729780723060736> Timezone Settings",
+        "label": "**Select your timezone:**",
         "current": "Current timezone: **{timezone}**",
         "placeholder": "Select your timezone...",
         "success": "<:done:1398729525277229066> Timezone changed to **{timezone}**.",
         "auto_detected": "auto-detected"
       },
-      "footer": "-# Tip: Your timezone affects reminder times. Use /preferences to change it anytime.",
+      "footer": "-# Tip: Your timezone affects reminder times.",
       "errors": {
         "author_only": "<:undone:1398729502028333218> You can't use these buttons, they belong to another user."
       }

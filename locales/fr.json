@@ -178,7 +178,8 @@
       "params": {
         "message": "De quoi dois-je vous rappeler ?",
         "time": "Quand vous rappeler (ex: 1h30m, 2j, demain 15h)",
-        "send_here": "Envoyer le rappel dans ce salon au lieu des MP"
+        "send_here": "Envoyer le rappel dans ce salon au lieu des MP",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
       },
       "timezone_setup": {
         "title": "### <:time:1398729780723060736> Configuration du fuseau horaire",
@@ -198,14 +199,14 @@
       "manage": {
         "title": "### <:notifications:1402261437493022775> Vos rappels",
         "no_reminders": "Vous n'avez aucun rappel à venir.",
-        "reminder_item": "**{index}.** {message}\n-# {relative} • {time}",
-        "reminder_item_channel": "**{index}.** {message}\n-# {relative} • {time} • <#{channel_id}>",
-        "footer": "{count} rappel(s) à venir • Fuseau : {timezone}",
+        "reminder_item": "{message} | #{id}\n-# {relative} • {time}",
+        "reminder_item_channel": "{message} | #{id}\n-# {relative} • {time} • <#{channel_id}>",
+        "footer": "-# {count} rappel(s) à venir • Fuseau : {timezone}",
         "history_title": "### <:history:1401600464587456512> Rappels passés",
         "history_empty": "Vous n'avez aucun rappel passé.",
-        "history_item": "**{index}.** {message}\n-# Envoyé {time}",
-        "history_item_failed": "**{index}.** {message}\n-# Échec d'envoi {time}",
-        "history_footer": "{count} rappel(s) passé(s)"
+        "history_item": "{message} | #{id}\n-# Envoyé {time}",
+        "history_item_failed": "{message} | #{id}\n-# Échec d'envoi {time}",
+        "history_footer": "-# {count} rappel(s) passé(s)"
       },
       "buttons": {
         "add": "Ajouter",
@@ -229,6 +230,7 @@
         "select_reminder_delete": "Sélectionnez un rappel à supprimer..."
       },
       "success": {
+        "created": "<:done:1398729525277229066> Rappel #{id} créé.",
         "deleted": "<:done:1398729525277229066> Rappel #{id} supprimé.",
         "edited": "<:done:1398729525277229066> Rappel #{id} mis à jour.",
         "timezone_changed": "<:done:1398729525277229066> Fuseau horaire changé en **{timezone}**."
@@ -252,16 +254,24 @@
     },
     "preferences": {
       "description": "Gérer vos préférences personnelles",
-      "title": "### <:settings:1398729780723060736> Préférences",
-      "description": "Personnalisez votre expérience Moddy. Les modifications sont sauvegardées automatiquement.",
+      "params": {
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "title": "### <:settings:1398729549323440208> Préférences",
+      "main_description": "Personnalisez votre expérience Moddy.",
+      "buttons": {
+        "manage_timezone": "Gérer le fuseau horaire",
+        "back": "Retour"
+      },
       "timezone": {
-        "label": "**Fuseau horaire**",
+        "title": "### <:time:1398729780723060736> Réglages du fuseau horaire",
+        "label": "**Sélectionnez votre fuseau horaire :**",
         "current": "Fuseau horaire actuel : **{timezone}**",
         "placeholder": "Sélectionnez votre fuseau horaire...",
         "success": "<:done:1398729525277229066> Fuseau horaire changé en **{timezone}**.",
         "auto_detected": "auto-détecté"
       },
-      "footer": "-# Astuce : Votre fuseau horaire affecte les heures des rappels. Utilisez /preferences pour le modifier à tout moment.",
+      "footer": "-# Astuce : Votre fuseau horaire affecte les heures des rappels.",
       "errors": {
         "author_only": "<:undone:1398729502028333218> Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur."
       }

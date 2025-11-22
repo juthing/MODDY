@@ -67,93 +67,139 @@ def get_default_timezone(locale: str) -> str:
     return "UTC"
 
 
-class TimezoneSelect(ui.Select):
-    """Select menu for timezone selection"""
-
-    def __init__(self, locale: str, current_tz: str = None):
-        self.locale = locale
-
-        options = []
-        for tz_id, name in TIMEZONE_OPTIONS:
-            option = discord.SelectOption(
-                label=name[:100],
-                value=tz_id,
-                description=tz_id,
-                default=(tz_id == current_tz)
-            )
-            options.append(option)
-
-        super().__init__(
-            placeholder=t("commands.preferences.timezone.placeholder", locale=locale),
-            options=options,
-            min_values=1,
-            max_values=1
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_tz = self.values[0]
-
-        # Save timezone to user data
-        await interaction.client.db.update_user_data(
-            interaction.user.id,
-            "reminder_timezone",
-            selected_tz
-        )
-
-        await interaction.response.send_message(
-            t("commands.preferences.timezone.success", interaction, timezone=TIMEZONE_NAMES.get(selected_tz, selected_tz)),
-            ephemeral=True
-        )
-
-
 class PreferencesView(LayoutView):
-    """Main preferences view"""
+    """Main preferences view with button navigation"""
 
-    def __init__(self, bot, user_id: int, locale: str, user_data: dict):
+    def __init__(self, bot, user_id: int, locale: str, user_data: dict,
+                 show_timezone: bool = False, original_interaction: discord.Interaction = None):
         super().__init__(timeout=300)
         self.bot = bot
         self.user_id = user_id
         self.locale = locale
         self.user_data = user_data
+        self.show_timezone = show_timezone
+        self.original_interaction = original_interaction
 
         self._build_view()
 
     def _build_view(self):
+        # Clear existing items
+        self.clear_items()
+
         container = Container()
 
-        # Title
-        container.add_item(TextDisplay(t("commands.preferences.title", locale=self.locale)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
+        if self.show_timezone:
+            # Timezone settings page
+            container.add_item(TextDisplay(t("commands.preferences.timezone.title", locale=self.locale)))
 
-        # Description
-        container.add_item(TextDisplay(t("commands.preferences.description", locale=self.locale)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
+            # Current timezone
+            current_tz = self.user_data.get('data', {}).get('reminder_timezone')
+            if current_tz:
+                tz_display = TIMEZONE_NAMES.get(current_tz, current_tz)
+            else:
+                # Show auto-detected timezone
+                default_tz = get_default_timezone(self.locale)
+                tz_display = f"{TIMEZONE_NAMES.get(default_tz, default_tz)} ({t('commands.preferences.timezone.auto_detected', locale=self.locale)})"
 
-        # Current timezone
-        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
-        if current_tz:
-            tz_display = TIMEZONE_NAMES.get(current_tz, current_tz)
+            container.add_item(TextDisplay(t("commands.preferences.timezone.current", locale=self.locale, timezone=tz_display)))
+
+            # Timezone select
+            container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
+
+            tz_row = discord.ui.ActionRow()
+            tz_select = ui.Select(
+                placeholder=t("commands.preferences.timezone.placeholder", locale=self.locale),
+                options=[
+                    discord.SelectOption(
+                        label=name[:100],
+                        value=tz_id,
+                        description=tz_id,
+                        default=(tz_id == current_tz)
+                    )
+                    for tz_id, name in TIMEZONE_OPTIONS
+                ],
+                min_values=1,
+                max_values=1,
+                custom_id="timezone_select"
+            )
+            tz_select.callback = self.on_timezone_select
+            tz_row.add_item(tz_select)
+            container.add_item(tz_row)
+
+            # Back button
+            back_row = discord.ui.ActionRow()
+            back_btn = discord.ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+                label=t("commands.preferences.buttons.back", locale=self.locale),
+                style=discord.ButtonStyle.secondary,
+                custom_id="back_btn"
+            )
+            back_btn.callback = self.back_callback
+            back_row.add_item(back_btn)
+            container.add_item(back_row)
         else:
-            # Show auto-detected timezone
-            default_tz = get_default_timezone(self.locale)
-            tz_display = f"{TIMEZONE_NAMES.get(default_tz, default_tz)} ({t('commands.preferences.timezone.auto_detected', locale=self.locale)})"
+            # Main preferences page
+            container.add_item(TextDisplay(t("commands.preferences.title", locale=self.locale)))
+            container.add_item(TextDisplay(t("commands.preferences.main_description", locale=self.locale)))
 
-        container.add_item(TextDisplay(t("commands.preferences.timezone.current", locale=self.locale, timezone=tz_display)))
+            # Manage timezone button
+            btn_row = discord.ui.ActionRow()
+            tz_btn = discord.ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:time:1398729780723060736>"),
+                label=t("commands.preferences.buttons.manage_timezone", locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                custom_id="timezone_btn"
+            )
+            tz_btn.callback = self.timezone_callback
+            btn_row.add_item(tz_btn)
+            container.add_item(btn_row)
 
-        # Timezone select
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
-
-        tz_row = discord.ui.ActionRow()
-        tz_select = TimezoneSelect(self.locale, current_tz)
-        tz_row.add_item(tz_select)
-        container.add_item(tz_row)
-
-        # Footer with tip
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.preferences.footer", locale=self.locale)))
+            # Footer
+            container.add_item(TextDisplay(t("commands.preferences.footer", locale=self.locale)))
 
         self.add_item(container)
+
+    async def on_timezone_select(self, interaction: discord.Interaction):
+        """Handle timezone selection"""
+        selected_tz = interaction.data['values'][0]
+
+        # Save timezone to user data
+        await self.bot.db.update_user_data(
+            interaction.user.id,
+            "reminder_timezone",
+            selected_tz
+        )
+
+        # Update user_data locally
+        if 'data' not in self.user_data:
+            self.user_data['data'] = {}
+        self.user_data['data']['reminder_timezone'] = selected_tz
+
+        # Send confirmation and update view
+        await interaction.response.send_message(
+            t("commands.preferences.timezone.success", interaction, timezone=TIMEZONE_NAMES.get(selected_tz, selected_tz)),
+            ephemeral=True
+        )
+
+        # Refresh the view to show the new timezone
+        self._build_view()
+        if self.original_interaction:
+            try:
+                await self.original_interaction.edit_original_response(view=self)
+            except Exception:
+                pass
+
+    async def timezone_callback(self, interaction: discord.Interaction):
+        """Show timezone settings page"""
+        self.show_timezone = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def back_callback(self, interaction: discord.Interaction):
+        """Return to main preferences page"""
+        self.show_timezone = False
+        self._build_view()
+        await interaction.response.edit_message(view=self)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
@@ -175,8 +221,25 @@ class Preferences(commands.Cog):
         name="preferences",
         description="Manage your personal preferences"
     )
-    async def preferences(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        incognito="Make response visible only to you"
+    )
+    async def preferences(
+        self,
+        interaction: discord.Interaction,
+        incognito: Optional[bool] = None
+    ):
         """Open preferences menu"""
+        # Handle incognito setting
+        if incognito is None and self.bot.db:
+            try:
+                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                ephemeral = True if user_pref is None else user_pref
+            except:
+                ephemeral = True
+        else:
+            ephemeral = incognito if incognito is not None else True
+
         # Get user data
         user_data = await self.bot.db.get_user(interaction.user.id)
 
@@ -185,10 +248,11 @@ class Preferences(commands.Cog):
             self.bot,
             interaction.user.id,
             str(interaction.locale),
-            user_data
+            user_data,
+            original_interaction=interaction
         )
 
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view, ephemeral=ephemeral)
 
 
 async def setup(bot):

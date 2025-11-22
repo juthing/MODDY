@@ -227,48 +227,20 @@ def parse_time_only(time_str: str) -> Optional[datetime]:
     return None
 
 
-def format_relative_time(target: datetime, locale: str = "en") -> str:
-    """Format a relative time string"""
-    now = datetime.now(ZoneInfo('UTC'))
-    if target.tzinfo is None:
-        target = target.replace(tzinfo=ZoneInfo('UTC'))
+def format_discord_timestamp(dt: datetime, style: str = "R") -> str:
+    """Format a datetime as a Discord timestamp
 
-    diff = target - now
-    total_seconds = int(diff.total_seconds())
-
-    if total_seconds < 0:
-        # Past
-        total_seconds = abs(total_seconds)
-        is_past = True
-    else:
-        is_past = False
-
-    days = total_seconds // 86400
-    hours = (total_seconds % 86400) // 3600
-    minutes = (total_seconds % 3600) // 60
-
-    parts = []
-    if str(locale).startswith("fr"):
-        if days > 0:
-            parts.append(f"{days}j")
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0 or not parts:
-            parts.append(f"{minutes}m")
-    else:
-        if days > 0:
-            parts.append(f"{days}d")
-        if hours > 0:
-            parts.append(f"{hours}h")
-        if minutes > 0 or not parts:
-            parts.append(f"{minutes}m")
-
-    result = " ".join(parts)
-    if is_past:
-        if str(locale).startswith("fr"):
-            return f"il y a {result}"
-        return f"{result} ago"
-    return result
+    Styles:
+    - R: Relative (in 2 hours, 3 days ago)
+    - F: Full date and time
+    - f: Short date and time
+    - D: Date only
+    - T: Time only
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo('UTC'))
+    timestamp = int(dt.timestamp())
+    return f"<t:{timestamp}:{style}>"
 
 
 def format_datetime_for_user(dt: datetime, user_tz: ZoneInfo, locale: str = "en") -> str:
@@ -282,12 +254,13 @@ def format_datetime_for_user(dt: datetime, user_tz: ZoneInfo, locale: str = "en"
 class ReminderAddModal(ui.Modal):
     """Modal for adding a new reminder"""
 
-    def __init__(self, locale: str, bot, channel_id: int = None, guild_id: int = None):
+    def __init__(self, locale: str, bot, channel_id: int = None, guild_id: int = None, parent_view=None):
         super().__init__(title=t("commands.reminder.modals.add_title", locale=locale))
         self.locale = locale
         self.bot = bot
         self.channel_id = channel_id
         self.guild_id = guild_id
+        self.parent_view = parent_view
 
         self.message_input = ui.TextInput(
             label=t("commands.reminder.modals.add_message_label", locale=locale),
@@ -348,38 +321,26 @@ class ReminderAddModal(ui.Modal):
             send_in_channel=self.channel_id is not None
         )
 
-        # Show success
-        view = LayoutView()
-        container = Container()
-        container.add_item(TextDisplay(t("commands.reminder.add.title", interaction)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.reminder.add.description", interaction, message=message)))
-        container.add_item(TextDisplay(t("commands.reminder.add.time_field", interaction,
-            time=format_datetime_for_user(remind_at, user_tz, str(interaction.locale)))))
-        container.add_item(TextDisplay(t("commands.reminder.add.relative_field", interaction,
-            relative=format_relative_time(remind_at, str(interaction.locale)))))
+        # Simple confirmation message
+        await interaction.response.send_message(
+            t("commands.reminder.success.created", interaction, id=reminder_id),
+            ephemeral=True
+        )
 
-        if self.channel_id:
-            container.add_item(TextDisplay(t("commands.reminder.add.location_channel", interaction,
-                channel_id=self.channel_id)))
-        else:
-            container.add_item(TextDisplay(t("commands.reminder.add.location_dm", interaction)))
-
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(f"-# Reminder #{reminder_id}"))
-        view.add_item(container)
-
-        await interaction.response.send_message(view=view, ephemeral=True)
+        # Refresh the parent view if it exists
+        if self.parent_view:
+            await self.parent_view.refresh(interaction)
 
 
 class ReminderEditModal(ui.Modal):
     """Modal for editing a reminder"""
 
-    def __init__(self, locale: str, bot, reminder: Dict):
+    def __init__(self, locale: str, bot, reminder: Dict, parent_view=None):
         super().__init__(title=t("commands.reminder.modals.edit_title", locale=locale))
         self.locale = locale
         self.bot = bot
         self.reminder = reminder
+        self.parent_view = parent_view
 
         self.message_input = ui.TextInput(
             label=t("commands.reminder.modals.edit_message_label", locale=locale),
@@ -430,28 +391,35 @@ class ReminderEditModal(ui.Modal):
             remind_at=new_remind_at
         )
 
+        # Simple confirmation message
         await interaction.response.send_message(
             t("commands.reminder.success.edited", interaction, id=self.reminder['id']),
             ephemeral=True
         )
 
+        # Refresh the parent view if it exists
+        if self.parent_view:
+            await self.parent_view.refresh(interaction)
+
 
 class ReminderSelectForEdit(ui.Select):
     """Select menu for choosing a reminder to edit"""
 
-    def __init__(self, reminders: List[Dict], locale: str, bot):
+    def __init__(self, reminders: List[Dict], locale: str, bot, parent_view=None):
         self.reminders_map = {str(r['id']): r for r in reminders}
         self.locale = locale
         self.bot = bot
+        self.parent_view = parent_view
 
         options = []
-        for i, reminder in enumerate(reminders[:25], 1):
-            label = f"{i}. {reminder['message'][:50]}"
+        for reminder in reminders[:25]:
+            label = f"{reminder['message'][:50]}"
             if len(reminder['message']) > 50:
                 label += "..."
             options.append(discord.SelectOption(
                 label=label,
-                value=str(reminder['id'])
+                value=str(reminder['id']),
+                description=f"#{reminder['id']}"
             ))
 
         super().__init__(
@@ -462,26 +430,28 @@ class ReminderSelectForEdit(ui.Select):
     async def callback(self, interaction: discord.Interaction):
         reminder = self.reminders_map.get(self.values[0])
         if reminder:
-            modal = ReminderEditModal(self.locale, self.bot, reminder)
+            modal = ReminderEditModal(self.locale, self.bot, reminder, self.parent_view)
             await interaction.response.send_modal(modal)
 
 
 class ReminderSelectForDelete(ui.Select):
     """Select menu for choosing a reminder to delete"""
 
-    def __init__(self, reminders: List[Dict], locale: str, bot):
+    def __init__(self, reminders: List[Dict], locale: str, bot, parent_view=None):
         self.reminders_map = {str(r['id']): r for r in reminders}
         self.locale = locale
         self.bot = bot
+        self.parent_view = parent_view
 
         options = []
-        for i, reminder in enumerate(reminders[:25], 1):
-            label = f"{i}. {reminder['message'][:50]}"
+        for reminder in reminders[:25]:
+            label = f"{reminder['message'][:50]}"
             if len(reminder['message']) > 50:
                 label += "..."
             options.append(discord.SelectOption(
                 label=label,
-                value=str(reminder['id'])
+                value=str(reminder['id']),
+                description=f"#{reminder['id']}"
             ))
 
         super().__init__(
@@ -492,17 +462,24 @@ class ReminderSelectForDelete(ui.Select):
     async def callback(self, interaction: discord.Interaction):
         reminder_id = int(self.values[0])
         await self.bot.db.delete_reminder(reminder_id, interaction.user.id)
+
+        # Simple confirmation message
         await interaction.response.send_message(
             t("commands.reminder.success.deleted", interaction, id=reminder_id),
             ephemeral=True
         )
+
+        # Refresh the parent view if it exists
+        if self.parent_view:
+            await self.parent_view.refresh(interaction)
 
 
 class RemindersManageView(LayoutView):
     """Main view for managing reminders"""
 
     def __init__(self, bot, user_id: int, reminders: List[Dict], locale: str,
-                 user_tz: ZoneInfo, show_history: bool = False, past_reminders: List[Dict] = None):
+                 user_tz: ZoneInfo, show_history: bool = False, past_reminders: List[Dict] = None,
+                 original_interaction: discord.Interaction = None):
         super().__init__(timeout=300)
         self.bot = bot
         self.user_id = user_id
@@ -511,33 +488,38 @@ class RemindersManageView(LayoutView):
         self.show_history = show_history
         self.reminders = reminders
         self.past_reminders = past_reminders or []
+        self.original_interaction = original_interaction
 
         self._build_view()
 
     def _build_view(self):
+        # Clear existing items
+        self.clear_items()
+
         container = Container()
 
         if self.show_history:
             # History view
             container.add_item(TextDisplay(t("commands.reminder.manage.history_title", locale=self.locale)))
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
 
             if not self.past_reminders:
                 container.add_item(TextDisplay(t("commands.reminder.manage.history_empty", locale=self.locale)))
             else:
-                for i, reminder in enumerate(self.past_reminders[:15], 1):
+                for reminder in self.past_reminders[:15]:
                     sent_at = reminder.get('sent_at')
                     if sent_at:
-                        time_str = format_relative_time(sent_at, self.locale)
+                        if sent_at.tzinfo is None:
+                            sent_at = sent_at.replace(tzinfo=ZoneInfo('UTC'))
+                        time_str = format_discord_timestamp(sent_at, "R")
                     else:
                         time_str = "N/A"
 
                     if reminder.get('failed'):
                         item_text = t("commands.reminder.manage.history_item_failed", locale=self.locale,
-                            index=i, message=reminder['message'][:100], time=time_str)
+                            message=reminder['message'][:100], time=time_str, id=reminder['id'])
                     else:
                         item_text = t("commands.reminder.manage.history_item", locale=self.locale,
-                            index=i, message=reminder['message'][:100], time=time_str)
+                            message=reminder['message'][:100], time=time_str, id=reminder['id'])
                     container.add_item(TextDisplay(item_text))
 
                 container.add_item(Separator(spacing=SeparatorSpacing.small))
@@ -545,7 +527,6 @@ class RemindersManageView(LayoutView):
                     count=len(self.past_reminders))))
 
             # Back button
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
             back_row = discord.ui.ActionRow()
             back_btn = discord.ui.Button(
                 emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
@@ -559,26 +540,26 @@ class RemindersManageView(LayoutView):
         else:
             # Main reminders view
             container.add_item(TextDisplay(t("commands.reminder.manage.title", locale=self.locale)))
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
 
             if not self.reminders:
                 container.add_item(TextDisplay(t("commands.reminder.manage.no_reminders", locale=self.locale)))
             else:
-                for i, reminder in enumerate(self.reminders[:15], 1):
+                for reminder in self.reminders[:15]:
                     remind_at = reminder['remind_at']
                     if remind_at.tzinfo is None:
                         remind_at = remind_at.replace(tzinfo=ZoneInfo('UTC'))
 
-                    relative = format_relative_time(remind_at, self.locale)
+                    relative = format_discord_timestamp(remind_at, "R")
                     time_str = format_datetime_for_user(remind_at, self.user_tz, self.locale)
 
+                    # New format: [subject] | #[ID] \n -# [relative] • [exact time]
                     if reminder.get('send_in_channel') and reminder.get('channel_id'):
                         item_text = t("commands.reminder.manage.reminder_item_channel", locale=self.locale,
-                            index=i, message=reminder['message'][:100], relative=relative,
-                            time=time_str, channel_id=reminder['channel_id'])
+                            message=reminder['message'][:100], relative=relative,
+                            time=time_str, channel_id=reminder['channel_id'], id=reminder['id'])
                     else:
                         item_text = t("commands.reminder.manage.reminder_item", locale=self.locale,
-                            index=i, message=reminder['message'][:100], relative=relative, time=time_str)
+                            message=reminder['message'][:100], relative=relative, time=time_str, id=reminder['id'])
                     container.add_item(TextDisplay(item_text))
 
             # Get user timezone name for footer
@@ -588,7 +569,6 @@ class RemindersManageView(LayoutView):
                 count=len(self.reminders), timezone=tz_name)))
 
             # Action buttons row 1
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
             btn_row1 = discord.ui.ActionRow()
 
             # Add button
@@ -637,6 +617,22 @@ class RemindersManageView(LayoutView):
 
         self.add_item(container)
 
+    async def refresh(self, interaction: discord.Interaction):
+        """Refresh the view with updated data"""
+        # Fetch fresh data
+        self.reminders = await self.bot.db.get_user_reminders(self.user_id)
+        self.user_tz = await get_user_timezone(self.bot, self.user_id, self.locale)
+
+        # Rebuild the view
+        self._build_view()
+
+        # Update the original message
+        if self.original_interaction:
+            try:
+                await self.original_interaction.edit_original_response(view=self)
+            except Exception:
+                pass
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
             await interaction.response.send_message(
@@ -647,7 +643,7 @@ class RemindersManageView(LayoutView):
         return True
 
     async def add_callback(self, interaction: discord.Interaction):
-        modal = ReminderAddModal(self.locale, self.bot)
+        modal = ReminderAddModal(self.locale, self.bot, parent_view=self)
         await interaction.response.send_modal(modal)
 
     async def edit_callback(self, interaction: discord.Interaction):
@@ -659,7 +655,7 @@ class RemindersManageView(LayoutView):
         container.add_item(TextDisplay(t("commands.reminder.modals.select_reminder_edit", locale=self.locale)))
 
         row = discord.ui.ActionRow()
-        select = ReminderSelectForEdit(self.reminders, self.locale, self.bot)
+        select = ReminderSelectForEdit(self.reminders, self.locale, self.bot, parent_view=self)
         row.add_item(select)
         container.add_item(row)
 
@@ -675,7 +671,7 @@ class RemindersManageView(LayoutView):
         container.add_item(TextDisplay(t("commands.reminder.modals.select_reminder_delete", locale=self.locale)))
 
         row = discord.ui.ActionRow()
-        select = ReminderSelectForDelete(self.reminders, self.locale, self.bot)
+        select = ReminderSelectForDelete(self.reminders, self.locale, self.bot, parent_view=self)
         row.add_item(select)
         container.add_item(row)
 
@@ -686,19 +682,16 @@ class RemindersManageView(LayoutView):
         past = await self.bot.db.get_user_past_reminders(self.user_id)
 
         # Create new view with history
-        new_view = RemindersManageView(
-            self.bot, self.user_id, self.reminders, self.locale,
-            self.user_tz, show_history=True, past_reminders=past
-        )
-        await interaction.response.edit_message(view=new_view)
+        self.show_history = True
+        self.past_reminders = past
+        self._build_view()
+        await interaction.response.edit_message(view=self)
 
     async def back_callback(self, interaction: discord.Interaction):
         # Return to main view
-        new_view = RemindersManageView(
-            self.bot, self.user_id, self.reminders, self.locale,
-            self.user_tz, show_history=False
-        )
-        await interaction.response.edit_message(view=new_view)
+        self.show_history = False
+        self._build_view()
+        await interaction.response.edit_message(view=self)
 
 
 class Reminder(commands.Cog):
@@ -758,21 +751,25 @@ class Reminder(commands.Cog):
             await self.bot.db.mark_reminder_sent(reminder['id'], failed=True)
             return
 
-        # Build the reminder message
+        # Build the reminder message - NO content field, everything in container
         view = LayoutView()
         container = Container()
+
+        # Add mention inside the container for channel reminders
+        if send_in_channel and channel_id and guild_id:
+            container.add_item(TextDisplay(f"<@{user_id}>"))
+
         container.add_item(TextDisplay(t("commands.reminder.notification.title", locale="en")))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
         container.add_item(TextDisplay(f"> {reminder['message']}"))
 
         if is_late:
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
             container.add_item(TextDisplay(t("commands.reminder.notification.late_notice", locale="en")))
 
         created_at = reminder.get('created_at')
         if created_at:
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
-            container.add_item(TextDisplay(f"-# Created {format_relative_time(created_at, 'en')} ago"))
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=ZoneInfo('UTC'))
+            container.add_item(TextDisplay(f"-# {t('commands.reminder.notification.footer', locale='en', time=format_discord_timestamp(created_at, 'R'))}"))
 
         view.add_item(container)
 
@@ -788,7 +785,8 @@ class Reminder(commands.Cog):
                     if member:
                         channel = guild.get_channel(channel_id)
                         if channel and channel.permissions_for(guild.me).send_messages:
-                            await channel.send(f"<@{user_id}>", view=view)
+                            # Send without content - mention is in the container
+                            await channel.send(view=view)
                             sent = True
             except Exception as e:
                 logger.warning(f"Could not send reminder to channel: {e}")
@@ -796,7 +794,20 @@ class Reminder(commands.Cog):
         # Fallback to DM
         if not sent:
             try:
-                await user.send(view=view)
+                # For DMs, rebuild without the mention
+                view_dm = LayoutView()
+                container_dm = Container()
+                container_dm.add_item(TextDisplay(t("commands.reminder.notification.title", locale="en")))
+                container_dm.add_item(TextDisplay(f"> {reminder['message']}"))
+
+                if is_late:
+                    container_dm.add_item(TextDisplay(t("commands.reminder.notification.late_notice", locale="en")))
+
+                if created_at:
+                    container_dm.add_item(TextDisplay(f"-# {t('commands.reminder.notification.footer', locale='en', time=format_discord_timestamp(created_at, 'R'))}"))
+
+                view_dm.add_item(container_dm)
+                await user.send(view=view_dm)
                 sent = True
             except discord.Forbidden:
                 logger.warning(f"Could not DM user {user_id}")
@@ -812,16 +823,28 @@ class Reminder(commands.Cog):
     @app_commands.describe(
         message="What should I remind you?",
         time="When to remind (e.g. 1h30m, 2d, tomorrow 3pm)",
-        send_here="Send reminder in this channel instead of DM"
+        send_here="Send reminder in this channel instead of DM",
+        incognito="Make response visible only to you"
     )
     async def reminder_add(
         self,
         interaction: discord.Interaction,
         message: str,
         time: str,
-        send_here: Optional[bool] = False
+        send_here: Optional[bool] = False,
+        incognito: Optional[bool] = None
     ):
         """Add a new reminder"""
+        # Handle incognito setting
+        if incognito is None and self.bot.db:
+            try:
+                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                ephemeral = True if user_pref is None else user_pref
+            except:
+                ephemeral = True
+        else:
+            ephemeral = incognito if incognito is not None else True
+
         # Validate message length
         if len(message) > 1000:
             await interaction.response.send_message(
@@ -872,35 +895,35 @@ class Reminder(commands.Cog):
             send_in_channel=send_here
         )
 
-        # Show success
-        view = LayoutView()
-        container = Container()
-        container.add_item(TextDisplay(t("commands.reminder.add.title", interaction)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.reminder.add.description", interaction, message=message)))
-        container.add_item(TextDisplay(t("commands.reminder.add.time_field", interaction,
-            time=format_datetime_for_user(remind_at, user_tz, str(interaction.locale)))))
-        container.add_item(TextDisplay(t("commands.reminder.add.relative_field", interaction,
-            relative=format_relative_time(remind_at, str(interaction.locale)))))
-
-        if send_here and channel_id:
-            container.add_item(TextDisplay(t("commands.reminder.add.location_channel", interaction,
-                channel_id=channel_id)))
-        else:
-            container.add_item(TextDisplay(t("commands.reminder.add.location_dm", interaction)))
-
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(f"-# Reminder #{reminder_id}"))
-        view.add_item(container)
-
-        await interaction.response.send_message(view=view, ephemeral=True)
+        # Simple confirmation message
+        await interaction.response.send_message(
+            t("commands.reminder.success.created", interaction, id=reminder_id),
+            ephemeral=ephemeral
+        )
 
     @app_commands.command(
         name="reminders",
         description="Manage your reminders"
     )
-    async def reminders(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        incognito="Make response visible only to you"
+    )
+    async def reminders(
+        self,
+        interaction: discord.Interaction,
+        incognito: Optional[bool] = None
+    ):
         """Manage reminders"""
+        # Handle incognito setting
+        if incognito is None and self.bot.db:
+            try:
+                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                ephemeral = True if user_pref is None else user_pref
+            except:
+                ephemeral = True
+        else:
+            ephemeral = incognito if incognito is not None else True
+
         # Get user timezone (auto-detected or from preferences)
         user_tz = await get_user_timezone(self.bot, interaction.user.id, str(interaction.locale))
 
@@ -913,10 +936,11 @@ class Reminder(commands.Cog):
             interaction.user.id,
             reminders,
             str(interaction.locale),
-            user_tz
+            user_tz,
+            original_interaction=interaction
         )
 
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.send_message(view=view, ephemeral=ephemeral)
 
 
 async def setup(bot):
