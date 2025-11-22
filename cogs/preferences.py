@@ -67,6 +67,61 @@ def get_default_timezone(locale: str) -> str:
     return "UTC"
 
 
+class TimezoneSelect(ui.Select):
+    """Select menu for timezone selection"""
+
+    def __init__(self, locale: str, current_tz: str, bot, parent_view):
+        self.locale = locale
+        self.bot = bot
+        self.parent_view = parent_view
+
+        options = []
+        for tz_id, name in TIMEZONE_OPTIONS:
+            options.append(discord.SelectOption(
+                label=name[:100],
+                value=tz_id,
+                description=tz_id,
+                default=(tz_id == current_tz)
+            ))
+
+        super().__init__(
+            placeholder=t("commands.preferences.timezone.placeholder", locale=locale),
+            options=options,
+            min_values=1,
+            max_values=1
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        """Handle timezone selection"""
+        selected_tz = self.values[0]
+
+        # Save timezone to user data
+        await self.bot.db.update_user_data(
+            interaction.user.id,
+            "reminder_timezone",
+            selected_tz
+        )
+
+        # Update parent view's user_data locally
+        if 'data' not in self.parent_view.user_data:
+            self.parent_view.user_data['data'] = {}
+        self.parent_view.user_data['data']['reminder_timezone'] = selected_tz
+
+        # Send confirmation
+        await interaction.response.send_message(
+            t("commands.preferences.timezone.success", interaction, timezone=TIMEZONE_NAMES.get(selected_tz, selected_tz)),
+            ephemeral=True
+        )
+
+        # Refresh the view to show the new timezone
+        self.parent_view._build_view()
+        if self.parent_view.original_interaction:
+            try:
+                await self.parent_view.original_interaction.edit_original_response(view=self.parent_view)
+            except Exception:
+                pass
+
+
 class PreferencesView(LayoutView):
     """Main preferences view with button navigation"""
 
@@ -107,22 +162,7 @@ class PreferencesView(LayoutView):
             container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
 
             tz_row = discord.ui.ActionRow()
-            tz_select = ui.Select(
-                placeholder=t("commands.preferences.timezone.placeholder", locale=self.locale),
-                options=[
-                    discord.SelectOption(
-                        label=name[:100],
-                        value=tz_id,
-                        description=tz_id,
-                        default=(tz_id == current_tz)
-                    )
-                    for tz_id, name in TIMEZONE_OPTIONS
-                ],
-                min_values=1,
-                max_values=1,
-                custom_id="timezone_select"
-            )
-            tz_select.callback = self.on_timezone_select
+            tz_select = TimezoneSelect(self.locale, current_tz, self.bot, self)
             tz_row.add_item(tz_select)
             container.add_item(tz_row)
 
@@ -158,36 +198,6 @@ class PreferencesView(LayoutView):
             container.add_item(TextDisplay(t("commands.preferences.footer", locale=self.locale)))
 
         self.add_item(container)
-
-    async def on_timezone_select(self, interaction: discord.Interaction):
-        """Handle timezone selection"""
-        selected_tz = interaction.data['values'][0]
-
-        # Save timezone to user data
-        await self.bot.db.update_user_data(
-            interaction.user.id,
-            "reminder_timezone",
-            selected_tz
-        )
-
-        # Update user_data locally
-        if 'data' not in self.user_data:
-            self.user_data['data'] = {}
-        self.user_data['data']['reminder_timezone'] = selected_tz
-
-        # Send confirmation and update view
-        await interaction.response.send_message(
-            t("commands.preferences.timezone.success", interaction, timezone=TIMEZONE_NAMES.get(selected_tz, selected_tz)),
-            ephemeral=True
-        )
-
-        # Refresh the view to show the new timezone
-        self._build_view()
-        if self.original_interaction:
-            try:
-                await self.original_interaction.edit_original_response(view=self)
-            except Exception:
-                pass
 
     async def timezone_callback(self, interaction: discord.Interaction):
         """Show timezone settings page"""
