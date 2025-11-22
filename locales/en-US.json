@@ -251,6 +251,22 @@
         "late_notice": "-# This reminder was delayed due to bot maintenance."
       }
     },
+    "preferences": {
+      "description": "Manage your personal preferences",
+      "title": "### <:settings:1398729780723060736> Preferences",
+      "description": "Customize your Moddy experience. Changes are saved automatically.",
+      "timezone": {
+        "label": "**Timezone**",
+        "current": "Current timezone: **{timezone}**",
+        "placeholder": "Select your timezone...",
+        "success": "<:done:1398729525277229066> Timezone changed to **{timezone}**.",
+        "auto_detected": "auto-detected"
+      },
+      "footer": "-# Tip: Your timezone affects reminder times. Use /preferences to change it anytime.",
+      "errors": {
+        "author_only": "<:undone:1398729502028333218> You can't use these buttons, they belong to another user."
+      }
+    },
     "webhook": {
       "description": "Inspect and manage Discord webhooks",
       "params": {

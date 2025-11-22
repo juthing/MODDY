@@ -250,6 +250,22 @@
         "late_notice": "-# Ce rappel a été retardé en raison d'une maintenance du bot."
       }
     },
+    "preferences": {
+      "description": "Gérer vos préférences personnelles",
+      "title": "### <:settings:1398729780723060736> Préférences",
+      "description": "Personnalisez votre expérience Moddy. Les modifications sont sauvegardées automatiquement.",
+      "timezone": {
+        "label": "**Fuseau horaire**",
+        "current": "Fuseau horaire actuel : **{timezone}**",
+        "placeholder": "Sélectionnez votre fuseau horaire...",
+        "success": "<:done:1398729525277229066> Fuseau horaire changé en **{timezone}**.",
+        "auto_detected": "auto-détecté"
+      },
+      "footer": "-# Astuce : Votre fuseau horaire affecte les heures des rappels. Utilisez /preferences pour le modifier à tout moment.",
+      "errors": {
+        "author_only": "<:undone:1398729502028333218> Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur."
+      }
+    },
     "webhook": {
       "description": "Inspecter et gérer les webhooks Discord",
       "params": {

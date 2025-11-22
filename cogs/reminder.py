@@ -1,6 +1,6 @@
 """
 Reminder system for Moddy
-Uses APScheduler for task scheduling and PostgreSQL for persistence
+Uses database persistence and tasks.loop for scheduling
 """
 import asyncio
 import re
@@ -19,44 +19,99 @@ from utils.i18n import t
 
 logger = logging.getLogger('moddy.reminder')
 
-# Common timezones grouped by region
-TIMEZONE_GROUPS = {
-    "Europe": [
-        ("Europe/London", "London (GMT/BST)"),
-        ("Europe/Paris", "Paris, Berlin, Rome (CET)"),
-        ("Europe/Athens", "Athens, Helsinki (EET)"),
-        ("Europe/Moscow", "Moscow (MSK)"),
-    ],
-    "Americas": [
-        ("America/New_York", "New York (EST/EDT)"),
-        ("America/Chicago", "Chicago (CST/CDT)"),
-        ("America/Denver", "Denver (MST/MDT)"),
-        ("America/Los_Angeles", "Los Angeles (PST/PDT)"),
-        ("America/Sao_Paulo", "Sao Paulo (BRT)"),
-        ("America/Mexico_City", "Mexico City (CST)"),
-    ],
-    "Asia/Pacific": [
-        ("Asia/Tokyo", "Tokyo (JST)"),
-        ("Asia/Shanghai", "Shanghai, Beijing (CST)"),
-        ("Asia/Seoul", "Seoul (KST)"),
-        ("Asia/Singapore", "Singapore (SGT)"),
-        ("Asia/Dubai", "Dubai (GST)"),
-        ("Asia/Kolkata", "Mumbai, Delhi (IST)"),
-        ("Australia/Sydney", "Sydney (AEST/AEDT)"),
-        ("Pacific/Auckland", "Auckland (NZST/NZDT)"),
-    ],
-    "Other": [
-        ("UTC", "UTC (Coordinated Universal Time)"),
-        ("Africa/Cairo", "Cairo (EET)"),
-        ("Africa/Johannesburg", "Johannesburg (SAST)"),
-    ]
+# Mapping of Discord locales to default timezones
+LOCALE_TO_TIMEZONE = {
+    "en-US": "America/New_York",
+    "en-GB": "Europe/London",
+    "fr": "Europe/Paris",
+    "de": "Europe/Berlin",
+    "es-ES": "Europe/Madrid",
+    "es-419": "America/Mexico_City",
+    "pt-BR": "America/Sao_Paulo",
+    "it": "Europe/Rome",
+    "nl": "Europe/Amsterdam",
+    "pl": "Europe/Warsaw",
+    "ru": "Europe/Moscow",
+    "ja": "Asia/Tokyo",
+    "zh-CN": "Asia/Shanghai",
+    "zh-TW": "Asia/Taipei",
+    "ko": "Asia/Seoul",
+    "tr": "Europe/Istanbul",
+    "sv-SE": "Europe/Stockholm",
+    "da": "Europe/Copenhagen",
+    "no": "Europe/Oslo",
+    "fi": "Europe/Helsinki",
+    "el": "Europe/Athens",
+    "cs": "Europe/Prague",
+    "ro": "Europe/Bucharest",
+    "hu": "Europe/Budapest",
+    "uk": "Europe/Kiev",
+    "bg": "Europe/Sofia",
+    "hi": "Asia/Kolkata",
+    "th": "Asia/Bangkok",
+    "vi": "Asia/Ho_Chi_Minh",
+    "id": "Asia/Jakarta",
+    "lt": "Europe/Vilnius",
+    "hr": "Europe/Zagreb",
 }
 
-# Flatten for quick lookup
-ALL_TIMEZONES = {}
-for group, tzs in TIMEZONE_GROUPS.items():
-    for tz_id, tz_name in tzs:
-        ALL_TIMEZONES[tz_id] = tz_name
+# Common timezones for preferences
+TIMEZONE_OPTIONS = [
+    ("Europe/London", "London (GMT/BST)"),
+    ("Europe/Paris", "Paris, Berlin, Rome (CET)"),
+    ("Europe/Athens", "Athens, Helsinki (EET)"),
+    ("Europe/Moscow", "Moscow (MSK)"),
+    ("America/New_York", "New York (EST/EDT)"),
+    ("America/Chicago", "Chicago (CST/CDT)"),
+    ("America/Denver", "Denver (MST/MDT)"),
+    ("America/Los_Angeles", "Los Angeles (PST/PDT)"),
+    ("America/Sao_Paulo", "Sao Paulo (BRT)"),
+    ("America/Mexico_City", "Mexico City (CST)"),
+    ("Asia/Tokyo", "Tokyo (JST)"),
+    ("Asia/Shanghai", "Shanghai, Beijing (CST)"),
+    ("Asia/Seoul", "Seoul (KST)"),
+    ("Asia/Singapore", "Singapore (SGT)"),
+    ("Asia/Dubai", "Dubai (GST)"),
+    ("Asia/Kolkata", "Mumbai, Delhi (IST)"),
+    ("Australia/Sydney", "Sydney (AEST/AEDT)"),
+    ("Pacific/Auckland", "Auckland (NZST/NZDT)"),
+    ("UTC", "UTC"),
+]
+
+TIMEZONE_NAMES = {tz_id: name for tz_id, name in TIMEZONE_OPTIONS}
+
+
+def get_default_timezone(locale: str) -> str:
+    """Get default timezone based on Discord locale"""
+    locale_str = str(locale)
+    # Try exact match first
+    if locale_str in LOCALE_TO_TIMEZONE:
+        return LOCALE_TO_TIMEZONE[locale_str]
+    # Try base language (e.g., "fr" from "fr-FR")
+    base_lang = locale_str.split("-")[0]
+    if base_lang in LOCALE_TO_TIMEZONE:
+        return LOCALE_TO_TIMEZONE[base_lang]
+    # Default to UTC
+    return "UTC"
+
+
+async def get_user_timezone(bot, user_id: int, locale: str = None) -> ZoneInfo:
+    """Get user's timezone from preferences or default from locale"""
+    user_data = await bot.db.get_user(user_id)
+    user_tz_str = user_data.get('data', {}).get('reminder_timezone')
+
+    if user_tz_str:
+        try:
+            return ZoneInfo(user_tz_str)
+        except Exception:
+            pass
+
+    # Use locale-based default
+    if locale:
+        default_tz = get_default_timezone(locale)
+        return ZoneInfo(default_tz)
+
+    return ZoneInfo("UTC")
 
 
 def parse_time_string(time_str: str, user_tz: ZoneInfo) -> Optional[datetime]:
@@ -193,7 +248,7 @@ def format_relative_time(target: datetime, locale: str = "en") -> str:
     minutes = (total_seconds % 3600) // 60
 
     parts = []
-    if locale.startswith("fr"):
+    if str(locale).startswith("fr"):
         if days > 0:
             parts.append(f"{days}j")
         if hours > 0:
@@ -210,7 +265,7 @@ def format_relative_time(target: datetime, locale: str = "en") -> str:
 
     result = " ".join(parts)
     if is_past:
-        if locale.startswith("fr"):
+        if str(locale).startswith("fr"):
             return f"il y a {result}"
         return f"{result} ago"
     return result
@@ -219,123 +274,9 @@ def format_relative_time(target: datetime, locale: str = "en") -> str:
 def format_datetime_for_user(dt: datetime, user_tz: ZoneInfo, locale: str = "en") -> str:
     """Format a datetime for display to user in their timezone"""
     local_dt = dt.astimezone(user_tz)
-    if locale.startswith("fr"):
+    if str(locale).startswith("fr"):
         return local_dt.strftime("%d/%m/%Y %H:%M")
     return local_dt.strftime("%m/%d/%Y %I:%M %p")
-
-
-class TimezoneSelect(ui.Select):
-    """Select menu for timezone selection"""
-
-    def __init__(self, group: str, timezones: List[tuple], locale: str, pending_reminder: Dict = None):
-        self.locale = locale
-        self.pending_reminder = pending_reminder
-
-        options = [
-            discord.SelectOption(label=name[:100], value=tz_id, description=tz_id)
-            for tz_id, name in timezones
-        ]
-
-        super().__init__(
-            placeholder=t("commands.reminder.timezone_setup.placeholder", locale=locale),
-            options=options,
-            min_values=1,
-            max_values=1
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_tz = self.values[0]
-
-        # Save timezone to user data
-        await interaction.client.db.update_user_data(
-            interaction.user.id,
-            "reminder_timezone",
-            selected_tz
-        )
-
-        # If there's a pending reminder, create it now
-        if self.pending_reminder:
-            pr = self.pending_reminder
-            user_tz = ZoneInfo(selected_tz)
-            remind_at = parse_time_string(pr['time_str'], user_tz)
-
-            if remind_at and remind_at > datetime.now(ZoneInfo('UTC')):
-                reminder_id = await interaction.client.db.create_reminder(
-                    user_id=interaction.user.id,
-                    message=pr['message'],
-                    remind_at=remind_at,
-                    guild_id=pr.get('guild_id'),
-                    channel_id=pr.get('channel_id'),
-                    send_in_channel=pr.get('send_in_channel', False)
-                )
-
-                # Show success
-                view = LayoutView()
-                container = Container()
-                container.add_item(TextDisplay(t("commands.reminder.add.title", interaction)))
-                container.add_item(Separator(spacing=SeparatorSpacing.small))
-                container.add_item(TextDisplay(t("commands.reminder.add.description", interaction, message=pr['message'])))
-                container.add_item(TextDisplay(t("commands.reminder.add.time_field", interaction,
-                    time=format_datetime_for_user(remind_at, user_tz, str(interaction.locale)))))
-                container.add_item(TextDisplay(t("commands.reminder.add.relative_field", interaction,
-                    relative=format_relative_time(remind_at, str(interaction.locale)))))
-
-                if pr.get('send_in_channel') and pr.get('channel_id'):
-                    container.add_item(TextDisplay(t("commands.reminder.add.location_channel", interaction,
-                        channel_id=pr['channel_id'])))
-                else:
-                    container.add_item(TextDisplay(t("commands.reminder.add.location_dm", interaction)))
-
-                container.add_item(Separator(spacing=SeparatorSpacing.small))
-                container.add_item(TextDisplay(f"-# Reminder #{reminder_id}"))
-                view.add_item(container)
-
-                await interaction.response.edit_message(view=view)
-            else:
-                await interaction.response.edit_message(
-                    content=t("commands.reminder.errors.invalid_time", interaction),
-                    view=None
-                )
-        else:
-            # Just timezone change confirmation
-            await interaction.response.edit_message(
-                content=t("commands.reminder.timezone_setup.success", interaction, timezone=selected_tz),
-                view=None
-            )
-
-
-class TimezoneSetupView(LayoutView):
-    """View for initial timezone setup"""
-
-    def __init__(self, user_id: int, locale: str, pending_reminder: Dict = None):
-        super().__init__(timeout=300)
-        self.user_id = user_id
-        self.locale = locale
-        self.pending_reminder = pending_reminder
-
-        container = Container()
-        container.add_item(TextDisplay(t("commands.reminder.timezone_setup.title", locale=locale)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.reminder.timezone_setup.description", locale=locale)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-
-        # Add select menus for each timezone group
-        for group_name, timezones in TIMEZONE_GROUPS.items():
-            row = discord.ui.ActionRow()
-            select = TimezoneSelect(group_name, timezones, locale, pending_reminder)
-            row.add_item(select)
-            container.add_item(row)
-
-        self.add_item(container)
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message(
-                t("commands.reminder.errors.author_only", interaction),
-                ephemeral=True
-            )
-            return False
-        return True
 
 
 class ReminderAddModal(ui.Modal):
@@ -370,27 +311,8 @@ class ReminderAddModal(ui.Modal):
         message = self.message_input.value
         time_str = self.time_input.value
 
-        # Get user timezone
-        user_data = await self.bot.db.get_user(interaction.user.id)
-        user_tz_str = user_data.get('data', {}).get('reminder_timezone')
-
-        if not user_tz_str:
-            # Need to set timezone first
-            view = TimezoneSetupView(
-                interaction.user.id,
-                str(interaction.locale),
-                pending_reminder={
-                    'message': message,
-                    'time_str': time_str,
-                    'channel_id': self.channel_id,
-                    'guild_id': self.guild_id,
-                    'send_in_channel': self.channel_id is not None
-                }
-            )
-            await interaction.response.send_message(view=view, ephemeral=True)
-            return
-
-        user_tz = ZoneInfo(user_tz_str)
+        # Get user timezone (auto-detected or from preferences)
+        user_tz = await get_user_timezone(self.bot, interaction.user.id, str(interaction.locale))
         remind_at = parse_time_string(time_str, user_tz)
 
         if not remind_at:
@@ -483,11 +405,9 @@ class ReminderEditModal(ui.Modal):
 
         new_remind_at = None
         if time_str:
-            user_data = await self.bot.db.get_user(interaction.user.id)
-            user_tz_str = user_data.get('data', {}).get('reminder_timezone', 'UTC')
-            user_tz = ZoneInfo(user_tz_str)
-
+            user_tz = await get_user_timezone(self.bot, interaction.user.id, str(interaction.locale))
             new_remind_at = parse_time_string(time_str, user_tz)
+
             if not new_remind_at:
                 await interaction.response.send_message(
                     t("commands.reminder.errors.invalid_time", interaction),
@@ -578,37 +498,6 @@ class ReminderSelectForDelete(ui.Select):
         )
 
 
-class TimezoneChangeSelect(ui.Select):
-    """Select menu for changing timezone"""
-
-    def __init__(self, group: str, timezones: List[tuple], locale: str):
-        self.locale = locale
-
-        options = [
-            discord.SelectOption(label=name[:100], value=tz_id, description=tz_id)
-            for tz_id, name in timezones
-        ]
-
-        super().__init__(
-            placeholder=t("commands.reminder.timezone_setup.placeholder", locale=locale),
-            options=options
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_tz = self.values[0]
-
-        await interaction.client.db.update_user_data(
-            interaction.user.id,
-            "reminder_timezone",
-            selected_tz
-        )
-
-        await interaction.response.send_message(
-            t("commands.reminder.success.timezone_changed", interaction, timezone=selected_tz),
-            ephemeral=True
-        )
-
-
 class RemindersManageView(LayoutView):
     """Main view for managing reminders"""
 
@@ -692,8 +581,8 @@ class RemindersManageView(LayoutView):
                             index=i, message=reminder['message'][:100], relative=relative, time=time_str)
                     container.add_item(TextDisplay(item_text))
 
-            # Get user timezone for footer
-            tz_name = ALL_TIMEZONES.get(str(self.user_tz), str(self.user_tz))
+            # Get user timezone name for footer
+            tz_name = TIMEZONE_NAMES.get(str(self.user_tz), str(self.user_tz))
             container.add_item(Separator(spacing=SeparatorSpacing.small))
             container.add_item(TextDisplay(t("commands.reminder.manage.footer", locale=self.locale,
                 count=len(self.reminders), timezone=tz_name)))
@@ -734,21 +623,6 @@ class RemindersManageView(LayoutView):
             delete_btn.callback = self.delete_callback
             btn_row1.add_item(delete_btn)
 
-            container.add_item(btn_row1)
-
-            # Action buttons row 2
-            btn_row2 = discord.ui.ActionRow()
-
-            # Timezone button
-            tz_btn = discord.ui.Button(
-                emoji=discord.PartialEmoji.from_str("<:time:1398729780723060736>"),
-                label=t("commands.reminder.buttons.timezone", locale=self.locale),
-                style=discord.ButtonStyle.secondary,
-                custom_id="tz_btn"
-            )
-            tz_btn.callback = self.timezone_callback
-            btn_row2.add_item(tz_btn)
-
             # History button
             history_btn = discord.ui.Button(
                 emoji=discord.PartialEmoji.from_str("<:history:1401600464587456512>"),
@@ -757,9 +631,9 @@ class RemindersManageView(LayoutView):
                 custom_id="history_btn"
             )
             history_btn.callback = self.history_callback
-            btn_row2.add_item(history_btn)
+            btn_row1.add_item(history_btn)
 
-            container.add_item(btn_row2)
+            container.add_item(btn_row1)
 
         self.add_item(container)
 
@@ -804,24 +678,6 @@ class RemindersManageView(LayoutView):
         select = ReminderSelectForDelete(self.reminders, self.locale, self.bot)
         row.add_item(select)
         container.add_item(row)
-
-        view.add_item(container)
-        await interaction.response.send_message(view=view, ephemeral=True)
-
-    async def timezone_callback(self, interaction: discord.Interaction):
-        view = LayoutView()
-        container = Container()
-        container.add_item(TextDisplay(t("commands.reminder.timezone_setup.title", locale=self.locale)))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        container.add_item(TextDisplay(t("commands.reminder.timezone_setup.current", locale=self.locale,
-            timezone=ALL_TIMEZONES.get(str(self.user_tz), str(self.user_tz)))))
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-
-        for group_name, timezones in TIMEZONE_GROUPS.items():
-            row = discord.ui.ActionRow()
-            select = TimezoneChangeSelect(group_name, timezones, self.locale)
-            row.add_item(select)
-            container.add_item(row)
 
         view.add_item(container)
         await interaction.response.send_message(view=view, ephemeral=True)
@@ -974,31 +830,13 @@ class Reminder(commands.Cog):
             )
             return
 
-        # Get user timezone
-        user_data = await self.bot.db.get_user(interaction.user.id)
-        user_tz_str = user_data.get('data', {}).get('reminder_timezone')
+        # Get user timezone (auto-detected or from preferences)
+        user_tz = await get_user_timezone(self.bot, interaction.user.id, str(interaction.locale))
 
         # Channel info for "send here" option
         channel_id = interaction.channel_id if send_here else None
         guild_id = interaction.guild_id if send_here else None
 
-        if not user_tz_str:
-            # First time user - show timezone setup
-            view = TimezoneSetupView(
-                interaction.user.id,
-                str(interaction.locale),
-                pending_reminder={
-                    'message': message,
-                    'time_str': time,
-                    'channel_id': channel_id,
-                    'guild_id': guild_id,
-                    'send_in_channel': send_here
-                }
-            )
-            await interaction.response.send_message(view=view, ephemeral=True)
-            return
-
-        user_tz = ZoneInfo(user_tz_str)
         remind_at = parse_time_string(time, user_tz)
 
         if not remind_at:
@@ -1063,17 +901,8 @@ class Reminder(commands.Cog):
     )
     async def reminders(self, interaction: discord.Interaction):
         """Manage reminders"""
-        # Get user timezone
-        user_data = await self.bot.db.get_user(interaction.user.id)
-        user_tz_str = user_data.get('data', {}).get('reminder_timezone')
-
-        if not user_tz_str:
-            # First time - need to set timezone
-            view = TimezoneSetupView(interaction.user.id, str(interaction.locale))
-            await interaction.response.send_message(view=view, ephemeral=True)
-            return
-
-        user_tz = ZoneInfo(user_tz_str)
+        # Get user timezone (auto-detected or from preferences)
+        user_tz = await get_user_timezone(self.bot, interaction.user.id, str(interaction.locale))
 
         # Get user's reminders
         reminders = await self.bot.db.get_user_reminders(interaction.user.id)
