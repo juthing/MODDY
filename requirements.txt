@@ -26,6 +26,9 @@ colorama>=0.4.6 ; platform_system=="Windows"
 # pytest>=7.0.0
 # pytest-asyncio>=0.21.0
 
+# Scheduler for reminders
+APScheduler==3.10.4
+
 # jsk webhook
 fastapi==0.115.0
 uvicorn[standard]==0.32.0

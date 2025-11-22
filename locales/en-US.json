@@ -172,6 +172,85 @@
         "generic": "<:undone:1398729502028333218> **Error**\n\nAn error occurred: `{error}`"
       }
     },
+"reminder": {
+      "description": "Add a new reminder",
+      "manage_description": "Manage your reminders",
+      "params": {
+        "message": "What should I remind you?",
+        "time": "When to remind (e.g. 1h30m, 2d, tomorrow 3pm)",
+        "send_here": "Send reminder in this channel instead of DM"
+      },
+      "timezone_setup": {
+        "title": "### <:time:1398729780723060736> Timezone Setup",
+        "description": "Before creating your first reminder, please select your timezone.\nThis will ensure your reminders are sent at the correct time.",
+        "placeholder": "Select your timezone...",
+        "success": "Timezone set to **{timezone}**! You can now create reminders.",
+        "current": "Your current timezone: **{timezone}**"
+      },
+      "add": {
+        "title": "### <:notifications:1402261437493022775> Reminder Created",
+        "description": "I will remind you:\n> {message}",
+        "time_field": "**When:** {time}",
+        "relative_field": "**In:** {relative}",
+        "location_dm": "**Where:** Direct Message",
+        "location_channel": "**Where:** <#{channel_id}>",
+        "footer": "Reminder #{id}"
+      },
+      "manage": {
+        "title": "### <:notifications:1402261437493022775> Your Reminders",
+        "no_reminders": "You don't have any upcoming reminders.",
+        "reminder_item": "**{index}.** {message}\n-# {relative} • {time}",
+        "reminder_item_channel": "**{index}.** {message}\n-# {relative} • {time} • <#{channel_id}>",
+        "footer": "{count} upcoming reminder(s) • Timezone: {timezone}",
+        "history_title": "### <:history:1401600464587456512> Past Reminders",
+        "history_empty": "You don't have any past reminders.",
+        "history_item": "**{index}.** {message}\n-# Sent {time}",
+        "history_item_failed": "**{index}.** {message}\n-# Failed to send {time}",
+        "history_footer": "{count} past reminder(s)"
+      },
+      "buttons": {
+        "add": "Add",
+        "edit": "Edit",
+        "delete": "Delete",
+        "timezone": "Timezone",
+        "history": "History",
+        "back": "Back"
+      },
+      "modals": {
+        "add_title": "New Reminder",
+        "add_message_label": "Message",
+        "add_message_placeholder": "What should I remind you?",
+        "add_time_label": "When",
+        "add_time_placeholder": "e.g. 1h30m, 2d, tomorrow 3pm, 25/12 9:00",
+        "edit_title": "Edit Reminder",
+        "edit_message_label": "Message",
+        "edit_time_label": "New time (leave empty to keep current)",
+        "select_reminder": "Select a reminder...",
+        "select_reminder_edit": "Select a reminder to edit...",
+        "select_reminder_delete": "Select a reminder to delete..."
+      },
+      "success": {
+        "deleted": "<:done:1398729525277229066> Reminder #{id} deleted.",
+        "edited": "<:done:1398729525277229066> Reminder #{id} updated.",
+        "timezone_changed": "<:done:1398729525277229066> Timezone changed to **{timezone}**."
+      },
+      "errors": {
+        "invalid_time": "<:undone:1398729502028333218> Invalid time format. Examples: `1h30m`, `2d`, `tomorrow 3pm`, `25/12 9:00`",
+        "past_time": "<:undone:1398729502028333218> The specified time is in the past.",
+        "too_long": "<:undone:1398729502028333218> The reminder message is too long (max 1000 characters).",
+        "max_reminders": "<:undone:1398729502028333218> You have too many reminders (max 50).",
+        "not_found": "<:undone:1398729502028333218> Reminder not found.",
+        "author_only": "<:undone:1398729502028333218> You can't use these buttons, they belong to another user.",
+        "no_dm": "<:undone:1398729502028333218> I couldn't send you a DM. Please enable DMs from server members.",
+        "generic": "<:undone:1398729502028333218> An error occurred: {error}"
+      },
+      "notification": {
+        "title": "### <:notifications:1402261437493022775> Reminder",
+        "description": "{message}",
+        "footer": "Created {time}",
+        "late_notice": "-# This reminder was delayed due to bot maintenance."
+      }
+    },
     "webhook": {
       "description": "Inspect and manage Discord webhooks",
       "params": {
