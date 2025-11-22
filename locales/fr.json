@@ -172,6 +172,84 @@
         "generic": "<:undone:1398729502028333218> **Erreur**\n\nUne erreur est survenue : `{error}`"
       }
     },
+"reminder": {
+      "description": "Ajouter un nouveau rappel",
+      "manage_description": "Gérer vos rappels",
+      "params": {
+        "message": "De quoi dois-je vous rappeler ?",
+        "time": "Quand vous rappeler (ex: 1h30m, 2j, demain 15h)",
+        "send_here": "Envoyer le rappel dans ce salon au lieu des MP"
+      },
+      "timezone_setup": {
+        "title": "### <:time:1398729780723060736> Configuration du fuseau horaire",
+        "description": "Avant de créer votre premier rappel, veuillez sélectionner votre fuseau horaire.\nCela garantira que vos rappels sont envoyés à l'heure correcte.",
+        "placeholder": "Sélectionnez votre fuseau horaire...",
+        "success": "Fuseau horaire défini sur **{timezone}** ! Vous pouvez maintenant créer des rappels.",
+        "current": "Votre fuseau horaire actuel : **{timezone}**"
+      },
+      "add": {
+        "title": "### <:notifications:1402261437493022775> Rappel créé",
+        "description": "Je vous rappellerai :\n> {message}",
+        "time_field": "**Quand :** {time}",
+        "relative_field": "**Dans :** {relative}",
+        "location_dm": "**Où :** Message privé",
+        "location_channel": "**Où :** <#{channel_id}>"
+      },
+      "manage": {
+        "title": "### <:notifications:1402261437493022775> Vos rappels",
+        "no_reminders": "Vous n'avez aucun rappel à venir.",
+        "reminder_item": "**{index}.** {message}\n-# {relative} • {time}",
+        "reminder_item_channel": "**{index}.** {message}\n-# {relative} • {time} • <#{channel_id}>",
+        "footer": "{count} rappel(s) à venir • Fuseau : {timezone}",
+        "history_title": "### <:history:1401600464587456512> Rappels passés",
+        "history_empty": "Vous n'avez aucun rappel passé.",
+        "history_item": "**{index}.** {message}\n-# Envoyé {time}",
+        "history_item_failed": "**{index}.** {message}\n-# Échec d'envoi {time}",
+        "history_footer": "{count} rappel(s) passé(s)"
+      },
+      "buttons": {
+        "add": "Ajouter",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "timezone": "Fuseau",
+        "history": "Historique",
+        "back": "Retour"
+      },
+      "modals": {
+        "add_title": "Nouveau rappel",
+        "add_message_label": "Message",
+        "add_message_placeholder": "De quoi dois-je vous rappeler ?",
+        "add_time_label": "Quand",
+        "add_time_placeholder": "ex: 1h30m, 2j, demain 15h, 25/12 9:00",
+        "edit_title": "Modifier le rappel",
+        "edit_message_label": "Message",
+        "edit_time_label": "Nouvelle heure (laisser vide pour garder l'actuelle)",
+        "select_reminder": "Sélectionnez un rappel...",
+        "select_reminder_edit": "Sélectionnez un rappel à modifier...",
+        "select_reminder_delete": "Sélectionnez un rappel à supprimer..."
+      },
+      "success": {
+        "deleted": "<:done:1398729525277229066> Rappel #{id} supprimé.",
+        "edited": "<:done:1398729525277229066> Rappel #{id} mis à jour.",
+        "timezone_changed": "<:done:1398729525277229066> Fuseau horaire changé en **{timezone}**."
+      },
+      "errors": {
+        "invalid_time": "<:undone:1398729502028333218> Format de temps invalide. Exemples : `1h30m`, `2j`, `demain 15h`, `25/12 9:00`",
+        "past_time": "<:undone:1398729502028333218> L'heure spécifiée est dans le passé.",
+        "too_long": "<:undone:1398729502028333218> Le message du rappel est trop long (max 1000 caractères).",
+        "max_reminders": "<:undone:1398729502028333218> Vous avez trop de rappels (max 50).",
+        "not_found": "<:undone:1398729502028333218> Rappel introuvable.",
+        "author_only": "<:undone:1398729502028333218> Vous ne pouvez pas utiliser ces boutons, ils appartiennent à un autre utilisateur.",
+        "no_dm": "<:undone:1398729502028333218> Je n'ai pas pu vous envoyer un MP. Veuillez activer les MP des membres du serveur.",
+        "generic": "<:undone:1398729502028333218> Une erreur est survenue : {error}"
+      },
+      "notification": {
+        "title": "### <:notifications:1402261437493022775> Rappel",
+        "description": "{message}",
+        "footer": "Créé {time}",
+        "late_notice": "-# Ce rappel a été retardé en raison d'une maintenance du bot."
+      }
+    },
     "webhook": {
       "description": "Inspecter et gérer les webhooks Discord",
       "params": {
