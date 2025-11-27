@@ -182,13 +182,15 @@ class ModdyDatabase:
                     channel_id BIGINT NOT NULL,
                     guild_id BIGINT,
                     author_id BIGINT NOT NULL,
+                    author_username TEXT,
                     content TEXT,
                     attachments JSONB DEFAULT '[]'::jsonb,
                     embeds JSONB DEFAULT '[]'::jsonb,
                     created_at TIMESTAMPTZ NOT NULL,
                     saved_at TIMESTAMPTZ DEFAULT NOW(),
                     message_url TEXT,
-                    note TEXT
+                    note TEXT,
+                    raw_message_data JSONB DEFAULT '{}'::jsonb
                 )
             """)
 
@@ -215,6 +217,30 @@ class ModdyDatabase:
                     ) THEN
                         ALTER TABLE staff_permissions
                         ADD COLUMN role_permissions JSONB DEFAULT '{}'::jsonb;
+                    END IF;
+                END $$;
+            """)
+
+            # Migration: Add author_username and raw_message_data to saved_messages if they don't exist
+            await conn.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'saved_messages'
+                        AND column_name = 'author_username'
+                    ) THEN
+                        ALTER TABLE saved_messages
+                        ADD COLUMN author_username TEXT;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'saved_messages'
+                        AND column_name = 'raw_message_data'
+                    ) THEN
+                        ALTER TABLE saved_messages
+                        ADD COLUMN raw_message_data JSONB DEFAULT '{}'::jsonb;
                     END IF;
                 END $$;
             """)
@@ -780,9 +806,10 @@ class ModdyDatabase:
     # ================ GESTION DES MESSAGES SAUVEGARDÉS ================
 
     async def save_message(self, user_id: int, message_id: int, channel_id: int,
-                          guild_id: int, author_id: int, content: str,
+                          guild_id: int, author_id: int, author_username: str, content: str,
                           attachments: List[Dict], embeds: List[Dict],
-                          created_at: datetime, message_url: str, note: str = None) -> int:
+                          created_at: datetime, message_url: str, raw_message_data: Dict,
+                          note: str = None) -> int:
         """Sauvegarde un message dans la bibliothèque de l'utilisateur"""
         async with self.pool.acquire() as conn:
             # Vérifie si le message n'est pas déjà sauvegardé
@@ -796,14 +823,14 @@ class ModdyDatabase:
             # Sauvegarde le message
             row = await conn.fetchrow("""
                 INSERT INTO saved_messages (
-                    user_id, message_id, channel_id, guild_id, author_id,
-                    content, attachments, embeds, created_at, message_url, note
+                    user_id, message_id, channel_id, guild_id, author_id, author_username,
+                    content, attachments, embeds, created_at, message_url, note, raw_message_data
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING id
-            """, user_id, message_id, channel_id, guild_id, author_id,
+            """, user_id, message_id, channel_id, guild_id, author_id, author_username,
                 content, json.dumps(attachments), json.dumps(embeds),
-                created_at, message_url, note)
+                created_at, message_url, note, json.dumps(raw_message_data))
             return row['id']
 
     async def get_saved_messages(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
@@ -822,6 +849,7 @@ class ModdyDatabase:
                 # Parse JSON fields
                 msg_dict['attachments'] = json.loads(msg_dict['attachments']) if msg_dict['attachments'] else []
                 msg_dict['embeds'] = json.loads(msg_dict['embeds']) if msg_dict['embeds'] else []
+                msg_dict['raw_message_data'] = json.loads(msg_dict['raw_message_data']) if msg_dict.get('raw_message_data') else {}
                 result.append(msg_dict)
             return result
 
@@ -838,6 +866,7 @@ class ModdyDatabase:
             msg_dict = dict(row)
             msg_dict['attachments'] = json.loads(msg_dict['attachments']) if msg_dict['attachments'] else []
             msg_dict['embeds'] = json.loads(msg_dict['embeds']) if msg_dict['embeds'] else []
+            msg_dict['raw_message_data'] = json.loads(msg_dict['raw_message_data']) if msg_dict.get('raw_message_data') else {}
             return msg_dict
 
     async def delete_saved_message(self, saved_id: int, user_id: int) -> bool:

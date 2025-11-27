@@ -381,41 +381,47 @@
       "modals": {
         "add_note_title": "Add a note",
         "edit_note_title": "Edit note",
+        "view_title": "View a message",
         "note_label": "Note (optional)",
-        "note_placeholder": "Add a note to remember this message..."
+        "note_placeholder": "Add a note to remember this message...",
+        "id_label": "Moddy message ID"
       },
       "success": {
         "saved": "<:done:1398729525277229066> Message saved successfully! ID: #{id}",
         "deleted": "<:done:1398729525277229066> Message removed from your library.",
-        "note_updated": "<:done:1398729525277229066> Note updated successfully!"
+        "note_updated": "<:done:1398729525277229066> Note updated successfully!",
+        "exported": "<:done:1398729525277229066> JSON data exported!"
       },
       "errors": {
         "max_messages": "<:undone:1398729502028333218> You've reached the limit of 500 saved messages.",
-        "author_only": "Only the command author can use this interface."
+        "author_only": "Only the command author can use this interface.",
+        "not_found": "<:undone:1398729502028333218> Message not found in your library.",
+        "invalid_id": "<:undone:1398729502028333218> Invalid ID. Please enter a number."
       },
       "library": {
         "title": "### <:save:1401600534296993812> Message Library ({count})",
         "empty": "Your library is empty.\nUse the **Save Message** context menu on a message to save it!",
-        "page_info": "-# Page {page}/{total}"
+        "page_label": "Page {page}/{total}"
       },
       "detail": {
         "title": "### <:save:1401600534296993812> Message Details",
-        "author": "**Author:** <@{author_id}>",
-        "dates": "**Created:** {created} • **Saved:** {saved}",
+        "author_label": "Author",
+        "created": "Created",
+        "saved": "Saved",
+        "content": "Content",
+        "content_truncated": "Content truncated (too long)",
         "no_content": "*Message with no text content*",
-        "note": "📝 **Note:** {note}",
-        "attachments": "📎 **Attachments:** {count}",
-        "link": "[➜ View original message]({url})"
+        "note_label": "Note",
+        "attachments_label": "Attachments",
+        "embeds_label": "Embeds",
+        "view_original": "View original message"
       },
       "buttons": {
         "edit_note": "Edit note",
         "delete": "Delete",
-        "previous": "Previous",
-        "next": "Next"
-      },
-      "select": {
-        "placeholder": "Select a message to view details",
-        "no_preview": "Message with no preview"
+        "back": "Back",
+        "view_message": "View a message",
+        "export_json": "Export JSON"
       }
     }
   },

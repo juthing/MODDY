@@ -11,11 +11,78 @@ from discord import SeparatorSpacing
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
+import json
+import io
 
 from utils.i18n import t
 from utils.incognito import get_incognito_setting
 
 logger = logging.getLogger('moddy.saved_messages')
+
+
+def message_to_raw_data(message: discord.Message) -> Dict:
+    """Convertit un message Discord en données JSON brutes"""
+    return {
+        "channelId": str(message.channel.id) if message.channel else None,
+        "guildId": str(message.guild.id) if message.guild else None,
+        "id": str(message.id),
+        "createdTimestamp": int(message.created_at.timestamp() * 1000),
+        "type": message.type.value,
+        "system": message.is_system(),
+        "content": message.content,
+        "authorId": str(message.author.id),
+        "pinned": message.pinned,
+        "tts": message.tts,
+        "nonce": message.nonce,
+        "embeds": [e.to_dict() for e in message.embeds],
+        "components": [c.to_dict() for c in message.components] if hasattr(message, 'components') else [],
+        "attachments": [
+            {
+                "id": str(a.id),
+                "filename": a.filename,
+                "size": a.size,
+                "url": a.url,
+                "proxyUrl": a.proxy_url,
+                "contentType": a.content_type
+            } for a in message.attachments
+        ],
+        "stickers": [
+            {
+                "id": str(s.id),
+                "name": s.name,
+                "formatType": s.format.value
+            } for s in message.stickers
+        ],
+        "position": None,
+        "roleSubscriptionData": None,
+        "resolved": None,
+        "editedTimestamp": int(message.edited_at.timestamp() * 1000) if message.edited_at else None,
+        "mentions": {
+            "everyone": message.mention_everyone,
+            "users": [str(u.id) for u in message.mentions],
+            "roles": [str(r.id) for r in message.role_mentions],
+            "crosspostedChannels": [],
+            "repliedUser": str(message.reference.resolved.author.id) if message.reference and hasattr(message.reference, 'resolved') and message.reference.resolved else None,
+            "members": None,
+            "channels": []
+        },
+        "webhookId": None,
+        "groupActivityApplicationId": None,
+        "applicationId": str(message.application_id) if message.application_id else None,
+        "activity": None,
+        "flags": message.flags.value,
+        "reference": {
+            "messageId": str(message.reference.message_id),
+            "channelId": str(message.reference.channel_id),
+            "guildId": str(message.reference.guild_id) if message.reference.guild_id else None
+        } if message.reference else None,
+        "interactionMetadata": None,
+        "interaction": None,
+        "poll": None,
+        "messageSnapshots": [],
+        "call": None,
+        "cleanContent": message.clean_content
+    }
 
 
 class AddNoteModal(ui.Modal):
@@ -53,6 +120,9 @@ class AddNoteModal(ui.Modal):
         for embed in self.message.embeds:
             embeds.append(embed.to_dict())
 
+        # Préparer les données brutes du message
+        raw_message_data = message_to_raw_data(self.message)
+
         # Sauvegarder le message
         try:
             saved_id = await self.bot.db.save_message(
@@ -61,11 +131,13 @@ class AddNoteModal(ui.Modal):
                 channel_id=self.message.channel.id,
                 guild_id=self.message.guild.id if self.message.guild else None,
                 author_id=self.message.author.id,
+                author_username=str(self.message.author),
                 content=self.message.content or "",
                 attachments=attachments,
                 embeds=embeds,
                 created_at=self.message.created_at,
                 message_url=self.message.jump_url,
+                raw_message_data=raw_message_data,
                 note=note
             )
 
@@ -111,190 +183,57 @@ class EditNoteModal(ui.Modal):
 
             # Refresh parent view if it exists
             if self.parent_view:
-                await self.parent_view.refresh(interaction)
+                await self.parent_view.refresh(interaction, show_detail=True, detail_id=self.saved_msg['id'])
         except Exception as e:
             logger.error(f"Error updating note: {e}")
             error_msg = t("common.error", interaction)
             await interaction.response.send_message(error_msg, ephemeral=True)
 
 
-class MessageDetailView(LayoutView):
-    """View to display a single saved message in detail"""
+class ViewMessageModal(ui.Modal):
+    """Modal for entering a message ID to view"""
 
-    def __init__(self, bot, saved_msg: Dict, locale: str, user_id: int):
-        super().__init__(timeout=300)
-        self.bot = bot
-        self.saved_msg = saved_msg
+    def __init__(self, locale: str, parent_view):
+        super().__init__(title=t("commands.saved_messages.modals.view_title", locale=locale))
         self.locale = locale
-        self.user_id = user_id
-        self._build_view()
+        self.parent_view = parent_view
 
-    def _build_view(self):
-        self.clear_items()
-
-        container = Container()
-
-        # Titre
-        container.add_item(TextDisplay(t("commands.saved_messages.detail.title", locale=self.locale)))
-
-        # Auteur du message
-        author_line = t("commands.saved_messages.detail.author", locale=self.locale,
-                       author_id=self.saved_msg['author_id'])
-        container.add_item(TextDisplay(author_line))
-
-        # Date du message
-        created_ts = f"<t:{int(self.saved_msg['created_at'].timestamp())}:F>"
-        saved_ts = f"<t:{int(self.saved_msg['saved_at'].timestamp())}:R>"
-        date_line = t("commands.saved_messages.detail.dates", locale=self.locale,
-                     created=created_ts, saved=saved_ts)
-        container.add_item(TextDisplay(date_line))
-
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-
-        # Contenu du message
-        if self.saved_msg['content']:
-            content_preview = self.saved_msg['content'][:500]
-            if len(self.saved_msg['content']) > 500:
-                content_preview += "..."
-            container.add_item(TextDisplay(f">>> {content_preview}"))
-        else:
-            container.add_item(TextDisplay(t("commands.saved_messages.detail.no_content", locale=self.locale)))
-
-        # Note si présente
-        if self.saved_msg.get('note'):
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
-            note_text = t("commands.saved_messages.detail.note", locale=self.locale,
-                         note=self.saved_msg['note'])
-            container.add_item(TextDisplay(note_text))
-
-        # Attachments
-        if self.saved_msg['attachments']:
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
-            attach_text = t("commands.saved_messages.detail.attachments", locale=self.locale,
-                           count=len(self.saved_msg['attachments']))
-            container.add_item(TextDisplay(attach_text))
-
-        # Lien vers le message original
-        if self.saved_msg.get('message_url'):
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
-            link_text = t("commands.saved_messages.detail.link", locale=self.locale,
-                         url=self.saved_msg['message_url'])
-            container.add_item(TextDisplay(link_text))
-
-        self.add_item(container)
-
-        # Boutons d'action
-        btn_row = ui.ActionRow()
-
-        # Bouton Edit Note
-        edit_btn = ui.Button(
-            emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
-            label=t("commands.saved_messages.buttons.edit_note", locale=self.locale),
-            style=discord.ButtonStyle.primary,
-            custom_id="edit_note_btn"
+        self.id_input = ui.TextInput(
+            label=t("commands.saved_messages.modals.id_label", locale=locale),
+            placeholder="1, 2, 3...",
+            style=discord.TextStyle.short,
+            max_length=10,
+            required=True
         )
-        edit_btn.callback = self.edit_note_callback
-        btn_row.add_item(edit_btn)
+        self.add_item(self.id_input)
 
-        # Bouton Delete
-        delete_btn = ui.Button(
-            emoji=discord.PartialEmoji.from_str("<:delete:1401600770431909939>"),
-            label=t("commands.saved_messages.buttons.delete", locale=self.locale),
-            style=discord.ButtonStyle.danger,
-            custom_id="delete_btn"
-        )
-        delete_btn.callback = self.delete_callback
-        btn_row.add_item(delete_btn)
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            msg_id = int(self.id_input.value.strip().replace('#', ''))
+            saved_msg = await self.parent_view.bot.db.get_saved_message(msg_id, interaction.user.id)
 
-        container.add_item(btn_row)
+            if not saved_msg:
+                error_msg = t("commands.saved_messages.errors.not_found", interaction)
+                await interaction.response.send_message(error_msg, ephemeral=True)
+                return
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message(
-                t("commands.saved_messages.errors.author_only", interaction),
-                ephemeral=True
-            )
-            return False
-        return True
-
-    async def edit_note_callback(self, interaction: discord.Interaction):
-        modal = EditNoteModal(self.locale, self.bot, self.saved_msg, parent_view=self)
-        await interaction.response.send_modal(modal)
-
-    async def delete_callback(self, interaction: discord.Interaction):
-        success = await self.bot.db.delete_saved_message(self.saved_msg['id'], interaction.user.id)
-        if success:
-            await interaction.response.edit_message(
-                content=t("commands.saved_messages.success.deleted", interaction),
-                view=None
-            )
-        else:
-            await interaction.response.send_message(
-                t("common.error", interaction),
-                ephemeral=True
-            )
-
-    async def refresh(self, interaction: discord.Interaction):
-        """Refresh the view with updated data"""
-        self.saved_msg = await self.bot.db.get_saved_message(self.saved_msg['id'], self.user_id)
-        if self.saved_msg:
-            self._build_view()
-            try:
-                await interaction.edit_original_response(view=self)
-            except Exception:
-                pass
-
-
-class SavedMessagesSelectMenu(ui.Select):
-    """Select menu for choosing a saved message to view"""
-
-    def __init__(self, messages: List[Dict], locale: str, bot, user_id: int):
-        self.messages_map = {str(m['id']): m for m in messages}
-        self.locale = locale
-        self.bot = bot
-        self.user_id = user_id
-
-        options = []
-        for msg in messages[:25]:  # Discord limit
-            # Créer un label à partir du contenu ou d'une note
-            if msg['content']:
-                label = msg['content'][:50]
-            elif msg.get('note'):
-                label = f"📝 {msg['note'][:50]}"
-            else:
-                label = t("commands.saved_messages.select.no_preview", locale=locale)
-
-            if len(msg['content']) > 50 or (msg.get('note') and len(msg['note']) > 50):
-                label += "..."
-
-            # Description avec la date
-            saved_ts = f"<t:{int(msg['saved_at'].timestamp())}:R>"
-            description = f"#{msg['id']} • {saved_ts}"
-
-            options.append(discord.SelectOption(
-                label=label,
-                value=str(msg['id']),
-                description=description[:100]
-            ))
-
-        super().__init__(
-            placeholder=t("commands.saved_messages.select.placeholder", locale=locale),
-            options=options if options else [discord.SelectOption(label="None", value="none")]
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        msg_id = self.values[0]
-        saved_msg = self.messages_map.get(msg_id)
-        if saved_msg:
-            view = MessageDetailView(self.bot, saved_msg, self.locale, self.user_id)
-            await interaction.response.send_message(view=view, ephemeral=True)
+            # Refresh parent view to show detail
+            await self.parent_view.refresh(interaction, show_detail=True, detail_id=msg_id)
+        except ValueError:
+            error_msg = t("commands.saved_messages.errors.invalid_id", interaction)
+            await interaction.response.send_message(error_msg, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error viewing message: {e}")
+            error_msg = t("common.error", interaction)
+            await interaction.response.send_message(error_msg, ephemeral=True)
 
 
 class SavedMessagesLibraryView(LayoutView):
     """Main view for browsing the saved messages library"""
 
     def __init__(self, bot, user_id: int, messages: List[Dict], locale: str,
-                 page: int = 0, total_count: int = 0):
+                 page: int = 0, total_count: int = 0, show_detail: bool = False,
+                 detail_msg: Optional[Dict] = None, original_interaction: discord.Interaction = None):
         super().__init__(timeout=300)
         self.bot = bot
         self.user_id = user_id
@@ -302,6 +241,9 @@ class SavedMessagesLibraryView(LayoutView):
         self.locale = locale
         self.page = page
         self.total_count = total_count
+        self.show_detail = show_detail
+        self.detail_msg = detail_msg
+        self.original_interaction = original_interaction
         self._build_view()
 
     def _build_view(self):
@@ -309,71 +251,186 @@ class SavedMessagesLibraryView(LayoutView):
 
         container = Container()
 
-        # Titre avec compte
-        title = t("commands.saved_messages.library.title", locale=self.locale, count=self.total_count)
-        container.add_item(TextDisplay(title))
+        if self.show_detail and self.detail_msg:
+            # Vue détaillée d'un message
+            container.add_item(TextDisplay(t("commands.saved_messages.detail.title", locale=self.locale)))
 
-        if not self.messages:
-            container.add_item(TextDisplay(t("commands.saved_messages.library.empty", locale=self.locale)))
-        else:
-            # Afficher les messages
-            for msg in self.messages[:10]:  # Limit to 10 per page
-                saved_ts = f"<t:{int(msg['saved_at'].timestamp())}:R>"
+            # ID Moddy
+            container.add_item(TextDisplay(f"**ID Moddy:** #{self.detail_msg['id']}"))
 
-                preview = msg['content'][:100] if msg['content'] else ""
-                if len(msg['content']) > 100:
-                    preview += "..."
+            # ID Discord
+            container.add_item(TextDisplay(f"**ID Discord:** `{self.detail_msg['message_id']}`"))
 
-                if msg.get('note'):
-                    note_preview = f"📝 {msg['note'][:50]}"
-                    if len(msg['note']) > 50:
-                        note_preview += "..."
-                    msg_line = f"**#{msg['id']}** {saved_ts}\n{preview}\n-# {note_preview}"
-                else:
-                    msg_line = f"**#{msg['id']}** {saved_ts}\n{preview}"
+            # Auteur
+            author_line = f"**{t('commands.saved_messages.detail.author_label', locale=self.locale)}** <@{self.detail_msg['author_id']}>"
+            if self.detail_msg.get('author_username'):
+                author_line += f" (`{self.detail_msg['author_username']}`)"
+            container.add_item(TextDisplay(author_line))
 
-                container.add_item(TextDisplay(msg_line))
+            # Dates
+            created_ts = f"<t:{int(self.detail_msg['created_at'].timestamp())}:F>"
+            saved_ts = f"<t:{int(self.detail_msg['saved_at'].timestamp())}:R>"
+            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.created', locale=self.locale)}** {created_ts}"))
+            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.saved', locale=self.locale)}** {saved_ts}"))
 
             container.add_item(Separator(spacing=SeparatorSpacing.small))
 
-            # Page info
-            total_pages = (self.total_count + 9) // 10
-            page_info = t("commands.saved_messages.library.page_info", locale=self.locale,
-                         page=self.page + 1, total=total_pages)
-            container.add_item(TextDisplay(page_info))
+            # Contenu du message
+            if self.detail_msg['content']:
+                content_text = f"**{t('commands.saved_messages.detail.content', locale=self.locale)}**\n```\n{self.detail_msg['content'][:1800]}\n```"
+                if len(self.detail_msg['content']) > 1800:
+                    content_text += f"\n-# {t('commands.saved_messages.detail.content_truncated', locale=self.locale)}"
+                container.add_item(TextDisplay(content_text))
+            else:
+                container.add_item(TextDisplay(t("commands.saved_messages.detail.no_content", locale=self.locale)))
 
-            # Select menu pour voir les détails
-            select_row = ui.ActionRow()
-            select = SavedMessagesSelectMenu(self.messages, self.locale, self.bot, self.user_id)
-            select_row.add_item(select)
-            container.add_item(select_row)
+            # Note si présente
+            if self.detail_msg.get('note'):
+                container.add_item(Separator(spacing=SeparatorSpacing.small))
+                note_text = f"📝 **{t('commands.saved_messages.detail.note_label', locale=self.locale)}** {self.detail_msg['note']}"
+                container.add_item(TextDisplay(note_text))
 
-            # Navigation buttons
-            nav_row = ui.ActionRow()
+            # Informations supplémentaires
+            container.add_item(Separator(spacing=SeparatorSpacing.small))
 
-            prev_btn = ui.Button(
+            # Attachments
+            attach_count = len(self.detail_msg.get('attachments', []))
+            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.attachments_label', locale=self.locale)}** {attach_count}"))
+
+            # Embeds
+            embeds_count = len(self.detail_msg.get('embeds', []))
+            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.embeds_label', locale=self.locale)}** {embeds_count}"))
+
+            # Lien vers le message original
+            if self.detail_msg.get('message_url'):
+                container.add_item(Separator(spacing=SeparatorSpacing.small))
+                link_text = f"[➜ {t('commands.saved_messages.detail.view_original', locale=self.locale)}]({self.detail_msg['message_url']})"
+                container.add_item(TextDisplay(link_text))
+
+            self.add_item(container)
+
+            # Boutons d'action
+            btn_row = ui.ActionRow()
+
+            # Bouton Back
+            back_btn = ui.Button(
                 emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
-                label=t("commands.saved_messages.buttons.previous", locale=self.locale),
+                label=t("commands.saved_messages.buttons.back", locale=self.locale),
                 style=discord.ButtonStyle.secondary,
-                disabled=self.page == 0,
-                custom_id="prev_btn"
+                custom_id="back_btn"
             )
-            prev_btn.callback = self.prev_callback
-            nav_row.add_item(prev_btn)
+            back_btn.callback = self.back_callback
+            btn_row.add_item(back_btn)
 
-            next_btn = ui.Button(
-                emoji="▶️",
-                label=t("commands.saved_messages.buttons.next", locale=self.locale),
+            # Bouton Edit Note
+            edit_btn = ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                label=t("commands.saved_messages.buttons.edit_note", locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                custom_id="edit_note_btn"
+            )
+            edit_btn.callback = self.edit_note_callback
+            btn_row.add_item(edit_btn)
+
+            # Bouton Export JSON
+            export_btn = ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:data_object:1401600908323852318>"),
+                label=t("commands.saved_messages.buttons.export_json", locale=self.locale),
                 style=discord.ButtonStyle.secondary,
-                disabled=(self.page + 1) * 10 >= self.total_count,
-                custom_id="next_btn"
+                custom_id="export_json_btn"
             )
-            next_btn.callback = self.next_callback
-            nav_row.add_item(next_btn)
+            export_btn.callback = self.export_json_callback
+            btn_row.add_item(export_btn)
 
-            container.add_item(nav_row)
+            # Bouton Delete
+            delete_btn = ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:delete:1401600770431909939>"),
+                label=t("commands.saved_messages.buttons.delete", locale=self.locale),
+                style=discord.ButtonStyle.danger,
+                custom_id="delete_btn"
+            )
+            delete_btn.callback = self.delete_callback
+            btn_row.add_item(delete_btn)
 
-        self.add_item(container)
+            container.add_item(btn_row)
+        else:
+            # Liste des messages
+            title = t("commands.saved_messages.library.title", locale=self.locale, count=self.total_count)
+            container.add_item(TextDisplay(title))
+
+            if not self.messages:
+                container.add_item(TextDisplay(t("commands.saved_messages.library.empty", locale=self.locale)))
+            else:
+                # Afficher les messages
+                for msg in self.messages[:10]:
+                    saved_ts = f"<t:{int(msg['saved_at'].timestamp())}:R>"
+
+                    # Format: **#ID** • <@author_id> • Saved {relative_time}
+                    msg_line = f"**#{msg['id']}** • <@{msg['author_id']}> • {saved_ts}"
+
+                    # Ajouter la note si présente
+                    if msg.get('note'):
+                        note_preview = msg['note'][:80]
+                        if len(msg['note']) > 80:
+                            note_preview += "..."
+                        msg_line += f"\n-# 📝 {note_preview}"
+                    else:
+                        msg_line += f"\n-# ID Discord: `{msg['message_id']}`"
+
+                    container.add_item(TextDisplay(msg_line))
+
+                container.add_item(Separator(spacing=SeparatorSpacing.small))
+
+                # Bouton pour sélectionner un message
+                view_row = ui.ActionRow()
+                view_btn = ui.Button(
+                    emoji=discord.PartialEmoji.from_str("<:search:1398729632320180274>"),
+                    label=t("commands.saved_messages.buttons.view_message", locale=self.locale),
+                    style=discord.ButtonStyle.primary,
+                    custom_id="view_msg_btn"
+                )
+                view_btn.callback = self.view_message_callback
+                view_row.add_item(view_btn)
+                container.add_item(view_row)
+
+                # Navigation buttons
+                total_pages = (self.total_count + 9) // 10
+                if total_pages > 1:
+                    nav_row = ui.ActionRow()
+
+                    # Bouton Previous
+                    prev_btn = ui.Button(
+                        emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+                        style=discord.ButtonStyle.secondary,
+                        disabled=self.page == 0,
+                        custom_id="prev_btn"
+                    )
+                    prev_btn.callback = self.prev_callback
+                    nav_row.add_item(prev_btn)
+
+                    # Bouton Page (non cliquable)
+                    page_btn = ui.Button(
+                        label=t("commands.saved_messages.library.page_label", locale=self.locale,
+                               page=self.page + 1, total=total_pages),
+                        style=discord.ButtonStyle.secondary,
+                        disabled=True,
+                        custom_id="page_info"
+                    )
+                    nav_row.add_item(page_btn)
+
+                    # Bouton Next
+                    next_btn = ui.Button(
+                        emoji=discord.PartialEmoji.from_str("<:arrow_forward:1443745574972031067>"),
+                        style=discord.ButtonStyle.secondary,
+                        disabled=(self.page + 1) * 10 >= self.total_count,
+                        custom_id="next_btn"
+                    )
+                    next_btn.callback = self.next_callback
+                    nav_row.add_item(next_btn)
+
+                    container.add_item(nav_row)
+
+            self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
@@ -383,6 +440,10 @@ class SavedMessagesLibraryView(LayoutView):
             )
             return False
         return True
+
+    async def view_message_callback(self, interaction: discord.Interaction):
+        modal = ViewMessageModal(self.locale, self)
+        await interaction.response.send_modal(modal)
 
     async def prev_callback(self, interaction: discord.Interaction):
         if self.page > 0:
@@ -394,13 +455,82 @@ class SavedMessagesLibraryView(LayoutView):
             self.page += 1
             await self.refresh(interaction)
 
-    async def refresh(self, interaction: discord.Interaction):
+    async def back_callback(self, interaction: discord.Interaction):
+        await self.refresh(interaction, show_detail=False)
+
+    async def edit_note_callback(self, interaction: discord.Interaction):
+        if self.detail_msg:
+            modal = EditNoteModal(self.locale, self.bot, self.detail_msg, parent_view=self)
+            await interaction.response.send_modal(modal)
+
+    async def export_json_callback(self, interaction: discord.Interaction):
+        if self.detail_msg and self.detail_msg.get('raw_message_data'):
+            try:
+                # Créer le fichier JSON
+                json_data = json.dumps(self.detail_msg['raw_message_data'], indent=2, ensure_ascii=False)
+                file = discord.File(
+                    io.BytesIO(json_data.encode('utf-8')),
+                    filename=f"message_{self.detail_msg['id']}_raw_data.json"
+                )
+
+                await interaction.response.send_message(
+                    content=t("commands.saved_messages.success.exported", interaction),
+                    file=file,
+                    ephemeral=True
+                )
+            except Exception as e:
+                logger.error(f"Error exporting JSON: {e}")
+                error_msg = t("common.error", interaction)
+                await interaction.response.send_message(error_msg, ephemeral=True)
+
+    async def delete_callback(self, interaction: discord.Interaction):
+        if self.detail_msg:
+            try:
+                success = await self.bot.db.delete_saved_message(self.detail_msg['id'], interaction.user.id)
+                if success:
+                    await interaction.response.send_message(
+                        t("commands.saved_messages.success.deleted", interaction),
+                        ephemeral=True
+                    )
+                    # Retour à la liste
+                    await self.refresh(interaction, show_detail=False)
+                else:
+                    await interaction.response.send_message(
+                        t("common.error", interaction),
+                        ephemeral=True
+                    )
+            except Exception as e:
+                logger.error(f"Error deleting message: {e}")
+                await interaction.response.send_message(
+                    t("common.error", interaction),
+                    ephemeral=True
+                )
+
+    async def refresh(self, interaction: discord.Interaction, show_detail: bool = False, detail_id: Optional[int] = None):
         """Refresh the view with updated data"""
-        offset = self.page * 10
-        self.messages = await self.bot.db.get_saved_messages(self.user_id, limit=10, offset=offset)
-        self.total_count = await self.bot.db.count_saved_messages(self.user_id)
+        self.show_detail = show_detail
+
+        if show_detail and detail_id:
+            # Charger les détails du message
+            self.detail_msg = await self.bot.db.get_saved_message(detail_id, self.user_id)
+        else:
+            # Recharger la liste
+            offset = self.page * 10
+            self.messages = await self.bot.db.get_saved_messages(self.user_id, limit=10, offset=offset)
+            self.total_count = await self.bot.db.count_saved_messages(self.user_id)
+            self.detail_msg = None
+
         self._build_view()
-        await interaction.response.edit_message(view=self)
+
+        # Mettre à jour le message
+        if self.original_interaction:
+            try:
+                await interaction.response.edit_message(view=self)
+            except discord.errors.InteractionResponded:
+                try:
+                    await self.original_interaction.edit_original_response(view=self)
+                except Exception:
+                    pass
 
 
 class SavedMessages(commands.Cog):
@@ -422,7 +552,7 @@ class SavedMessages(commands.Cog):
 
         # Check if user already has too many saved messages
         count = await self.bot.db.count_saved_messages(interaction.user.id)
-        if count >= 500:  # Max 500 saved messages per user
+        if count >= 500:
             error_msg = t("commands.saved_messages.errors.max_messages", interaction)
             await interaction.response.send_message(error_msg, ephemeral=True)
             return
@@ -465,7 +595,8 @@ class SavedMessages(commands.Cog):
             messages,
             str(interaction.locale),
             page=0,
-            total_count=total_count
+            total_count=total_count,
+            original_interaction=interaction
         )
 
         await interaction.response.send_message(view=view, ephemeral=ephemeral)
