@@ -5,7 +5,8 @@ Allows users to customize their experience
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from discord.ui import LayoutView, Container, TextDisplay
+from discord.ui import LayoutView, Container, TextDisplay, Separator
+from discord import SeparatorSpacing
 from typing import Optional
 
 from utils.i18n import t
@@ -67,12 +68,14 @@ def get_default_timezone(locale: str) -> str:
 
 
 class TimezoneSelect(ui.Select):
-    """Select menu for timezone selection - same pattern as ReminderSelectForEdit"""
+    """Select menu for timezone selection"""
 
-    def __init__(self, locale: str, current_tz: str, bot):
+    def __init__(self, locale: str, current_tz: Optional[str], bot, parent_view=None):
         self.locale = locale
         self.bot = bot
+        self.parent_view = parent_view
 
+        # Build options
         options = []
         for tz_id, name in TIMEZONE_OPTIONS:
             options.append(discord.SelectOption(
@@ -104,25 +107,45 @@ class TimezoneSelect(ui.Select):
             ephemeral=True
         )
 
+        # Refresh the parent view if it exists
+        if self.parent_view:
+            await self.parent_view.refresh(interaction)
+
 
 class PreferencesView(LayoutView):
-    """Main preferences view with Components V2"""
+    """Main preferences view"""
 
-    def __init__(self, bot, user_id: int, locale: str, user_data: dict):
+    def __init__(self, bot, user_id: int, locale: str, user_data: dict, original_interaction: discord.Interaction = None):
         super().__init__(timeout=300)
         self.bot = bot
         self.user_id = user_id
         self.locale = locale
         self.user_data = user_data
+        self.original_interaction = original_interaction
 
         self._build_view()
 
     def _build_view(self):
+        # Clear existing items
+        self.clear_items()
+
         container = Container()
 
-        # Title
+        # Title and description
         container.add_item(TextDisplay(t("commands.preferences.title", locale=self.locale)))
         container.add_item(TextDisplay(t("commands.preferences.main_description", locale=self.locale)))
+
+        # Current timezone display
+        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
+        if current_tz:
+            tz_display = TIMEZONE_NAMES.get(current_tz, current_tz)
+        else:
+            default_tz = get_default_timezone(self.locale)
+            tz_display = f"{TIMEZONE_NAMES.get(default_tz, default_tz)} ({t('commands.preferences.timezone.auto_detected', locale=self.locale)})"
+
+        container.add_item(TextDisplay(t("commands.preferences.timezone.current", locale=self.locale, timezone=tz_display)))
+
+        container.add_item(Separator(spacing=SeparatorSpacing.small))
 
         # Manage timezone button
         btn_row = discord.ui.ActionRow()
@@ -141,27 +164,34 @@ class PreferencesView(LayoutView):
 
         self.add_item(container)
 
-    async def timezone_callback(self, interaction: discord.Interaction):
-        """Show timezone settings - sends NEW LayoutView like reminder.py does"""
-        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
+    async def refresh(self, interaction: discord.Interaction):
+        """Refresh the view with updated data"""
+        # Fetch fresh data
+        self.user_data = await self.bot.db.get_user(self.user_id)
 
-        # Get display for current timezone
-        if current_tz:
-            tz_display = TIMEZONE_NAMES.get(current_tz, current_tz)
-        else:
-            default_tz = get_default_timezone(self.locale)
-            tz_display = f"{TIMEZONE_NAMES.get(default_tz, default_tz)} ({t('commands.preferences.timezone.auto_detected', locale=self.locale)})"
+        # Rebuild the view
+        self._build_view()
+
+        # Update the original message
+        if self.original_interaction:
+            try:
+                await self.original_interaction.edit_original_response(view=self)
+            except Exception:
+                pass
+
+    async def timezone_callback(self, interaction: discord.Interaction):
+        """Show timezone settings - sends NEW view like reminder.py does"""
+        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
 
         # Create NEW LayoutView - same pattern as reminder.py edit_callback
         view = LayoutView()
         container = Container()
         container.add_item(TextDisplay(t("commands.preferences.timezone.title", locale=self.locale)))
-        container.add_item(TextDisplay(t("commands.preferences.timezone.current", locale=self.locale, timezone=tz_display)))
         container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
 
         # Add select in ActionRow - same pattern as reminder.py
         row = discord.ui.ActionRow()
-        select = TimezoneSelect(self.locale, current_tz, self.bot)
+        select = TimezoneSelect(self.locale, current_tz, self.bot, parent_view=self)
         row.add_item(select)
         container.add_item(row)
 
@@ -215,7 +245,8 @@ class Preferences(commands.Cog):
             self.bot,
             interaction.user.id,
             str(interaction.locale),
-            user_data
+            user_data,
+            original_interaction=interaction
         )
 
         await interaction.response.send_message(view=view, ephemeral=ephemeral)
