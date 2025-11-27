@@ -173,6 +173,37 @@ class ModdyDatabase:
                 CREATE INDEX IF NOT EXISTS idx_reminders_sent ON reminders(sent)
             """)
 
+            # Table des messages sauvegardés
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS saved_messages (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    message_id BIGINT NOT NULL,
+                    channel_id BIGINT NOT NULL,
+                    guild_id BIGINT,
+                    author_id BIGINT NOT NULL,
+                    content TEXT,
+                    attachments JSONB DEFAULT '[]'::jsonb,
+                    embeds JSONB DEFAULT '[]'::jsonb,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    saved_at TIMESTAMPTZ DEFAULT NOW(),
+                    message_url TEXT,
+                    note TEXT
+                )
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_saved_messages_user_id ON saved_messages(user_id)
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_saved_messages_saved_at ON saved_messages(saved_at)
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_saved_messages_author_id ON saved_messages(author_id)
+            """)
+
             # Migration: Add role_permissions column if it doesn't exist
             await conn.execute("""
                 DO $$
@@ -745,6 +776,117 @@ class ModdyDatabase:
                 DELETE FROM reminders
                 WHERE sent = TRUE AND sent_at < NOW() - INTERVAL '%s days'
             """ % days)
+
+    # ================ GESTION DES MESSAGES SAUVEGARDÉS ================
+
+    async def save_message(self, user_id: int, message_id: int, channel_id: int,
+                          guild_id: int, author_id: int, content: str,
+                          attachments: List[Dict], embeds: List[Dict],
+                          created_at: datetime, message_url: str, note: str = None) -> int:
+        """Sauvegarde un message dans la bibliothèque de l'utilisateur"""
+        async with self.pool.acquire() as conn:
+            # Vérifie si le message n'est pas déjà sauvegardé
+            existing = await conn.fetchrow(
+                "SELECT id FROM saved_messages WHERE user_id = $1 AND message_id = $2",
+                user_id, message_id
+            )
+            if existing:
+                return existing['id']
+
+            # Sauvegarde le message
+            row = await conn.fetchrow("""
+                INSERT INTO saved_messages (
+                    user_id, message_id, channel_id, guild_id, author_id,
+                    content, attachments, embeds, created_at, message_url, note
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id
+            """, user_id, message_id, channel_id, guild_id, author_id,
+                content, json.dumps(attachments), json.dumps(embeds),
+                created_at, message_url, note)
+            return row['id']
+
+    async def get_saved_messages(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Récupère les messages sauvegardés d'un utilisateur"""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT * FROM saved_messages
+                WHERE user_id = $1
+                ORDER BY saved_at DESC
+                LIMIT $2 OFFSET $3
+            """, user_id, limit, offset)
+
+            result = []
+            for row in rows:
+                msg_dict = dict(row)
+                # Parse JSON fields
+                msg_dict['attachments'] = json.loads(msg_dict['attachments']) if msg_dict['attachments'] else []
+                msg_dict['embeds'] = json.loads(msg_dict['embeds']) if msg_dict['embeds'] else []
+                result.append(msg_dict)
+            return result
+
+    async def get_saved_message(self, saved_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+        """Récupère un message sauvegardé spécifique"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM saved_messages WHERE id = $1 AND user_id = $2",
+                saved_id, user_id
+            )
+            if not row:
+                return None
+
+            msg_dict = dict(row)
+            msg_dict['attachments'] = json.loads(msg_dict['attachments']) if msg_dict['attachments'] else []
+            msg_dict['embeds'] = json.loads(msg_dict['embeds']) if msg_dict['embeds'] else []
+            return msg_dict
+
+    async def delete_saved_message(self, saved_id: int, user_id: int) -> bool:
+        """Supprime un message sauvegardé"""
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                "DELETE FROM saved_messages WHERE id = $1 AND user_id = $2",
+                saved_id, user_id
+            )
+            return result == "DELETE 1"
+
+    async def update_saved_message_note(self, saved_id: int, user_id: int, note: str) -> bool:
+        """Met à jour la note d'un message sauvegardé"""
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                "UPDATE saved_messages SET note = $1 WHERE id = $2 AND user_id = $3",
+                note, saved_id, user_id
+            )
+            return result == "UPDATE 1"
+
+    async def count_saved_messages(self, user_id: int) -> int:
+        """Compte le nombre de messages sauvegardés par un utilisateur"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT COUNT(*) as count FROM saved_messages WHERE user_id = $1",
+                user_id
+            )
+            return row['count']
+
+    async def search_saved_messages(self, user_id: int, query: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Recherche dans les messages sauvegardés"""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT * FROM saved_messages
+                WHERE user_id = $1 AND (
+                    content ILIKE $2 OR
+                    note ILIKE $2
+                )
+                ORDER BY saved_at DESC
+                LIMIT $3
+            """, user_id, f"%{query}%", limit)
+
+            result = []
+            for row in rows:
+                msg_dict = dict(row)
+                msg_dict['attachments'] = json.loads(msg_dict['attachments']) if msg_dict['attachments'] else []
+                msg_dict['embeds'] = json.loads(msg_dict['embeds']) if msg_dict['embeds'] else []
+                result.append(msg_dict)
+            return result
 
 
 # Instance globale (sera initialisée dans bot.py)

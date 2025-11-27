@@ -375,6 +375,48 @@
           "description": "Could not refresh webhook. Status: {status}"
         }
       }
+    },
+    "saved_messages": {
+      "description": "Saved messages library",
+      "modals": {
+        "add_note_title": "Add a note",
+        "edit_note_title": "Edit note",
+        "note_label": "Note (optional)",
+        "note_placeholder": "Add a note to remember this message..."
+      },
+      "success": {
+        "saved": "<:done:1398729525277229066> Message saved successfully! ID: #{id}",
+        "deleted": "<:done:1398729525277229066> Message removed from your library.",
+        "note_updated": "<:done:1398729525277229066> Note updated successfully!"
+      },
+      "errors": {
+        "max_messages": "<:undone:1398729502028333218> You've reached the limit of 500 saved messages.",
+        "author_only": "Only the command author can use this interface."
+      },
+      "library": {
+        "title": "### <:save:1401600534296993812> Message Library ({count})",
+        "empty": "Your library is empty.\nUse the **Save Message** context menu on a message to save it!",
+        "page_info": "-# Page {page}/{total}"
+      },
+      "detail": {
+        "title": "### <:save:1401600534296993812> Message Details",
+        "author": "**Author:** <@{author_id}>",
+        "dates": "**Created:** {created} • **Saved:** {saved}",
+        "no_content": "*Message with no text content*",
+        "note": "📝 **Note:** {note}",
+        "attachments": "📎 **Attachments:** {count}",
+        "link": "[➜ View original message]({url})"
+      },
+      "buttons": {
+        "edit_note": "Edit note",
+        "delete": "Delete",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "select": {
+        "placeholder": "Select a message to view details",
+        "no_preview": "Message with no preview"
+      }
     }
   },
   "errors": {
