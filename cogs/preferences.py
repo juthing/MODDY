@@ -70,10 +70,9 @@ def get_default_timezone(locale: str) -> str:
 class TimezoneSelect(ui.Select):
     """Select menu for timezone selection"""
 
-    def __init__(self, locale: str, current_tz: Optional[str], bot, parent_view=None):
+    def __init__(self, locale: str, current_tz: Optional[str], bot):
         self.locale = locale
         self.bot = bot
-        self.parent_view = parent_view
 
         # Build options
         options = []
@@ -101,27 +100,23 @@ class TimezoneSelect(ui.Select):
             selected_tz
         )
 
-        # Send confirmation
+        # Send ephemeral confirmation message
         await interaction.response.send_message(
             t("commands.preferences.timezone.success", interaction, timezone=TIMEZONE_NAMES.get(selected_tz, selected_tz)),
             ephemeral=True
         )
 
-        # Refresh the parent view if it exists
-        if self.parent_view:
-            await self.parent_view.refresh(interaction)
-
 
 class PreferencesView(LayoutView):
     """Main preferences view"""
 
-    def __init__(self, bot, user_id: int, locale: str, user_data: dict, original_interaction: discord.Interaction = None):
+    def __init__(self, bot, user_id: int, locale: str, user_data: dict):
         super().__init__(timeout=300)
         self.bot = bot
         self.user_id = user_id
         self.locale = locale
         self.user_data = user_data
-        self.original_interaction = original_interaction
+        self.current_page = "home"  # Track current page: "home" or "timezone"
 
         self._build_view()
 
@@ -129,6 +124,14 @@ class PreferencesView(LayoutView):
         # Clear existing items
         self.clear_items()
 
+        # Build appropriate page based on current_page
+        if self.current_page == "timezone":
+            self._build_timezone_page()
+        else:
+            self._build_home_page()
+
+    def _build_home_page(self):
+        """Build the home page with all preference options"""
         container = Container()
 
         # Title and description
@@ -164,39 +167,57 @@ class PreferencesView(LayoutView):
 
         self.add_item(container)
 
-    async def refresh(self, interaction: discord.Interaction):
-        """Refresh the view with updated data"""
-        # Fetch fresh data
-        self.user_data = await self.bot.db.get_user(self.user_id)
-
-        # Rebuild the view
-        self._build_view()
-
-        # Update the original message
-        if self.original_interaction:
-            try:
-                await self.original_interaction.edit_original_response(view=self)
-            except Exception:
-                pass
-
-    async def timezone_callback(self, interaction: discord.Interaction):
-        """Show timezone settings - sends NEW view like reminder.py does"""
-        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
-
-        # Create NEW LayoutView - same pattern as reminder.py edit_callback
-        view = LayoutView()
+    def _build_timezone_page(self):
+        """Build the timezone settings page with back button"""
         container = Container()
+
+        # Title and description
         container.add_item(TextDisplay(t("commands.preferences.timezone.title", locale=self.locale)))
         container.add_item(TextDisplay(t("commands.preferences.timezone.label", locale=self.locale)))
 
-        # Add select in ActionRow - same pattern as reminder.py
-        row = discord.ui.ActionRow()
-        select = TimezoneSelect(self.locale, current_tz, self.bot, parent_view=self)
-        row.add_item(select)
-        container.add_item(row)
+        # Timezone select
+        current_tz = self.user_data.get('data', {}).get('reminder_timezone')
+        select_row = discord.ui.ActionRow()
+        select = TimezoneSelect(self.locale, current_tz, self.bot)
+        select_row.add_item(select)
+        container.add_item(select_row)
 
-        view.add_item(container)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        container.add_item(Separator(spacing=SeparatorSpacing.small))
+
+        # Back button
+        back_btn_row = discord.ui.ActionRow()
+        back_btn = discord.ui.Button(
+            emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+            label=t("commands.preferences.buttons.back", locale=self.locale),
+            style=discord.ButtonStyle.secondary,
+            custom_id="back_btn"
+        )
+        back_btn.callback = self.back_callback
+        back_btn_row.add_item(back_btn)
+        container.add_item(back_btn_row)
+
+        self.add_item(container)
+
+    async def timezone_callback(self, interaction: discord.Interaction):
+        """Show timezone settings - updates current message instead of creating new one"""
+        # Switch to timezone page
+        self.current_page = "timezone"
+        self._build_view()
+
+        # Update the message in place
+        await interaction.response.edit_message(view=self)
+
+    async def back_callback(self, interaction: discord.Interaction):
+        """Go back to home page"""
+        # Switch to home page
+        self.current_page = "home"
+
+        # Refresh data to show updated timezone
+        self.user_data = await self.bot.db.get_user(self.user_id)
+        self._build_view()
+
+        # Update the message in place
+        await interaction.response.edit_message(view=self)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.user_id:
@@ -245,8 +266,7 @@ class Preferences(commands.Cog):
             self.bot,
             interaction.user.id,
             str(interaction.locale),
-            user_data,
-            original_interaction=interaction
+            user_data
         )
 
         await interaction.response.send_message(view=view, ephemeral=ephemeral)
