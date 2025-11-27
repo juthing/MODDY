@@ -314,7 +314,7 @@ class SavedMessagesLibraryView(LayoutView):
 
             # Bouton Back
             back_btn = ui.Button(
-                emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+                emoji="◀️",
                 label=t("commands.saved_messages.buttons.back", locale=self.locale),
                 style=discord.ButtonStyle.secondary,
                 custom_id="back_btn"
@@ -324,7 +324,7 @@ class SavedMessagesLibraryView(LayoutView):
 
             # Bouton Edit Note
             edit_btn = ui.Button(
-                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                emoji="✏️",
                 label=t("commands.saved_messages.buttons.edit_note", locale=self.locale),
                 style=discord.ButtonStyle.primary,
                 custom_id="edit_note_btn"
@@ -334,7 +334,7 @@ class SavedMessagesLibraryView(LayoutView):
 
             # Bouton Export JSON
             export_btn = ui.Button(
-                emoji=discord.PartialEmoji.from_str("<:data_object:1401600908323852318>"),
+                emoji="📄",
                 label=t("commands.saved_messages.buttons.export_json", locale=self.locale),
                 style=discord.ButtonStyle.secondary,
                 custom_id="export_json_btn"
@@ -344,7 +344,7 @@ class SavedMessagesLibraryView(LayoutView):
 
             # Bouton Delete
             delete_btn = ui.Button(
-                emoji=discord.PartialEmoji.from_str("<:delete:1401600770431909939>"),
+                emoji="🗑️",
                 label=t("commands.saved_messages.buttons.delete", locale=self.locale),
                 style=discord.ButtonStyle.danger,
                 custom_id="delete_btn"
@@ -384,7 +384,7 @@ class SavedMessagesLibraryView(LayoutView):
                 # Bouton pour sélectionner un message
                 view_row = ui.ActionRow()
                 view_btn = ui.Button(
-                    emoji=discord.PartialEmoji.from_str("<:search:1398729632320180274>"),
+                    emoji="🔍",
                     label=t("commands.saved_messages.buttons.view_message", locale=self.locale),
                     style=discord.ButtonStyle.primary,
                     custom_id="view_msg_btn"
@@ -400,7 +400,7 @@ class SavedMessagesLibraryView(LayoutView):
 
                     # Bouton Previous
                     prev_btn = ui.Button(
-                        emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+                        emoji="◀️",
                         style=discord.ButtonStyle.secondary,
                         disabled=self.page == 0,
                         custom_id="prev_btn"
@@ -420,7 +420,7 @@ class SavedMessagesLibraryView(LayoutView):
 
                     # Bouton Next
                     next_btn = ui.Button(
-                        emoji=discord.PartialEmoji.from_str("<:arrow_forward:1443745574972031067>"),
+                        emoji="▶️",
                         style=discord.ButtonStyle.secondary,
                         disabled=(self.page + 1) * 10 >= self.total_count,
                         custom_id="next_btn"
