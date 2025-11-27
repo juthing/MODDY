@@ -374,6 +374,48 @@
           "description": "Impossible d'actualiser le webhook. Statut : {status}"
         }
       }
+    },
+    "saved_messages": {
+      "description": "Bibliothèque de messages sauvegardés",
+      "modals": {
+        "add_note_title": "Ajouter une note",
+        "edit_note_title": "Modifier la note",
+        "note_label": "Note (optionnelle)",
+        "note_placeholder": "Ajoutez une note pour vous souvenir de ce message..."
+      },
+      "success": {
+        "saved": "<:done:1398729525277229066> Message sauvegardé avec succès ! ID: #{id}",
+        "deleted": "<:done:1398729525277229066> Message supprimé de votre bibliothèque.",
+        "note_updated": "<:done:1398729525277229066> Note mise à jour avec succès !"
+      },
+      "errors": {
+        "max_messages": "<:undone:1398729502028333218> Vous avez atteint la limite de 500 messages sauvegardés.",
+        "author_only": "Seul l'auteur de la commande peut utiliser cette interface."
+      },
+      "library": {
+        "title": "### <:save:1401600534296993812> Bibliothèque de messages ({count})",
+        "empty": "Votre bibliothèque est vide.\nUtilisez le menu contextuel **Save Message** sur un message pour le sauvegarder !",
+        "page_info": "-# Page {page}/{total}"
+      },
+      "detail": {
+        "title": "### <:save:1401600534296993812> Détails du message",
+        "author": "**Auteur :** <@{author_id}>",
+        "dates": "**Créé :** {created} • **Sauvegardé :** {saved}",
+        "no_content": "*Message sans contenu textuel*",
+        "note": "📝 **Note :** {note}",
+        "attachments": "📎 **Pièces jointes :** {count}",
+        "link": "[➜ Voir le message original]({url})"
+      },
+      "buttons": {
+        "edit_note": "Modifier la note",
+        "delete": "Supprimer",
+        "previous": "Précédent",
+        "next": "Suivant"
+      },
+      "select": {
+        "placeholder": "Sélectionnez un message pour voir les détails",
+        "no_preview": "Message sans aperçu"
+      }
     }
   },
   "errors": {
