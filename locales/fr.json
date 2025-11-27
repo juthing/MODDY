@@ -380,41 +380,47 @@
       "modals": {
         "add_note_title": "Ajouter une note",
         "edit_note_title": "Modifier la note",
+        "view_title": "Voir un message",
         "note_label": "Note (optionnelle)",
-        "note_placeholder": "Ajoutez une note pour vous souvenir de ce message..."
+        "note_placeholder": "Ajoutez une note pour vous souvenir de ce message...",
+        "id_label": "ID du message Moddy"
       },
       "success": {
         "saved": "<:done:1398729525277229066> Message sauvegardé avec succès ! ID: #{id}",
         "deleted": "<:done:1398729525277229066> Message supprimé de votre bibliothèque.",
-        "note_updated": "<:done:1398729525277229066> Note mise à jour avec succès !"
+        "note_updated": "<:done:1398729525277229066> Note mise à jour avec succès !",
+        "exported": "<:done:1398729525277229066> Données JSON exportées !"
       },
       "errors": {
         "max_messages": "<:undone:1398729502028333218> Vous avez atteint la limite de 500 messages sauvegardés.",
-        "author_only": "Seul l'auteur de la commande peut utiliser cette interface."
+        "author_only": "Seul l'auteur de la commande peut utiliser cette interface.",
+        "not_found": "<:undone:1398729502028333218> Message introuvable dans votre bibliothèque.",
+        "invalid_id": "<:undone:1398729502028333218> ID invalide. Veuillez entrer un nombre."
       },
       "library": {
         "title": "### <:save:1401600534296993812> Bibliothèque de messages ({count})",
         "empty": "Votre bibliothèque est vide.\nUtilisez le menu contextuel **Save Message** sur un message pour le sauvegarder !",
-        "page_info": "-# Page {page}/{total}"
+        "page_label": "Page {page}/{total}"
       },
       "detail": {
         "title": "### <:save:1401600534296993812> Détails du message",
-        "author": "**Auteur :** <@{author_id}>",
-        "dates": "**Créé :** {created} • **Sauvegardé :** {saved}",
+        "author_label": "Auteur",
+        "created": "Créé",
+        "saved": "Sauvegardé",
+        "content": "Contenu",
+        "content_truncated": "Contenu tronqué (trop long)",
         "no_content": "*Message sans contenu textuel*",
-        "note": "📝 **Note :** {note}",
-        "attachments": "📎 **Pièces jointes :** {count}",
-        "link": "[➜ Voir le message original]({url})"
+        "note_label": "Note",
+        "attachments_label": "Pièces jointes",
+        "embeds_label": "Embeds",
+        "view_original": "Voir le message original"
       },
       "buttons": {
         "edit_note": "Modifier la note",
         "delete": "Supprimer",
-        "previous": "Précédent",
-        "next": "Suivant"
-      },
-      "select": {
-        "placeholder": "Sélectionnez un message pour voir les détails",
-        "no_preview": "Message sans aperçu"
+        "back": "Retour",
+        "view_message": "Voir un message",
+        "export_json": "Export JSON"
       }
     }
   },
