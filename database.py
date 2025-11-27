@@ -382,14 +382,13 @@ class ModdyDatabase:
         async with self.pool.acquire() as conn:
             # Utilise jsonb_set pour mettre à jour un chemin spécifique
             path_parts = path.split('.')
-            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
-                UPDATE users 
+                UPDATE users
                 SET data = jsonb_set(data, $1, $2, true),
                     updated_at = NOW()
                 WHERE user_id = $3
             """,
-                json_path,
+                path_parts,
                 json.dumps(value),
                 user_id
             )
@@ -398,14 +397,13 @@ class ModdyDatabase:
         """Met à jour une partie spécifique de la data serveur"""
         async with self.pool.acquire() as conn:
             path_parts = path.split('.')
-            json_path = '{' + ','.join(path_parts) + '}'
             await conn.execute("""
-                UPDATE guilds 
+                UPDATE guilds
                 SET data = jsonb_set(data, $1, $2, true),
                     updated_at = NOW()
                 WHERE guild_id = $3
             """,
-                json_path,
+                path_parts,
                 json.dumps(value),
                 guild_id
             )
