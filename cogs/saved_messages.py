@@ -253,7 +253,7 @@ class SavedMessagesLibraryView(LayoutView):
 
         if self.show_detail and self.detail_msg:
             # Vue détaillée d'un message
-            container.add_item(TextDisplay(f"<:message:1443749710073696286> {t('commands.saved_messages.detail.title', locale=self.locale)}"))
+            container.add_item(TextDisplay(f"{t('commands.saved_messages.detail.title', locale=self.locale)}"))
 
             # ID Moddy
             container.add_item(TextDisplay(f"**ID Moddy:** #{self.detail_msg['id']}"))
