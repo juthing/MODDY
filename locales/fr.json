@@ -490,28 +490,38 @@
       },
       "errors": {
         "guild_only": "❌ Cette commande ne peut être utilisée que sur un serveur.",
+        "bot_not_in_guild": "❌ Moddy doit être présent sur ce serveur pour utiliser cette commande.",
         "wrong_user": "❌ Seul l'utilisateur qui a lancé la configuration peut utiliser cette interface.",
         "no_user_perms": "❌ Vous devez avoir la permission **Gérer le serveur** pour utiliser cette commande.",
+        "channel_not_found": "Salon introuvable",
         "no_admin_perms": {
           "title": "Permissions insuffisantes",
           "description": "Moddy a besoin des **permissions administrateur** pour gérer les modules du serveur.\n\nVeuillez réinviter le bot avec les bonnes permissions.",
           "button": "Réinviter Moddy"
         }
-      }
+      },
+      "current_value": "Valeur actuelle :",
+      "not_configured": "Non configuré"
     },
     "welcome": {
       "config": {
         "title": "Configuration du module Welcome",
         "description": "Configurez les messages de bienvenue pour les nouveaux membres de votre serveur.",
         "channel": {
+          "section_title": "Salon d'envoi",
+          "section_description": "Dans quel salon doit être envoyé le message de bienvenue ?",
           "label": "Salon de bienvenue",
-          "placeholder": "Sélectionnez un salon",
-          "hint": "Le salon où seront envoyés les messages de bienvenue"
+          "placeholder": "Sélectionnez un salon"
         },
         "message": {
-          "label": "Message de bienvenue"
+          "section_title": "Message de bienvenue",
+          "section_description": "Personnalisez le message de bienvenue. Variables disponibles : {user}, {username}, {server}, {member_count}",
+          "label": "Message de bienvenue",
+          "edit_todo": "Edition du message via modal à implémenter"
         },
         "embed": {
+          "section_title": "Options d'embed",
+          "section_description": "Activer l'embed pour un message plus esthétique",
           "label": "Utiliser un embed"
         }
       }
