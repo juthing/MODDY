@@ -197,8 +197,7 @@ class ModdyBot(commands.Bot):
                         support_btn = ui.Button(
                             label="Support Server",
                             style=discord.ButtonStyle.link,
-                            url="https://moddy.app/support",
-                            emoji="🆘"
+                            url="https://moddy.app/support"
                         )
                         button_row.add_item(support_btn)
                         container.add_item(button_row)
