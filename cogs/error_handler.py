@@ -33,22 +33,22 @@ class ErrorView(ui.LayoutView):
 
         # Add error title with emoji
         container.add_item(
-            ui.TextDisplay(f"### <:error:1444049460924776478> Une erreur est survenue")
+            ui.TextDisplay(f"### <:error:1444049460924776478> An Error Occurred")
         )
 
         # Add error message with code
         container.add_item(
             ui.TextDisplay(
-                f"**Code d'erreur :** `{self.error_code}`\n\n"
-                "Cette erreur a été automatiquement enregistrée et sera analysée par notre équipe.\n"
-                "Si le problème persiste, contactez le support avec ce code d'erreur."
+                f"**Error Code:** `{self.error_code}`\n\n"
+                "This error has been automatically logged and will be reviewed by our team.\n"
+                "If the problem persists, please contact support with this error code."
             )
         )
 
         # Add button row with support link
         button_row = ui.ActionRow()
         support_btn = ui.Button(
-            label="Serveur Support",
+            label="Support Server",
             style=discord.ButtonStyle.link,
             url="https://moddy.app/support",
             emoji="🆘"
@@ -378,14 +378,14 @@ class ErrorTracker(commands.Cog):
                     super().__init__(timeout=None)
                     container = ui.Container()
                     container.add_item(
-                        ui.TextDisplay(f"### <:error:1444049460924776478> Permissions insuffisantes")
+                        ui.TextDisplay(f"### <:error:1444049460924776478> Insufficient Permissions")
                     )
                     container.add_item(
-                        ui.TextDisplay("Vous n'avez pas les permissions nécessaires pour exécuter cette commande.")
+                        ui.TextDisplay("You don't have the necessary permissions to execute this command.")
                     )
                     button_row = ui.ActionRow()
                     support_btn = ui.Button(
-                        label="Serveur Support",
+                        label="Support Server",
                         style=discord.ButtonStyle.link,
                         url="https://moddy.app/support",
                         emoji="🆘"
@@ -411,10 +411,10 @@ class ErrorTracker(commands.Cog):
                     super().__init__(timeout=None)
                     container = ui.Container()
                     container.add_item(
-                        ui.TextDisplay(f"### ⏱️ Cooldown actif")
+                        ui.TextDisplay(f"### ⏱️ Cooldown Active")
                     )
                     container.add_item(
-                        ui.TextDisplay(f"Réessayez dans `{retry_after:.1f}` secondes.")
+                        ui.TextDisplay(f"Please try again in `{retry_after:.1f}` seconds.")
                     )
                     self.add_item(container)
 

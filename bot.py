@@ -188,14 +188,14 @@ class ModdyBot(commands.Bot):
                         super().__init__(timeout=None)
                         container = ui.Container()
                         container.add_item(
-                            ui.TextDisplay(f"### <:error:1444049460924776478> Une erreur est survenue")
+                            ui.TextDisplay(f"### <:error:1444049460924776478> An Error Occurred")
                         )
                         container.add_item(
-                            ui.TextDisplay("Une erreur inattendue s'est produite. Veuillez réessayer.")
+                            ui.TextDisplay("An unexpected error occurred. Please try again.")
                         )
                         button_row = ui.ActionRow()
                         support_btn = ui.Button(
-                            label="Serveur Support",
+                            label="Support Server",
                             style=discord.ButtonStyle.link,
                             url="https://moddy.app/support",
                             emoji="🆘"
