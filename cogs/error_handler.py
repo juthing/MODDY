@@ -4,6 +4,7 @@ Tracking, Discord logs, and notifications with database integration
 """
 
 import discord
+from discord import ui
 from discord.ext import commands
 import traceback
 import hashlib
@@ -11,9 +12,52 @@ import json
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import asyncio
+import sys
 from collections import deque
 
 from config import COLORS
+
+
+class ErrorView(ui.LayoutView):
+    """Error display view using Components V2"""
+
+    def __init__(self, error_code: str):
+        super().__init__(timeout=None)
+        self.error_code = error_code
+        self.build_view()
+
+    def build_view(self):
+        """Builds the error view with Components V2"""
+        # Create main container
+        container = ui.Container()
+
+        # Add error title with emoji
+        container.add_item(
+            ui.TextDisplay(f"### <:error:1444049460924776478> Une erreur est survenue")
+        )
+
+        # Add error message with code
+        container.add_item(
+            ui.TextDisplay(
+                f"**Code d'erreur :** `{self.error_code}`\n\n"
+                "Cette erreur a été automatiquement enregistrée et sera analysée par notre équipe.\n"
+                "Si le problème persiste, contactez le support avec ce code d'erreur."
+            )
+        )
+
+        # Add button row with support link
+        button_row = ui.ActionRow()
+        support_btn = ui.Button(
+            label="Serveur Support",
+            style=discord.ButtonStyle.link,
+            url="https://moddy.app/support",
+            emoji="🆘"
+        )
+        button_row.add_item(support_btn)
+        container.add_item(button_row)
+
+        # Add container to view
+        self.add_item(container)
 
 
 class ErrorTracker(commands.Cog):
@@ -261,50 +305,48 @@ class ErrorTracker(commands.Cog):
         # Log to Discord
         await self.send_error_log(error_code, error_details, is_fatal)
 
-        # Message to the user
-        embed = discord.Embed(
-            title="An error occurred",
-            description=(
-                f"**Error Code:** `{error_code}`\n\n"
-                "This error has been logged and will be analyzed.\n"
-                "You can provide this code to the developer if needed."
-            ),
-            color=COLORS["error"],
-            timestamp=datetime.now(timezone.utc)
-        )
+        # Create error view with Components V2
+        error_view = ErrorView(error_code)
+
+        # Create a simple embed with red border
+        embed = discord.Embed(color=COLORS["error"])
 
         try:
             # For slash commands
             if hasattr(ctx, 'interaction') and ctx.interaction:
                 if ctx.interaction.response.is_done():
-                    await ctx.interaction.followup.send(embed=embed, ephemeral=True)
+                    await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
                 else:
-                    await ctx.interaction.response.send_message(embed=embed, ephemeral=True)
+                    await ctx.interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
             else:
                 # For text commands
-                await ctx.send(embed=embed)
-        except:
+                await ctx.send(embed=embed, view=error_view)
+        except Exception as send_error:
             # If we can't send in the channel, try DMs
             try:
-                await ctx.author.send(embed=embed)
+                await ctx.author.send(embed=embed, view=error_view)
             except:
-                pass
+                # Last resort: log the failure
+                import logging
+                logger = logging.getLogger('moddy')
+                logger.error(f"Failed to send error message to user: {send_error}")
 
     @commands.Cog.listener()
     async def on_error(self, event: str, *args, **kwargs):
         """Handles event errors (non-commands)"""
-        error = asyncio.get_event_loop().get_exception_handler()
+        # Get the actual exception from sys.exc_info()
+        exc_type, exc_value, exc_traceback = sys.exc_info()
 
-        error_code = self.generate_error_code(Exception(f"Event error: {event}"))
+        if exc_value is None:
+            return
 
-        error_details = {
-            "type": "EventError",
-            "message": f"Error in event: {event}",
-            "file": "Discord Event",
-            "line": "N/A",
+        error_code = self.generate_error_code(exc_value)
+        error_details = self.format_error_details(exc_value)
+
+        error_details.update({
             "event": event,
-            "traceback": traceback.format_exc()
-        }
+            "context": f"Discord event: {event}"
+        })
 
         self.store_error(error_code, error_details)
 
@@ -313,6 +355,122 @@ class ErrorTracker(commands.Cog):
             await self.store_error_db(error_code, error_details)
 
         await self.send_error_log(error_code, error_details, is_fatal=True)
+
+    @commands.Cog.listener()
+    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        """Handles slash command (app command) errors"""
+        # Check if the error was already handled
+        if hasattr(error, '__error_handled__'):
+            return
+
+        # Mark error as handled to prevent duplicate processing
+        error.__error_handled__ = True
+
+        # Ignored errors
+        if isinstance(error, discord.app_commands.CommandNotFound):
+            return
+
+        # Errors with specific handling
+        if isinstance(error, discord.app_commands.MissingPermissions):
+            # Create inline view for permissions error
+            class PermissionErrorView(ui.LayoutView):
+                def __init__(self):
+                    super().__init__(timeout=None)
+                    container = ui.Container()
+                    container.add_item(
+                        ui.TextDisplay(f"### <:error:1444049460924776478> Permissions insuffisantes")
+                    )
+                    container.add_item(
+                        ui.TextDisplay("Vous n'avez pas les permissions nécessaires pour exécuter cette commande.")
+                    )
+                    button_row = ui.ActionRow()
+                    support_btn = ui.Button(
+                        label="Serveur Support",
+                        style=discord.ButtonStyle.link,
+                        url="https://moddy.app/support",
+                        emoji="🆘"
+                    )
+                    button_row.add_item(support_btn)
+                    container.add_item(button_row)
+                    self.add_item(container)
+
+            embed = discord.Embed(color=COLORS["error"])
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(embed=embed, view=PermissionErrorView(), ephemeral=True)
+                else:
+                    await interaction.response.send_message(embed=embed, view=PermissionErrorView(), ephemeral=True)
+            except:
+                pass
+            return
+
+        if isinstance(error, discord.app_commands.CommandOnCooldown):
+            # Create inline view for cooldown error
+            class CooldownErrorView(ui.LayoutView):
+                def __init__(self, retry_after: float):
+                    super().__init__(timeout=None)
+                    container = ui.Container()
+                    container.add_item(
+                        ui.TextDisplay(f"### ⏱️ Cooldown actif")
+                    )
+                    container.add_item(
+                        ui.TextDisplay(f"Réessayez dans `{retry_after:.1f}` secondes.")
+                    )
+                    self.add_item(container)
+
+            embed = discord.Embed(color=COLORS["warning"])
+            try:
+                if interaction.response.is_done():
+                    await interaction.followup.send(embed=embed, view=CooldownErrorView(error.retry_after), ephemeral=True)
+                else:
+                    await interaction.response.send_message(embed=embed, view=CooldownErrorView(error.retry_after), ephemeral=True)
+            except:
+                pass
+            return
+
+        # For all other errors, log them
+        actual_error = error.original if hasattr(error, 'original') else error
+        error_code = self.generate_error_code(actual_error)
+        error_details = self.format_error_details(actual_error)
+
+        # Add interaction context
+        error_details.update({
+            "command": interaction.command.name if interaction.command else "Unknown",
+            "user": f"{interaction.user} ({interaction.user.id})",
+            "guild": f"{interaction.guild.name} ({interaction.guild.id})" if interaction.guild else "DM",
+            "channel": f"#{interaction.channel.name}" if hasattr(interaction.channel, 'name') else "DM"
+        })
+
+        # Store error
+        self.store_error(error_code, error_details)
+        await self.store_error_db(error_code, error_details)
+
+        # Determine if it's fatal
+        is_fatal = isinstance(actual_error, (
+            RuntimeError,
+            AttributeError,
+            ImportError,
+            MemoryError,
+            SystemError
+        ))
+
+        # Log to Discord
+        await self.send_error_log(error_code, error_details, is_fatal)
+
+        # Send error to user
+        error_view = ErrorView(error_code)
+        embed = discord.Embed(color=COLORS["error"])
+
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
+        except Exception as send_error:
+            # Last resort: log the failure
+            import logging
+            logger = logging.getLogger('moddy')
+            logger.error(f"Failed to send app command error to user: {send_error}")
 
 
 async def setup(bot):

@@ -169,54 +169,49 @@ class ModdyBot(commands.Bot):
             logger.info("✅ Commands synced globally")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        """Slash command error handling with i18n"""
-        from utils.i18n import t
-
+        """Slash command error handling - delegates to ErrorTracker cog"""
         # Use the ErrorTracker cog if it's loaded
         error_cog = self.get_cog("ErrorTracker")
-        if error_cog:
-            # Create a fake context to reuse the existing system
-            class FakeContext:
-                def __init__(self, interaction):
-                    self.interaction = interaction
-                    self.command = interaction.command
-                    self.author = interaction.user
-                    self.guild = interaction.guild
-                    self.channel = interaction.channel
-                    # Create a fake message object
-                    self.message = type('obj', (object,), {
-                        'content': f"/{interaction.command.name} " + " ".join(
-                            [f"{k}:{v}" for k, v in interaction.namespace.__dict__.items()])
-                    })()
-
-                async def send(self, *args, **kwargs):
-                    if interaction.response.is_done():
-                        return await interaction.followup.send(*args, **kwargs)
-                    else:
-                        return await interaction.response.send_message(*args, **kwargs)
-
-            fake_ctx = FakeContext(interaction)
-
-            # Use the existing handler
-            await error_cog.on_command_error(fake_ctx, error)
+        if error_cog and hasattr(error_cog, 'on_app_command_error'):
+            # Delegate to the cog's handler which uses Components V2
+            await error_cog.on_app_command_error(interaction, error)
         else:
-            # Fallback if the system is not loaded - now with i18n
-            logger.error(f"Slash command error: {error}", exc_info=error)
+            # Fallback if the ErrorTracker is not loaded
+            logger.error(f"Slash command error (no ErrorTracker): {error}", exc_info=error)
 
             try:
-                error_msg = t("errors.generic.description", interaction, error_code="UNKNOWN")
-                embed = discord.Embed(
-                    title=t("errors.generic.title", interaction),
-                    description=error_msg,
-                    color=COLORS["error"]
-                )
+                # Simple fallback message
+                from discord import ui
+
+                class FallbackErrorView(ui.LayoutView):
+                    def __init__(self):
+                        super().__init__(timeout=None)
+                        container = ui.Container()
+                        container.add_item(
+                            ui.TextDisplay(f"### <:error:1444049460924776478> Une erreur est survenue")
+                        )
+                        container.add_item(
+                            ui.TextDisplay("Une erreur inattendue s'est produite. Veuillez réessayer.")
+                        )
+                        button_row = ui.ActionRow()
+                        support_btn = ui.Button(
+                            label="Serveur Support",
+                            style=discord.ButtonStyle.link,
+                            url="https://moddy.app/support",
+                            emoji="🆘"
+                        )
+                        button_row.add_item(support_btn)
+                        container.add_item(button_row)
+                        self.add_item(container)
+
+                embed = discord.Embed(color=COLORS["error"])
 
                 if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, ephemeral=True)
+                    await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
                 else:
-                    await interaction.response.send_message(embed=embed, ephemeral=True)
-            except:
-                pass
+                    await interaction.response.send_message(embed=embed, view=FallbackErrorView(), ephemeral=True)
+            except Exception as e:
+                logger.error(f"Failed to send fallback error message: {e}")
 
     async def start_health_server(self):
         """Démarre le serveur de health check"""
