@@ -253,59 +253,101 @@ class SavedMessagesLibraryView(LayoutView):
 
         if self.show_detail and self.detail_msg:
             # Vue détaillée d'un message
-            container.add_item(TextDisplay(f"{t('commands.saved_messages.detail.title', locale=self.locale)}"))
+            container.add_item(TextDisplay(t('commands.saved_messages.detail.title', locale=self.locale)))
 
-            # ID Moddy
-            container.add_item(TextDisplay(f"**ID Moddy:** #{self.detail_msg['id']}"))
+            # === MODDY INFO ===
+            container.add_item(TextDisplay(""))
 
-            # ID Discord
-            container.add_item(TextDisplay(f"**ID Discord:** `{self.detail_msg['message_id']}`"))
+            # MODDY ID
+            moddy_id_label = t('commands.saved_messages.detail.moddy_id', locale=self.locale)
+            container.add_item(TextDisplay(f"> **{moddy_id_label}** : `{self.detail_msg['id']}`"))
 
-            # Auteur
-            author_line = f"**{t('commands.saved_messages.detail.author_label', locale=self.locale)}** <@{self.detail_msg['author_id']}>"
-            if self.detail_msg.get('author_username'):
-                author_line += f" (`{self.detail_msg['author_username']}`)"
-            container.add_item(TextDisplay(author_line))
+            # Date d'enregistrement
+            saved_date_label = t('commands.saved_messages.detail.saved_date', locale=self.locale)
+            saved_ts = f"<t:{int(self.detail_msg['saved_at'].timestamp())}:F>"
+            container.add_item(TextDisplay(f"> **{saved_date_label}** : {saved_ts}"))
 
-            # Dates
-            created_ts = f"<t:{int(self.detail_msg['created_at'].timestamp())}:F>"
-            saved_ts = f"<t:{int(self.detail_msg['saved_at'].timestamp())}:R>"
-            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.created', locale=self.locale)}** {created_ts}"))
-            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.saved', locale=self.locale)}** {saved_ts}"))
-
-            container.add_item(Separator(spacing=SeparatorSpacing.small))
-
-            # Contenu du message
-            if self.detail_msg['content']:
-                content_text = f"**{t('commands.saved_messages.detail.content', locale=self.locale)}**\n```\n{self.detail_msg['content'][:1800]}\n```"
-                if len(self.detail_msg['content']) > 1800:
-                    content_text += f"\n-# {t('commands.saved_messages.detail.content_truncated', locale=self.locale)}"
-                container.add_item(TextDisplay(content_text))
-            else:
-                container.add_item(TextDisplay(t("commands.saved_messages.detail.no_content", locale=self.locale)))
-
-            # Note si présente
+            # Note
+            note_label = t('commands.saved_messages.detail.note', locale=self.locale)
+            none_text = t('commands.saved_messages.detail.none', locale=self.locale)
             if self.detail_msg.get('note'):
-                container.add_item(Separator(spacing=SeparatorSpacing.small))
-                note_text = f"<:note:1443749708857085982> **{t('commands.saved_messages.detail.note_label', locale=self.locale)}** {self.detail_msg['note']}"
-                container.add_item(TextDisplay(note_text))
+                container.add_item(TextDisplay(f"> **{note_label}** : {self.detail_msg['note']}"))
+            else:
+                container.add_item(TextDisplay(f"> **{note_label}** : {none_text}"))
 
-            # Informations supplémentaires
+            # Séparateur
             container.add_item(Separator(spacing=SeparatorSpacing.small))
+
+            # === DISCORD MESSAGE INFO ===
+            container.add_item(TextDisplay(""))
+
+            # Message ID
+            message_id_label = t('commands.saved_messages.detail.message_id', locale=self.locale)
+            container.add_item(TextDisplay(f"> **{message_id_label}** : `{self.detail_msg['message_id']}`"))
+
+            # Channel ID
+            if self.detail_msg.get('channel_id'):
+                channel_id_label = t('commands.saved_messages.detail.channel_id', locale=self.locale)
+                container.add_item(TextDisplay(f"> **{channel_id_label}** : `{self.detail_msg['channel_id']}`"))
+
+            # Guild ID (Server ID)
+            if self.detail_msg.get('guild_id'):
+                guild_id_label = t('commands.saved_messages.detail.guild_id', locale=self.locale)
+                container.add_item(TextDisplay(f"> **{guild_id_label}** : `{self.detail_msg['guild_id']}`"))
+
+            # Author ID
+            author_id_label = t('commands.saved_messages.detail.author_id', locale=self.locale)
+            container.add_item(TextDisplay(f"> **{author_id_label}** : `{self.detail_msg['author_id']}`"))
+
+            # Username
+            if self.detail_msg.get('author_username'):
+                username_label = t('commands.saved_messages.detail.username', locale=self.locale)
+                container.add_item(TextDisplay(f"> **{username_label}** : `{self.detail_msg['author_username']}`"))
+
+            # Author Mention
+            author_mention_label = t('commands.saved_messages.detail.author_mention', locale=self.locale)
+            container.add_item(TextDisplay(f"> **{author_mention_label}** : <@{self.detail_msg['author_id']}>"))
+
+            # Message Send Date
+            send_date_label = t('commands.saved_messages.detail.send_date', locale=self.locale)
+            created_ts = f"<t:{int(self.detail_msg['created_at'].timestamp())}:F>"
+            container.add_item(TextDisplay(f"> **{send_date_label}** : {created_ts}"))
+
+            # Content
+            content_label = t('commands.saved_messages.detail.content', locale=self.locale)
+            if self.detail_msg['content']:
+                content_preview = self.detail_msg['content'][:1800]
+                if len(self.detail_msg['content']) > 1800:
+                    content_preview += "..."
+                container.add_item(TextDisplay(f"> **{content_label}** :\n```\n{content_preview}\n```"))
+            else:
+                container.add_item(TextDisplay(f"> **{content_label}** : {none_text}"))
 
             # Attachments
+            attachments_label = t('commands.saved_messages.detail.attachments', locale=self.locale)
             attach_count = len(self.detail_msg.get('attachments', []))
-            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.attachments_label', locale=self.locale)}** {attach_count}"))
+            if attach_count > 0:
+                attachments_info = []
+                for i, attach in enumerate(self.detail_msg.get('attachments', [])[:5], 1):
+                    attachments_info.append(f"  {i}. {attach.get('filename', 'unknown')} ({attach.get('content_type', 'unknown')})")
+                attachments_text = "\n".join(attachments_info)
+                container.add_item(TextDisplay(f"> **{attachments_label}** : {attach_count}\n{attachments_text}"))
+            else:
+                container.add_item(TextDisplay(f"> **{attachments_label}** : 0"))
 
             # Embeds
+            embeds_label = t('commands.saved_messages.detail.embeds', locale=self.locale)
             embeds_count = len(self.detail_msg.get('embeds', []))
-            container.add_item(TextDisplay(f"**{t('commands.saved_messages.detail.embeds_label', locale=self.locale)}** {embeds_count}"))
+            if embeds_count > 0:
+                container.add_item(TextDisplay(f"> **{embeds_label}** : {embeds_count}"))
+            else:
+                container.add_item(TextDisplay(f"> **{embeds_label}** : 0"))
 
-            # Lien vers le message original
+            # Message URL
             if self.detail_msg.get('message_url'):
-                container.add_item(Separator(spacing=SeparatorSpacing.small))
-                link_text = f"[➜ {t('commands.saved_messages.detail.view_original', locale=self.locale)}]({self.detail_msg['message_url']})"
-                container.add_item(TextDisplay(link_text))
+                message_url_label = t('commands.saved_messages.detail.message_url', locale=self.locale)
+                jump_to_msg = t('commands.saved_messages.detail.jump_to_message', locale=self.locale)
+                container.add_item(TextDisplay(f"> **{message_url_label}** : [{jump_to_msg}]({self.detail_msg['message_url']})"))
 
             self.add_item(container)
 
