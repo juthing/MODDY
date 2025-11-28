@@ -355,7 +355,7 @@ class SavedMessagesLibraryView(LayoutView):
             container.add_item(btn_row)
         else:
             # Liste des messages
-            title = f"<:message:1443749710073696286> {t('commands.saved_messages.library.title', locale=self.locale, count=self.total_count)}"
+            title = f"{t('commands.saved_messages.library.title', locale=self.locale, count=self.total_count)}"
             container.add_item(TextDisplay(title))
 
             if not self.messages:
