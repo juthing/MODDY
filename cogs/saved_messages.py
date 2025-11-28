@@ -253,7 +253,7 @@ class SavedMessagesLibraryView(LayoutView):
 
         if self.show_detail and self.detail_msg:
             # Vue détaillée d'un message
-            container.add_item(TextDisplay(t("commands.saved_messages.detail.title", locale=self.locale)))
+            container.add_item(TextDisplay(f"<:message:1443749710073696286> {t('commands.saved_messages.detail.title', locale=self.locale)}"))
 
             # ID Moddy
             container.add_item(TextDisplay(f"**ID Moddy:** #{self.detail_msg['id']}"))
@@ -287,7 +287,7 @@ class SavedMessagesLibraryView(LayoutView):
             # Note si présente
             if self.detail_msg.get('note'):
                 container.add_item(Separator(spacing=SeparatorSpacing.small))
-                note_text = f"📝 **{t('commands.saved_messages.detail.note_label', locale=self.locale)}** {self.detail_msg['note']}"
+                note_text = f"<:note:1443749708857085982> **{t('commands.saved_messages.detail.note_label', locale=self.locale)}** {self.detail_msg['note']}"
                 container.add_item(TextDisplay(note_text))
 
             # Informations supplémentaires
@@ -355,7 +355,7 @@ class SavedMessagesLibraryView(LayoutView):
             container.add_item(btn_row)
         else:
             # Liste des messages
-            title = t("commands.saved_messages.library.title", locale=self.locale, count=self.total_count)
+            title = f"<:message:1443749710073696286> {t('commands.saved_messages.library.title', locale=self.locale, count=self.total_count)}"
             container.add_item(TextDisplay(title))
 
             if not self.messages:
@@ -373,7 +373,7 @@ class SavedMessagesLibraryView(LayoutView):
                         note_preview = msg['note'][:80]
                         if len(msg['note']) > 80:
                             note_preview += "..."
-                        msg_line += f"\n-# 📝 {note_preview}"
+                        msg_line += f"\n-# <:note:1443749708857085982> {note_preview}"
                     else:
                         msg_line += f"\n-# ID Discord: `{msg['message_id']}`"
 
@@ -384,7 +384,7 @@ class SavedMessagesLibraryView(LayoutView):
                 # Bouton pour sélectionner un message
                 view_row = ui.ActionRow()
                 view_btn = ui.Button(
-                    emoji=discord.PartialEmoji.from_str("<:search:1398729632320180274>"),
+                    emoji=discord.PartialEmoji.from_str("<:search:1443752796460552232>"),
                     label=t("commands.saved_messages.buttons.view_message", locale=self.locale),
                     style=discord.ButtonStyle.primary,
                     custom_id="view_msg_btn"
@@ -420,7 +420,7 @@ class SavedMessagesLibraryView(LayoutView):
 
                     # Bouton Next
                     next_btn = ui.Button(
-                        emoji=discord.PartialEmoji.from_str("<:arrow_forward:1443745574972031067>"),
+                        emoji=discord.PartialEmoji.from_str("<:next:1443745574972031067>"),
                         style=discord.ButtonStyle.secondary,
                         disabled=(self.page + 1) * 10 >= self.total_count,
                         custom_id="next_btn"
