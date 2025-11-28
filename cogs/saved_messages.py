@@ -247,7 +247,6 @@ class SavedMessagesLibraryView(LayoutView):
             container.add_item(TextDisplay(t('commands.saved_messages.detail.title', locale=self.locale)))
 
             # === MODDY INFO ===
-            container.add_item(TextDisplay(""))
 
             # MODDY ID
             moddy_id_label = t('commands.saved_messages.detail.moddy_id', locale=self.locale)
@@ -270,7 +269,6 @@ class SavedMessagesLibraryView(LayoutView):
             container.add_item(Separator(spacing=SeparatorSpacing.small))
 
             # === DISCORD MESSAGE INFO ===
-            container.add_item(TextDisplay(""))
 
             # Message ID
             message_id_label = t('commands.saved_messages.detail.message_id', locale=self.locale)
