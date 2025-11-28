@@ -403,17 +403,23 @@
         "page_label": "Page {page}/{total}"
       },
       "detail": {
-        "title": "### <:message:1443749710073696286> Détails du message",
-        "author_label": "Auteur",
-        "created": "Créé",
-        "saved": "Sauvegardé",
+        "title": "**Détails du message**",
+        "moddy_id": "ID MODDY",
+        "saved_date": "Date de sauvegarde",
+        "note": "Note",
+        "message_id": "ID du message",
+        "channel_id": "ID du canal",
+        "guild_id": "ID du serveur",
+        "author_id": "ID de l'auteur",
+        "username": "Nom d'utilisateur",
+        "author_mention": "Mention de l'auteur",
+        "send_date": "Date d'envoi",
         "content": "Contenu",
-        "content_truncated": "Contenu tronqué (trop long)",
-        "no_content": "*Message sans contenu textuel*",
-        "note_label": "Note",
-        "attachments_label": "Pièces jointes",
-        "embeds_label": "Embeds",
-        "view_original": "Voir le message original"
+        "attachments": "Pièces jointes",
+        "embeds": "Embeds",
+        "message_url": "URL du message",
+        "jump_to_message": "Aller au message",
+        "none": "Aucun"
       },
       "buttons": {
         "edit_note": "Modifier la note",

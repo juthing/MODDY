@@ -404,17 +404,23 @@
         "page_label": "Page {page}/{total}"
       },
       "detail": {
-        "title": "### <:message:1443749710073696286> Message Details",
-        "author_label": "Author",
-        "created": "Created",
-        "saved": "Saved",
+        "title": "**Message Details**",
+        "moddy_id": "MODDY ID",
+        "saved_date": "Saved Date",
+        "note": "Note",
+        "message_id": "Message ID",
+        "channel_id": "Channel ID",
+        "guild_id": "Guild ID",
+        "author_id": "Author ID",
+        "username": "Username",
+        "author_mention": "Author Mention",
+        "send_date": "Send Date",
         "content": "Content",
-        "content_truncated": "Content truncated (too long)",
-        "no_content": "*Message with no text content*",
-        "note_label": "Note",
-        "attachments_label": "Attachments",
-        "embeds_label": "Embeds",
-        "view_original": "View original message"
+        "attachments": "Attachments",
+        "embeds": "Embeds",
+        "message_url": "Message URL",
+        "jump_to_message": "Jump to message",
+        "none": "None"
       },
       "buttons": {
         "edit_note": "Edit note",
