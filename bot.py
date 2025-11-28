@@ -31,6 +31,8 @@ from utils.i18n import i18n
 from utils.staff_permissions import setup_staff_permissions
 # Import du système de logging staff
 from utils.staff_logger import init_staff_logger
+# Import du gestionnaire de modules
+from modules.module_manager import ModuleManager
 
 logger = logging.getLogger('moddy')
 
@@ -78,6 +80,9 @@ class ModdyBot(commands.Bot):
 
         # Cache for server prefixes
         self.prefix_cache = {}
+
+        # Gestionnaire de modules
+        self.module_manager = None
 
         # Configure global error handler
         self.setup_error_handler()
@@ -146,6 +151,12 @@ class ModdyBot(commands.Bot):
         logger.info("📝 Initializing staff logger...")
         init_staff_logger(self)
         logger.info("✅ Staff logger ready")
+
+        # Initialize module manager
+        logger.info("📦 Initializing module manager...")
+        self.module_manager = ModuleManager(self)
+        self.module_manager.discover_modules()
+        logger.info("✅ Module manager ready")
 
         # Load extensions
         await self.load_extensions()
@@ -449,6 +460,14 @@ class ModdyBot(commands.Bot):
                 logger.info(f"📊 DB: {stats['users']} users, {stats['guilds']} guilds, {stats['errors']} errors")
             except:
                 pass
+
+        # Load modules for all guilds
+        if self.module_manager and self.db:
+            try:
+                await self.module_manager.load_all_modules()
+                logger.info("✅ All guild modules loaded successfully")
+            except Exception as e:
+                logger.error(f"❌ Error loading guild modules: {e}", exc_info=True)
 
     async def on_guild_join(self, guild: discord.Guild):
         """When the bot joins a server"""
