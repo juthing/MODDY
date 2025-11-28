@@ -491,28 +491,38 @@
       },
       "errors": {
         "guild_only": "❌ This command can only be used on a server.",
+        "bot_not_in_guild": "❌ Moddy must be present on this server to use this command.",
         "wrong_user": "❌ Only the user who started the configuration can use this interface.",
         "no_user_perms": "❌ You must have the **Manage Server** permission to use this command.",
+        "channel_not_found": "Channel not found",
         "no_admin_perms": {
           "title": "Insufficient Permissions",
           "description": "Moddy needs **administrator permissions** to manage server modules.\n\nPlease re-invite the bot with the correct permissions.",
           "button": "Re-invite Moddy"
         }
-      }
+      },
+      "current_value": "Current value:",
+      "not_configured": "Not configured"
     },
     "welcome": {
       "config": {
         "title": "Welcome Module Configuration",
         "description": "Configure welcome messages for new members on your server.",
         "channel": {
+          "section_title": "Send Channel",
+          "section_description": "In which channel should the welcome message be sent?",
           "label": "Welcome channel",
-          "placeholder": "Select a channel",
-          "hint": "The channel where welcome messages will be sent"
+          "placeholder": "Select a channel"
         },
         "message": {
-          "label": "Welcome message"
+          "section_title": "Welcome Message",
+          "section_description": "Customize the welcome message. Available variables: {user}, {username}, {server}, {member_count}",
+          "label": "Welcome message",
+          "edit_todo": "Message editing via modal to be implemented"
         },
         "embed": {
+          "section_title": "Embed Options",
+          "section_description": "Enable embed for a more aesthetic message",
           "label": "Use an embed"
         }
       }

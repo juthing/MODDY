@@ -47,13 +47,11 @@ class ConfigMainView(ui.LayoutView):
 
         # Titre et message de bienvenue
         container.add_item(ui.TextDisplay(
-            f"## <:settings:1398729549323440208> {t('modules.config.main.title', locale=self.locale)}"
+            f"### <:settings:1398729549323440208> {t('modules.config.main.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
             t('modules.config.main.description', locale=self.locale)
         ))
-
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
 
         # Menu déroulant pour sélectionner un module
         select_row = ui.ActionRow()
@@ -89,12 +87,6 @@ class ConfigMainView(ui.LayoutView):
         module_select.callback = self.on_module_select
         select_row.add_item(module_select)
         container.add_item(select_row)
-
-        # Note en bas
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-        container.add_item(ui.TextDisplay(
-            f"-# {t('modules.config.main.hint', locale=self.locale)}"
-        ))
 
         self.add_item(container)
 
@@ -164,19 +156,40 @@ class Config(commands.Cog):
 
     @app_commands.command(
         name="config",
-        description="Configure les modules du serveur"
+        description="Configure server modules"
     )
     @app_commands.guild_only()
-    async def config(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        incognito="Make response visible only to you"
+    )
+    async def config(self, interaction: discord.Interaction, incognito: Optional[bool] = None):
         """
         Commande /config
         Permet de configurer les différents modules du serveur
         """
 
+        # Gestion du mode incognito
+        if incognito is None and self.bot.db:
+            try:
+                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                ephemeral = True if user_pref is None else user_pref
+            except:
+                ephemeral = True
+        else:
+            ephemeral = incognito if incognito is not None else True
+
         # Vérifie que c'est bien dans un serveur
         if not interaction.guild:
             await interaction.response.send_message(
                 t('modules.config.errors.guild_only', interaction),
+                ephemeral=True
+            )
+            return
+
+        # Vérifie que le bot est bien membre du serveur
+        if not interaction.guild.me:
+            await interaction.response.send_message(
+                t('modules.config.errors.bot_not_in_guild', interaction),
                 ephemeral=True
             )
             return
@@ -233,7 +246,7 @@ class Config(commands.Cog):
 
         await interaction.response.send_message(
             view=main_view,
-            ephemeral=True
+            ephemeral=ephemeral
         )
 
 

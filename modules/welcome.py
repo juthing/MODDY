@@ -35,13 +35,15 @@ class WelcomeModule(ModuleBase):
         """Charge la configuration depuis la DB"""
         try:
             self.config = config_data
-            self.enabled = config_data.get('enabled', False)
             self.channel_id = config_data.get('channel_id')
             self.message_template = config_data.get('message_template', "Bienvenue {user} sur le serveur !")
             self.embed_enabled = config_data.get('embed_enabled', False)
             self.embed_color = config_data.get('embed_color', 0x5865F2)
             self.embed_title = config_data.get('embed_title', "Bienvenue !")
             self.mention_user = config_data.get('mention_user', True)
+
+            # Le module est activé si la config est valide (channel_id présent)
+            self.enabled = self.channel_id is not None
 
             return True
         except Exception as e:
@@ -89,7 +91,6 @@ class WelcomeModule(ModuleBase):
     def get_default_config(self) -> Dict[str, Any]:
         """Retourne la configuration par défaut"""
         return {
-            'enabled': False,
             'channel_id': None,
             'message_template': "Bienvenue {user} sur le serveur !",
             'embed_enabled': False,

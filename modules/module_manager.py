@@ -196,9 +196,10 @@ class ModuleManager:
                 # Charge la configuration
                 if await module_instance.load_config(config_data):
                     self.active_modules[guild_id][module_id] = module_instance
-                    if config_data.get('enabled', False):
+                    # Active le module si la config est valide (enabled est déterminé dans load_config)
+                    if module_instance.enabled:
                         await module_instance.enable()
-                    logger.info(f"✅ Module {module_id} loaded for guild {guild_id}")
+                    logger.info(f"✅ Module {module_id} loaded for guild {guild_id} (enabled: {module_instance.enabled})")
                 else:
                     logger.error(f"❌ Failed to load module {module_id} for guild {guild_id}")
 
@@ -235,12 +236,17 @@ class ModuleManager:
             if not is_valid:
                 return False, error_msg
 
+            # S'assure que le serveur existe dans la DB
+            await self.bot.db.get_guild(guild_id)
+
             # Sauvegarde dans la DB
             await self.bot.db.update_guild_data(
                 guild_id,
                 f"modules.{module_id}",
                 config_data
             )
+
+            logger.info(f"📝 Config saved to DB for module {module_id} in guild {guild_id}: {config_data}")
 
             # Met à jour ou crée l'instance active
             if guild_id not in self.active_modules:
@@ -257,13 +263,13 @@ class ModuleManager:
                 await module_instance.load_config(config_data)
                 self.active_modules[guild_id][module_id] = module_instance
 
-            # Active/désactive selon la config
-            if config_data.get('enabled', False):
+            # Active/désactive selon la validité de la config (enabled est déterminé dans load_config)
+            if module_instance.enabled:
                 await module_instance.enable()
             else:
                 await module_instance.disable()
 
-            logger.info(f"✅ Configuration saved for module {module_id} in guild {guild_id}")
+            logger.info(f"✅ Configuration saved for module {module_id} in guild {guild_id} (enabled: {module_instance.enabled})")
             return True, None
 
         except Exception as e:
