@@ -123,30 +123,25 @@ class AddNoteModal(ui.Modal):
         # Préparer les données brutes du message
         raw_message_data = message_to_raw_data(self.message)
 
-        # Sauvegarder le message
-        try:
-            saved_id = await self.bot.db.save_message(
-                user_id=interaction.user.id,
-                message_id=self.message.id,
-                channel_id=self.message.channel.id,
-                guild_id=self.message.guild.id if self.message.guild else None,
-                author_id=self.message.author.id,
-                author_username=str(self.message.author),
-                content=self.message.content or "",
-                attachments=attachments,
-                embeds=embeds,
-                created_at=self.message.created_at,
-                message_url=self.message.jump_url,
-                raw_message_data=raw_message_data,
-                note=note
-            )
+        # Sauvegarder le message - les erreurs imprévues seront gérées par le système global
+        saved_id = await self.bot.db.save_message(
+            user_id=interaction.user.id,
+            message_id=self.message.id,
+            channel_id=self.message.channel.id,
+            guild_id=self.message.guild.id if self.message.guild else None,
+            author_id=self.message.author.id,
+            author_username=str(self.message.author),
+            content=self.message.content or "",
+            attachments=attachments,
+            embeds=embeds,
+            created_at=self.message.created_at,
+            message_url=self.message.jump_url,
+            raw_message_data=raw_message_data,
+            note=note
+        )
 
-            success_msg = t("commands.saved_messages.success.saved", interaction, id=saved_id)
-            await interaction.response.send_message(success_msg, ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error saving message: {e}")
-            error_msg = t("common.error", interaction)
-            await interaction.response.send_message(error_msg, ephemeral=True)
+        success_msg = t("commands.saved_messages.success.saved", interaction, id=saved_id)
+        await interaction.response.send_message(success_msg, ephemeral=True)
 
 
 class EditNoteModal(ui.Modal):
@@ -171,23 +166,19 @@ class EditNoteModal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         note = self.note_input.value if self.note_input.value else None
 
-        try:
-            await self.bot.db.update_saved_message_note(
-                self.saved_msg['id'],
-                interaction.user.id,
-                note
-            )
+        # Les erreurs imprévues seront gérées par le système global
+        await self.bot.db.update_saved_message_note(
+            self.saved_msg['id'],
+            interaction.user.id,
+            note
+        )
 
-            success_msg = t("commands.saved_messages.success.note_updated", interaction)
-            await interaction.response.send_message(success_msg, ephemeral=True)
+        success_msg = t("commands.saved_messages.success.note_updated", interaction)
+        await interaction.response.send_message(success_msg, ephemeral=True)
 
-            # Refresh parent view if it exists
-            if self.parent_view:
-                await self.parent_view.refresh(interaction, show_detail=True, detail_id=self.saved_msg['id'])
-        except Exception as e:
-            logger.error(f"Error updating note: {e}")
-            error_msg = t("common.error", interaction)
-            await interaction.response.send_message(error_msg, ephemeral=True)
+        # Refresh parent view if it exists
+        if self.parent_view:
+            await self.parent_view.refresh(interaction, show_detail=True, detail_id=self.saved_msg['id'])
 
 
 class ViewMessageModal(ui.Modal):
@@ -208,24 +199,24 @@ class ViewMessageModal(ui.Modal):
         self.add_item(self.id_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Gestion de l'erreur attendue (ID invalide)
         try:
             msg_id = int(self.id_input.value.strip().replace('#', ''))
-            saved_msg = await self.parent_view.bot.db.get_saved_message(msg_id, interaction.user.id)
-
-            if not saved_msg:
-                error_msg = t("commands.saved_messages.errors.not_found", interaction)
-                await interaction.response.send_message(error_msg, ephemeral=True)
-                return
-
-            # Refresh parent view to show detail
-            await self.parent_view.refresh(interaction, show_detail=True, detail_id=msg_id)
         except ValueError:
             error_msg = t("commands.saved_messages.errors.invalid_id", interaction)
             await interaction.response.send_message(error_msg, ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error viewing message: {e}")
-            error_msg = t("common.error", interaction)
+            return
+
+        # Les erreurs imprévues seront gérées par le système global
+        saved_msg = await self.parent_view.bot.db.get_saved_message(msg_id, interaction.user.id)
+
+        if not saved_msg:
+            error_msg = t("commands.saved_messages.errors.not_found", interaction)
             await interaction.response.send_message(error_msg, ephemeral=True)
+            return
+
+        # Refresh parent view to show detail
+        await self.parent_view.refresh(interaction, show_detail=True, detail_id=msg_id)
 
 
 class SavedMessagesLibraryView(LayoutView):
@@ -507,42 +498,32 @@ class SavedMessagesLibraryView(LayoutView):
 
     async def export_json_callback(self, interaction: discord.Interaction):
         if self.detail_msg and self.detail_msg.get('raw_message_data'):
-            try:
-                # Créer le fichier JSON
-                json_data = json.dumps(self.detail_msg['raw_message_data'], indent=2, ensure_ascii=False)
-                file = discord.File(
-                    io.BytesIO(json_data.encode('utf-8')),
-                    filename=f"message_{self.detail_msg['id']}_raw_data.json"
-                )
+            # Les erreurs imprévues seront gérées par le système global
+            # Créer le fichier JSON
+            json_data = json.dumps(self.detail_msg['raw_message_data'], indent=2, ensure_ascii=False)
+            file = discord.File(
+                io.BytesIO(json_data.encode('utf-8')),
+                filename=f"message_{self.detail_msg['id']}_raw_data.json"
+            )
 
-                await interaction.response.send_message(
-                    content=t("commands.saved_messages.success.exported", interaction),
-                    file=file,
-                    ephemeral=True
-                )
-            except Exception as e:
-                logger.error(f"Error exporting JSON: {e}")
-                error_msg = t("common.error", interaction)
-                await interaction.response.send_message(error_msg, ephemeral=True)
+            await interaction.response.send_message(
+                content=t("commands.saved_messages.success.exported", interaction),
+                file=file,
+                ephemeral=True
+            )
 
     async def delete_callback(self, interaction: discord.Interaction):
         if self.detail_msg:
-            try:
-                success = await self.bot.db.delete_saved_message(self.detail_msg['id'], interaction.user.id)
-                if success:
-                    await interaction.response.send_message(
-                        t("commands.saved_messages.success.deleted", interaction),
-                        ephemeral=True
-                    )
-                    # Retour à la liste
-                    await self.refresh(interaction, show_detail=False)
-                else:
-                    await interaction.response.send_message(
-                        t("common.error", interaction),
-                        ephemeral=True
-                    )
-            except Exception as e:
-                logger.error(f"Error deleting message: {e}")
+            # Les erreurs imprévues seront gérées par le système global
+            success = await self.bot.db.delete_saved_message(self.detail_msg['id'], interaction.user.id)
+            if success:
+                await interaction.response.send_message(
+                    t("commands.saved_messages.success.deleted", interaction),
+                    ephemeral=True
+                )
+                # Retour à la liste
+                await self.refresh(interaction, show_detail=False)
+            else:
                 await interaction.response.send_message(
                     t("common.error", interaction),
                     ephemeral=True
