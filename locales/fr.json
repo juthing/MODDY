@@ -459,6 +459,64 @@
     "unknown": "Inconnu",
     "none": "Aucun"
   },
+  "modules": {
+    "config": {
+      "main": {
+        "title": "Panneau de configuration",
+        "description": "Bienvenue dans le panneau de configuration de Moddy ! Sélectionnez un module ci-dessous pour configurer ses paramètres.",
+        "select_placeholder": "Sélectionnez un module à configurer",
+        "no_modules": "Aucun module disponible pour le moment.",
+        "hint": "Sélectionnez un module pour accéder à sa configuration détaillée.",
+        "not_implemented": "La configuration du module **{module_name}** n'est pas encore disponible."
+      },
+      "status": {
+        "label": "Statut du module :",
+        "enabled": "Activé",
+        "disabled": "Désactivé"
+      },
+      "buttons": {
+        "back": "Retour",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "delete": "Supprimer la configuration"
+      },
+      "save": {
+        "success": "✅ Configuration enregistrée avec succès !",
+        "error": "❌ Erreur lors de l'enregistrement : {error}"
+      },
+      "delete": {
+        "success": "🗑️ Configuration supprimée avec succès !",
+        "error": "❌ Erreur lors de la suppression."
+      },
+      "errors": {
+        "guild_only": "❌ Cette commande ne peut être utilisée que sur un serveur.",
+        "wrong_user": "❌ Seul l'utilisateur qui a lancé la configuration peut utiliser cette interface.",
+        "no_user_perms": "❌ Vous devez avoir la permission **Gérer le serveur** pour utiliser cette commande.",
+        "no_admin_perms": {
+          "title": "Permissions insuffisantes",
+          "description": "Moddy a besoin des **permissions administrateur** pour gérer les modules du serveur.\n\nVeuillez réinviter le bot avec les bonnes permissions.",
+          "button": "Réinviter Moddy"
+        }
+      }
+    },
+    "welcome": {
+      "config": {
+        "title": "Configuration du module Welcome",
+        "description": "Configurez les messages de bienvenue pour les nouveaux membres de votre serveur.",
+        "channel": {
+          "label": "Salon de bienvenue",
+          "placeholder": "Sélectionnez un salon",
+          "hint": "Le salon où seront envoyés les messages de bienvenue"
+        },
+        "message": {
+          "label": "Message de bienvenue"
+        },
+        "embed": {
+          "label": "Utiliser un embed"
+        }
+      }
+    }
+  },
   "languages": {
     "en-US": "Anglais (US)",
     "en-us": "Anglais (US)",

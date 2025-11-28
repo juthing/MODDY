@@ -460,6 +460,64 @@
     "unknown": "Unknown",
     "none": "None"
   },
+  "modules": {
+    "config": {
+      "main": {
+        "title": "Configuration Panel",
+        "description": "Welcome to Moddy's configuration panel! Select a module below to configure its settings.",
+        "select_placeholder": "Select a module to configure",
+        "no_modules": "No modules available at the moment.",
+        "hint": "Select a module to access its detailed configuration.",
+        "not_implemented": "Configuration for module **{module_name}** is not yet available."
+      },
+      "status": {
+        "label": "Module status:",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "buttons": {
+        "back": "Back",
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete configuration"
+      },
+      "save": {
+        "success": "✅ Configuration saved successfully!",
+        "error": "❌ Error while saving: {error}"
+      },
+      "delete": {
+        "success": "🗑️ Configuration deleted successfully!",
+        "error": "❌ Error while deleting."
+      },
+      "errors": {
+        "guild_only": "❌ This command can only be used on a server.",
+        "wrong_user": "❌ Only the user who started the configuration can use this interface.",
+        "no_user_perms": "❌ You must have the **Manage Server** permission to use this command.",
+        "no_admin_perms": {
+          "title": "Insufficient Permissions",
+          "description": "Moddy needs **administrator permissions** to manage server modules.\n\nPlease re-invite the bot with the correct permissions.",
+          "button": "Re-invite Moddy"
+        }
+      }
+    },
+    "welcome": {
+      "config": {
+        "title": "Welcome Module Configuration",
+        "description": "Configure welcome messages for new members on your server.",
+        "channel": {
+          "label": "Welcome channel",
+          "placeholder": "Select a channel",
+          "hint": "The channel where welcome messages will be sent"
+        },
+        "message": {
+          "label": "Welcome message"
+        },
+        "embed": {
+          "label": "Use an embed"
+        }
+      }
+    }
+  },
   "languages": {
     "en-US": "English (US)",
     "en-us": "English (US)",
