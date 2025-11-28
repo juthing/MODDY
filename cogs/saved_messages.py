@@ -284,6 +284,10 @@ class SavedMessagesLibraryView(LayoutView):
             if self.detail_msg.get('channel_id'):
                 container.add_item(TextDisplay(f"> **Channel ID** : `{self.detail_msg['channel_id']}`"))
 
+            # Guild ID (Server ID)
+            if self.detail_msg.get('guild_id'):
+                container.add_item(TextDisplay(f"> **Guild ID** : `{self.detail_msg['guild_id']}`"))
+
             # Author ID
             container.add_item(TextDisplay(f"> **Author ID** : `{self.detail_msg['author_id']}`"))
 
@@ -301,9 +305,9 @@ class SavedMessagesLibraryView(LayoutView):
             # Author Mention
             container.add_item(TextDisplay(f"> **Author Mention** : <@{self.detail_msg['author_id']}>"))
 
-            # Message Created Date
+            # Message Send Date
             created_ts = f"<t:{int(self.detail_msg['created_at'].timestamp())}:F>"
-            container.add_item(TextDisplay(f"> **Created Date** : {created_ts}"))
+            container.add_item(TextDisplay(f"> **Send Date** : {created_ts}"))
 
             # Content
             if self.detail_msg['content']:
