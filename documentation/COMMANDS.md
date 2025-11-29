@@ -120,31 +120,35 @@ async def setup(bot):
 
 Le bot détecte automatiquement le type de commande grâce au décorateur `@app_commands.guild_only()` et synchronise les commandes de manière appropriée.
 
-#### Au démarrage du bot (`bot.py:182-231`)
+#### Au démarrage du bot (`bot.py:182-233`)
 
 ```python
 async def sync_commands(self):
     """
     1. Identifie les commandes guild-only
     2. Les retire de l'arbre global
-    3. Synchronise les commandes globales (accessibles partout via Discord)
+    3. Synchronise les commandes globales uniquement (sans guild-only)
     4. Pour chaque serveur où Moddy est présent:
-       - Ajoute temporairement les guild-only
-       - Sync uniquement les guild-only pour ce serveur
-       - Retire les guild-only pour le prochain serveur
-    5. Restaure l'arbre complet avec toutes les commandes
+       - Copie les commandes globales avec copy_global_to(guild)
+       - Ajoute les guild-only SPÉCIFIQUEMENT à l'arbre du serveur avec add_command(cmd, guild=guild)
+       - Sync l'arbre du serveur (globales + guild-only)
+       - Retire les guild-only de l'arbre du serveur (nettoyage)
+    5. Restaure les guild-only dans l'arbre global (pour usage interne Python)
     """
 ```
 
-**Important** : On n'utilise **PAS** `copy_global_to()` ! Les commandes synchronisées globalement sont automatiquement accessibles dans tous les serveurs via Discord. On sync uniquement les guild-only par serveur.
+**Fonctionnement détaillé** :
+- `tree.add_command(cmd, guild=guild)` ajoute la commande **uniquement** à l'arbre du serveur, pas à l'arbre global
+- `tree.sync(guild=guild)` synchronise **uniquement** l'arbre de ce serveur spécifique
+- Les arbres global et serveur sont **complètement séparés** dans discord.py
+- Les guild-only ne sont **jamais** dans l'arbre global, uniquement dans les arbres des serveurs avec Moddy
 
 #### Quand Moddy rejoint un serveur (`bot.py:527-533`)
 
 ```python
 async def on_guild_join(self, guild: discord.Guild):
     # ...
-    # Synchronise uniquement les commandes guild-only pour ce serveur
-    # Les commandes globales sont déjà accessibles via la sync globale
+    # Copie les commandes globales et ajoute les guild-only pour ce serveur
     await self.sync_guild_commands(guild)
 ```
 
@@ -155,7 +159,7 @@ async def on_guild_join(self, guild: discord.Guild):
 ```python
 async def on_guild_remove(self, guild: discord.Guild):
     # ...
-    # Nettoie toutes les commandes du serveur
+    # Nettoie toutes les commandes de l'arbre du serveur
     self.tree.clear_commands(guild=guild)
     await self.tree.sync(guild=guild)
 ```
@@ -399,16 +403,25 @@ async def setup(bot):
 - **Guild join/remove** : Instantané (synchronisation automatique)
 - **Modification de code** : Nécessite un redémarrage du bot
 
-### Q: Pourquoi n'utilise-t-on pas `copy_global_to()` ?
+### Q: Comment le système garantit-il que les guild-only ne sont pas visibles partout ?
 
-**R:** Dans les versions précédentes, `copy_global_to()` copiait tout l'arbre (y compris les commandes guild-only) vers chaque serveur, ce qui rendait les commandes guild-only visibles partout.
+**R:** Le système utilise la séparation stricte entre les arbres de commandes de discord.py :
 
-Maintenant, on utilise une approche différente :
-- Les commandes **globales** synced globalement sont **automatiquement accessibles** dans tous les serveurs via Discord
-- On sync **uniquement les guild-only** pour chaque serveur individuellement
-- Pas besoin de copier quoi que ce soit !
+1. **Arbres séparés** : discord.py maintient deux dictionnaires complètement indépendants :
+   - `_global_commands` : Arbre global
+   - `_guild_commands[guild_id]` : Un arbre distinct par serveur
 
-Cette approche garantit que les guild-only ne sont jamais exposées globalement.
+2. **Isolation des guild-only** :
+   - Les guild-only sont **retirées** de l'arbre global avant la sync globale
+   - Elles sont **ajoutées uniquement** aux arbres des serveurs avec Moddy via `add_command(cmd, guild=guild)`
+   - Quand on fait `sync(guild=X)`, seul l'arbre de X est synchronisé, pas l'arbre global
+
+3. **Copie des globales** :
+   - `copy_global_to(guild=X)` copie un snapshot des commandes globales vers l'arbre de X
+   - Cette copie est faite **après** avoir retiré les guild-only de l'arbre global
+   - Donc les guild-only ne sont jamais copiées
+
+Cette architecture garantit que les commandes guild-only ne peuvent **physiquement pas** être synchronisées globalement, car elles n'existent jamais dans l'arbre global au moment de la sync.
 
 ---
 
@@ -417,4 +430,4 @@ Cette approche garantit que les guild-only ne sont jamais exposées globalement.
 Ce système a été développé pour résoudre le problème où les commandes guild-only (comme `/config`) étaient accessibles dans tous les serveurs, même ceux sans Moddy.
 
 **Documentation créée le** : 29 novembre 2025
-**Dernière mise à jour** : 29 novembre 2025 (corrigé pour refléter le système sans `copy_global_to()`)
+**Dernière mise à jour** : 29 novembre 2025 (version finale avec arbres de commandes séparés)
