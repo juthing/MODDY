@@ -214,10 +214,6 @@ class ModdyBot(commands.Bot):
                     # Sync pour ce serveur (globales + guild-only)
                     await self.tree.sync(guild=guild)
 
-                    # Retirer les guild-only de l'arbre de ce serveur
-                    for command in guild_only_commands:
-                        self.tree.remove_command(command.name, guild=guild)
-
                     guild_count += 1
                     logger.info(f"✅ Guild commands synced for {guild.name} ({guild.id})")
                 except Exception as e:
