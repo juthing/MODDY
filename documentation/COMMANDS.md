@@ -120,7 +120,7 @@ async def setup(bot):
 
 Le bot détecte automatiquement le type de commande grâce au décorateur `@app_commands.guild_only()` et synchronise les commandes de manière appropriée.
 
-#### Au démarrage du bot (`bot.py:182-233`)
+#### Au démarrage du bot (`bot.py:182-229`)
 
 ```python
 async def sync_commands(self):
@@ -132,7 +132,6 @@ async def sync_commands(self):
        - Copie les commandes globales avec copy_global_to(guild)
        - Ajoute les guild-only SPÉCIFIQUEMENT à l'arbre du serveur avec add_command(cmd, guild=guild)
        - Sync l'arbre du serveur (globales + guild-only)
-       - Retire les guild-only de l'arbre du serveur (nettoyage)
     5. Restaure les guild-only dans l'arbre global (pour usage interne Python)
     """
 ```
@@ -143,7 +142,7 @@ async def sync_commands(self):
 - Les arbres global et serveur sont **complètement séparés** dans discord.py
 - Les guild-only ne sont **jamais** dans l'arbre global, uniquement dans les arbres des serveurs avec Moddy
 
-#### Quand Moddy rejoint un serveur (`bot.py:527-533`)
+#### Quand Moddy rejoint un serveur (`bot.py:605-611`)
 
 ```python
 async def on_guild_join(self, guild: discord.Guild):
@@ -154,7 +153,7 @@ async def on_guild_join(self, guild: discord.Guild):
 
 **Résultat** : `/config` devient immédiatement disponible dans ce nouveau serveur (mais pas ailleurs)
 
-#### Quand Moddy quitte un serveur (`bot.py:535-549`)
+#### Quand Moddy quitte un serveur (`bot.py:620-627`)
 
 ```python
 async def on_guild_remove(self, guild: discord.Guild):
