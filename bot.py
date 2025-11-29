@@ -184,9 +184,8 @@ class ModdyBot(commands.Bot):
 
     async def sync_commands(self):
         """
-        Synchronise les commandes de manière appropriée :
-        - Les commandes globales (sans guild_only) sont synchronisées globalement
-        - Les commandes guild-only sont synchronisées uniquement dans les serveurs où le bot est présent
+        Synchronise les commandes globales uniquement.
+        Les commandes guild-only seront synchronisées dans on_ready() quand self.guilds est disponible.
         """
         try:
             # Identifier et sauvegarder les commandes guild-only
@@ -202,7 +201,20 @@ class ModdyBot(commands.Bot):
 
             # Synchroniser les commandes globales uniquement (accessibles partout)
             await self.tree.sync()
-            logger.info(f"✅ Global commands synced ({len(self._guild_only_commands)} guild-only excluded)")
+            logger.info(f"✅ Global commands synced ({len(self._guild_only_commands)} guild-only will be synced in on_ready)")
+
+        except Exception as e:
+            logger.error(f"❌ Error syncing commands: {e}")
+
+    async def sync_all_guild_commands(self):
+        """
+        Synchronise les commandes guild-only pour TOUS les serveurs.
+        Appelé dans on_ready() quand self.guilds est disponible.
+        """
+        try:
+            if not self._guild_only_commands:
+                logger.info("ℹ️ No guild-only commands to sync")
+                return
 
             # Synchroniser les commandes guild-only dans chaque serveur
             guild_count = 0
@@ -225,11 +237,8 @@ class ModdyBot(commands.Bot):
 
             logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
 
-            # IMPORTANT: NE JAMAIS remettre les guild-only dans l'arbre global !
-            # Elles sont stockées dans self._guild_only_commands pour usage ultérieur
-
         except Exception as e:
-            logger.error(f"❌ Error syncing commands: {e}")
+            logger.error(f"❌ Error syncing guild commands: {e}")
 
     async def sync_guild_commands(self, guild: discord.Guild):
         """
@@ -545,6 +554,11 @@ class ModdyBot(commands.Bot):
                 logger.info("✅ All guild modules loaded successfully")
             except Exception as e:
                 logger.error(f"❌ Error loading guild modules: {e}", exc_info=True)
+
+        # Synchronize guild-only commands for all guilds
+        # This is done here (not in setup_hook) because self.guilds is only available after connection
+        logger.info("🔄 Synchronizing guild-only commands...")
+        await self.sync_all_guild_commands()
 
     async def on_guild_join(self, guild: discord.Guild):
         """When the bot joins a server"""
