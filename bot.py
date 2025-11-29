@@ -84,6 +84,9 @@ class ModdyBot(commands.Bot):
         # Gestionnaire de modules
         self.module_manager = None
 
+        # Cache pour les commandes guild-only (NE JAMAIS les remettre dans l'arbre global)
+        self._guild_only_commands = []
+
         # Configure global error handler
         self.setup_error_handler()
 
@@ -187,18 +190,19 @@ class ModdyBot(commands.Bot):
         """
         try:
             # Identifier et sauvegarder les commandes guild-only
-            guild_only_commands = []
+            self._guild_only_commands = []
             for command in list(self.tree.walk_commands()):
                 if hasattr(command, 'guild_only') and command.guild_only:
-                    guild_only_commands.append(command)
+                    self._guild_only_commands.append(command)
 
-            # Retirer les commandes guild-only de l'arbre global
-            for command in guild_only_commands:
+            # Retirer les commandes guild-only de l'arbre global ET NE JAMAIS LES REMETTRE
+            # Sinon copy_global_to() les copiera partout !
+            for command in self._guild_only_commands:
                 self.tree.remove_command(command.name)
 
             # Synchroniser les commandes globales uniquement (accessibles partout)
             await self.tree.sync()
-            logger.info(f"✅ Global commands synced (excluding guild-only)")
+            logger.info(f"✅ Global commands synced ({len(self._guild_only_commands)} guild-only excluded)")
 
             # Synchroniser les commandes guild-only dans chaque serveur
             guild_count = 0
@@ -208,7 +212,7 @@ class ModdyBot(commands.Bot):
                     self.tree.copy_global_to(guild=guild)
 
                     # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur (pas à l'arbre global)
-                    for command in guild_only_commands:
+                    for command in self._guild_only_commands:
                         self.tree.add_command(command, guild=guild)
 
                     # Sync pour ce serveur (globales + guild-only)
@@ -221,9 +225,8 @@ class ModdyBot(commands.Bot):
 
             logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
 
-            # Restaurer les guild-only dans l'arbre global (pour usage interne Python)
-            for command in guild_only_commands:
-                self.tree.add_command(command)
+            # IMPORTANT: NE JAMAIS remettre les guild-only dans l'arbre global !
+            # Elles sont stockées dans self._guild_only_commands pour usage ultérieur
 
         except Exception as e:
             logger.error(f"❌ Error syncing commands: {e}")
@@ -237,17 +240,13 @@ class ModdyBot(commands.Bot):
             guild: Le serveur pour lequel synchroniser les commandes
         """
         try:
-            # Identifier les commandes guild-only
-            guild_only_commands = []
-            for command in list(self.tree.walk_commands()):
-                if hasattr(command, 'guild_only') and command.guild_only:
-                    guild_only_commands.append(command)
-
             # Copier les commandes globales vers ce serveur
+            # L'arbre global ne contient PAS les guild-only (elles ont été retirées définitivement)
             self.tree.copy_global_to(guild=guild)
 
             # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur
-            for command in guild_only_commands:
+            # Utilise le cache self._guild_only_commands car elles ne sont plus dans l'arbre global
+            for command in self._guild_only_commands:
                 self.tree.add_command(command, guild=guild)
 
             # Synchroniser pour ce serveur
