@@ -175,9 +175,66 @@ class ModdyBot(commands.Bot):
             await self.tree.sync(guild=guild)
             logger.info("✅ Commands synced (debug mode)")
         else:
-            # In production, sync globally
+            # In production, sync commands properly
+            await self.sync_commands()
+            logger.info("✅ Commands synced")
+
+    async def sync_commands(self):
+        """
+        Synchronise les commandes de manière appropriée :
+        - Les commandes globales (sans guild_only) sont synchronisées globalement
+        - Les commandes guild-only sont synchronisées uniquement dans les serveurs où le bot est présent
+        """
+        try:
+            # Identifier les commandes guild-only
+            guild_only_commands = []
+            for command in self.tree.walk_commands():
+                if hasattr(command, 'guild_only') and command.guild_only:
+                    guild_only_commands.append(command)
+
+            # Retirer temporairement les commandes guild-only de l'arbre global
+            for command in guild_only_commands:
+                self.tree.remove_command(command.name)
+
+            # Synchroniser les commandes globales uniquement
             await self.tree.sync()
-            logger.info("✅ Commands synced globally")
+            logger.info(f"✅ Global commands synced (excluding guild-only commands)")
+
+            # Remettre les commandes guild-only dans l'arbre (pour usage interne)
+            for command in guild_only_commands:
+                self.tree.add_command(command)
+
+            # Synchroniser les commandes guild-only dans chaque serveur
+            guild_count = 0
+            for guild in self.guilds:
+                try:
+                    await self.sync_guild_commands(guild)
+                    guild_count += 1
+                except Exception as e:
+                    logger.error(f"❌ Error syncing commands for guild {guild.id}: {e}")
+
+            logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
+
+        except Exception as e:
+            logger.error(f"❌ Error syncing commands: {e}")
+
+    async def sync_guild_commands(self, guild: discord.Guild):
+        """
+        Synchronise les commandes spécifiques à un serveur.
+        Copie les commandes globales et ajoute les commandes guild-only.
+
+        Args:
+            guild: Le serveur pour lequel synchroniser les commandes
+        """
+        try:
+            # Copier les commandes globales vers ce serveur
+            self.tree.copy_global_to(guild=guild)
+
+            # Synchroniser l'arbre pour ce serveur (inclut globales + guild-only)
+            await self.tree.sync(guild=guild)
+            logger.info(f"✅ Commands synced for guild {guild.name} ({guild.id})")
+        except Exception as e:
+            logger.error(f"❌ Error syncing commands for guild {guild.id}: {e}")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         """Slash command error handling - delegates to ErrorTracker cog"""
@@ -524,12 +581,29 @@ class ModdyBot(commands.Bot):
             except Exception as e:
                 logger.error(f"DB Error (guild_join): {e}")
 
+        # Synchronize commands for this new guild
+        # This ensures guild-only commands (/config) are available in this server
+        try:
+            await self.sync_guild_commands(guild)
+            logger.info(f"✅ Commands synchronized for new guild {guild.name} ({guild.id})")
+        except Exception as e:
+            logger.error(f"❌ Error syncing commands for new guild {guild.id}: {e}")
+
     async def on_guild_remove(self, guild: discord.Guild):
         """When the bot leaves a server"""
         logger.info(f"➖ Server left: {guild.name} ({guild.id})")
 
         # Clean the cache
         self.prefix_cache.pop(guild.id, None)
+
+        # Clear commands for this guild to remove guild-only commands
+        # This ensures /config is no longer accessible in this server
+        try:
+            self.tree.clear_commands(guild=guild)
+            await self.tree.sync(guild=guild)
+            logger.info(f"✅ Commands cleared for guild {guild.name} ({guild.id})")
+        except Exception as e:
+            logger.error(f"❌ Error clearing commands for guild {guild.id}: {e}")
 
     async def _global_blacklist_check(self, interaction: discord.Interaction) -> bool:
         """
