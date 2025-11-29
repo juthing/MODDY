@@ -192,7 +192,7 @@ class ModdyBot(commands.Bot):
                 if hasattr(command, 'guild_only') and command.guild_only:
                     guild_only_commands.append(command)
 
-            # Retirer les commandes guild-only de l'arbre
+            # Retirer les commandes guild-only de l'arbre global
             for command in guild_only_commands:
                 self.tree.remove_command(command.name)
 
@@ -204,17 +204,19 @@ class ModdyBot(commands.Bot):
             guild_count = 0
             for guild in self.guilds:
                 try:
-                    # Ajouter temporairement les guild-only pour ce serveur
-                    for command in guild_only_commands:
-                        self.tree.add_command(command)
+                    # Copier les commandes globales vers ce serveur
+                    self.tree.copy_global_to(guild=guild)
 
-                    # Sync seulement les guild-only pour ce serveur
-                    # Les commandes globales sont déjà accessibles via la sync globale
+                    # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur (pas à l'arbre global)
+                    for command in guild_only_commands:
+                        self.tree.add_command(command, guild=guild)
+
+                    # Sync pour ce serveur (globales + guild-only)
                     await self.tree.sync(guild=guild)
 
-                    # Retirer les guild-only pour le prochain serveur
+                    # Retirer les guild-only de l'arbre de ce serveur
                     for command in guild_only_commands:
-                        self.tree.remove_command(command.name)
+                        self.tree.remove_command(command.name, guild=guild)
 
                     guild_count += 1
                     logger.info(f"✅ Guild commands synced for {guild.name} ({guild.id})")
@@ -223,7 +225,7 @@ class ModdyBot(commands.Bot):
 
             logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
 
-            # Restaurer l'arbre complet avec toutes les commandes
+            # Restaurer les guild-only dans l'arbre global (pour usage interne Python)
             for command in guild_only_commands:
                 self.tree.add_command(command)
 
@@ -233,7 +235,7 @@ class ModdyBot(commands.Bot):
     async def sync_guild_commands(self, guild: discord.Guild):
         """
         Synchronise les commandes spécifiques à un serveur.
-        Sync uniquement les commandes guild-only (les globales sont déjà accessibles).
+        Copie les globales et ajoute les guild-only spécifiquement à ce serveur.
 
         Args:
             guild: Le serveur pour lequel synchroniser les commandes
@@ -241,27 +243,21 @@ class ModdyBot(commands.Bot):
         try:
             # Identifier les commandes guild-only
             guild_only_commands = []
-            commands_to_restore = []
-
             for command in list(self.tree.walk_commands()):
                 if hasattr(command, 'guild_only') and command.guild_only:
                     guild_only_commands.append(command)
-                else:
-                    # Sauvegarder les commandes globales pour les retirer temporairement
-                    commands_to_restore.append(command)
 
-            # Retirer les commandes globales (on veut sync seulement les guild-only)
-            for command in commands_to_restore:
-                self.tree.remove_command(command.name)
+            # Copier les commandes globales vers ce serveur
+            self.tree.copy_global_to(guild=guild)
 
-            # Synchroniser pour ce serveur (seulement guild-only)
+            # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur
+            for command in guild_only_commands:
+                self.tree.add_command(command, guild=guild)
+
+            # Synchroniser pour ce serveur
             await self.tree.sync(guild=guild)
 
-            # Restaurer les commandes globales
-            for command in commands_to_restore:
-                self.tree.add_command(command)
-
-            logger.info(f"✅ Guild-only commands synced for {guild.name} ({guild.id})")
+            logger.info(f"✅ Commands synced for {guild.name} ({guild.id})")
         except Exception as e:
             logger.error(f"❌ Error syncing commands for guild {guild.id}: {e}")
 
