@@ -120,30 +120,37 @@ async def setup(bot):
 
 Le bot détecte automatiquement le type de commande grâce au décorateur `@app_commands.guild_only()` et synchronise les commandes de manière appropriée.
 
-#### Au démarrage du bot (`bot.py:182-219`)
+#### Au démarrage du bot (`bot.py:182-231`)
 
 ```python
 async def sync_commands(self):
     """
     1. Identifie les commandes guild-only
-    2. Les retire temporairement de l'arbre global
-    3. Synchronise les commandes globales uniquement
-    4. Synchronise les commandes guild-only serveur par serveur
+    2. Les retire de l'arbre global
+    3. Synchronise les commandes globales (accessibles partout via Discord)
+    4. Pour chaque serveur où Moddy est présent:
+       - Ajoute temporairement les guild-only
+       - Sync uniquement les guild-only pour ce serveur
+       - Retire les guild-only pour le prochain serveur
+    5. Restaure l'arbre complet avec toutes les commandes
     """
 ```
+
+**Important** : On n'utilise **PAS** `copy_global_to()` ! Les commandes synchronisées globalement sont automatiquement accessibles dans tous les serveurs via Discord. On sync uniquement les guild-only par serveur.
 
 #### Quand Moddy rejoint un serveur (`bot.py:527-533`)
 
 ```python
 async def on_guild_join(self, guild: discord.Guild):
     # ...
-    # Synchronise automatiquement les commandes (globales + guild-only)
+    # Synchronise uniquement les commandes guild-only pour ce serveur
+    # Les commandes globales sont déjà accessibles via la sync globale
     await self.sync_guild_commands(guild)
 ```
 
-**Résultat** : `/config` devient immédiatement disponible dans le nouveau serveur
+**Résultat** : `/config` devient immédiatement disponible dans ce nouveau serveur (mais pas ailleurs)
 
-#### Quand Moddy quitte un serveur (`bot.py:542-549`)
+#### Quand Moddy quitte un serveur (`bot.py:535-549`)
 
 ```python
 async def on_guild_remove(self, guild: discord.Guild):
@@ -392,6 +399,17 @@ async def setup(bot):
 - **Guild join/remove** : Instantané (synchronisation automatique)
 - **Modification de code** : Nécessite un redémarrage du bot
 
+### Q: Pourquoi n'utilise-t-on pas `copy_global_to()` ?
+
+**R:** Dans les versions précédentes, `copy_global_to()` copiait tout l'arbre (y compris les commandes guild-only) vers chaque serveur, ce qui rendait les commandes guild-only visibles partout.
+
+Maintenant, on utilise une approche différente :
+- Les commandes **globales** synced globalement sont **automatiquement accessibles** dans tous les serveurs via Discord
+- On sync **uniquement les guild-only** pour chaque serveur individuellement
+- Pas besoin de copier quoi que ce soit !
+
+Cette approche garantit que les guild-only ne sont jamais exposées globalement.
+
 ---
 
 ## Contributeurs
@@ -399,4 +417,4 @@ async def setup(bot):
 Ce système a été développé pour résoudre le problème où les commandes guild-only (comme `/config`) étaient accessibles dans tous les serveurs, même ceux sans Moddy.
 
 **Documentation créée le** : 29 novembre 2025
-**Dernière mise à jour** : 29 novembre 2025
+**Dernière mise à jour** : 29 novembre 2025 (corrigé pour refléter le système sans `copy_global_to()`)
