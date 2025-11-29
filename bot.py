@@ -167,9 +167,17 @@ class ModdyBot(commands.Bot):
         # Start background tasks
         self.status_update.start()
 
-        # Sync slash commands - PAS DE COMMANDES GLOBALES
-        # Les commandes sont synchronisées serveur par serveur dans on_ready()
-        logger.info("⏳ Command sync will be done per-guild in on_ready()")
+        # Sync slash commands
+        if DEBUG:
+            # In debug, sync only on the test server
+            guild = discord.Object(id=1234567890)  # Replace with your test server id
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            logger.info("✅ Commands synced (debug mode)")
+        else:
+            # In production, sync globally
+            await self.tree.sync()
+            logger.info("✅ Commands synced globally")
 
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         """Slash command error handling - delegates to ErrorTracker cog"""
@@ -389,22 +397,6 @@ class ModdyBot(commands.Bot):
                         error_cog.store_error(error_code, error_details)
                         await error_cog.send_error_log(error_code, error_details, is_fatal=False)
 
-    async def sync_guild_commands(self, guild: discord.Guild):
-        """
-        Synchronise les commandes pour une guild spécifique.
-        Les commandes ne sont JAMAIS globales, seulement par serveur.
-        """
-        try:
-            await self.tree.sync(guild=guild)
-            logger.info(f"✅ Commands synced for guild: {guild.name} ({guild.id})")
-            return True
-        except discord.HTTPException as e:
-            logger.error(f"❌ Failed to sync commands for {guild.name} ({guild.id}): {e}")
-            return False
-        except Exception as e:
-            logger.error(f"❌ Unexpected error syncing commands for {guild.name} ({guild.id}): {e}")
-            return False
-
     async def on_ready(self):
         """Called when the bot is ready"""
 
@@ -415,28 +407,6 @@ class ModdyBot(commands.Bot):
         logger.info(f"📊 {len(self.guilds)} servers | {len(self.users)} users")
         logger.info(f"🏓 Latency: {round(self.latency * 1000)}ms")
         logger.info(f"🌐 i18n: {len(i18n.supported_locales)} languages loaded")
-
-        # Nettoyer les commandes globales (au cas où il en existe)
-        try:
-            self.tree.clear_commands(guild=None)
-            await self.tree.sync()
-            logger.info("🧹 Global commands cleared (ensuring no global commands exist)")
-        except Exception as e:
-            logger.warning(f"⚠️ Could not clear global commands: {e}")
-
-        # Synchroniser les commandes pour CHAQUE serveur (pas de commandes globales)
-        logger.info(f"🔄 Syncing commands for {len(self.guilds)} guilds...")
-        synced_count = 0
-        failed_count = 0
-
-        for guild in self.guilds:
-            success = await self.sync_guild_commands(guild)
-            if success:
-                synced_count += 1
-            else:
-                failed_count += 1
-
-        logger.info(f"✅ Command sync complete: {synced_count} succeeded, {failed_count} failed")
 
         # Update DEVELOPER attributes now that self.user is available
         if self.db and self._dev_team_ids:
@@ -502,10 +472,6 @@ class ModdyBot(commands.Bot):
     async def on_guild_join(self, guild: discord.Guild):
         """When the bot joins a server"""
         logger.info(f"➕ New server: {guild.name} ({guild.id})")
-
-        # Synchroniser les commandes pour ce nouveau serveur
-        logger.info(f"🔄 Syncing commands for new guild: {guild.name}")
-        await self.sync_guild_commands(guild)
 
         # Check if the server owner is blacklisted
         if self.db:
