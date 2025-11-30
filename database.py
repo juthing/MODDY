@@ -437,39 +437,59 @@ class ModdyDatabase:
     async def update_user_data(self, user_id: int, path: str, value: Any):
         """Met à jour une partie spécifique de la data utilisateur"""
         async with self.pool.acquire() as conn:
-            # Utilise jsonb_set pour mettre à jour un chemin spécifique
-            path_parts = path.split('.')
-            # Use UPSERT to ensure the user exists and update the data
+            # First, ensure the user exists
             await conn.execute("""
-                INSERT INTO users (user_id, data, created_at, updated_at)
-                VALUES ($1, jsonb_set('{}'::jsonb, $2, $3, true), NOW(), NOW())
-                ON CONFLICT (user_id)
-                DO UPDATE SET
-                    data = jsonb_set(users.data, $2, $3, true),
+                INSERT INTO users (user_id, data, attributes, created_at, updated_at)
+                VALUES ($1, '{}'::jsonb, '{}'::jsonb, NOW(), NOW())
+                ON CONFLICT (user_id) DO NOTHING
+            """, user_id)
+
+            # Then update the data using jsonb_set
+            path_parts = path.split('.')
+            await conn.execute("""
+                UPDATE users
+                SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, $2, true),
                     updated_at = NOW()
+                WHERE user_id = $3
             """,
-                user_id,
                 path_parts,
-                json.dumps(value)
+                json.dumps(value),
+                user_id
             )
 
     async def update_guild_data(self, guild_id: int, path: str, value: Any):
         """Met à jour une partie spécifique de la data serveur"""
         async with self.pool.acquire() as conn:
-            path_parts = path.split('.')
-            # Use UPSERT to ensure the guild exists and update the data
+            # First, ensure the guild exists
             await conn.execute("""
-                INSERT INTO guilds (guild_id, data, created_at, updated_at)
-                VALUES ($1, jsonb_set('{}'::jsonb, $2, $3, true), NOW(), NOW())
-                ON CONFLICT (guild_id)
-                DO UPDATE SET
-                    data = jsonb_set(guilds.data, $2, $3, true),
+                INSERT INTO guilds (guild_id, data, attributes, created_at, updated_at)
+                VALUES ($1, '{}'::jsonb, '{}'::jsonb, NOW(), NOW())
+                ON CONFLICT (guild_id) DO NOTHING
+            """, guild_id)
+
+            # Then update the data using jsonb_set
+            path_parts = path.split('.')
+
+            # Log before update
+            before = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
+            logger.debug(f"[DB] Before update for guild {guild_id}: {before['data'] if before else 'None'}")
+            logger.debug(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
+
+            result = await conn.execute("""
+                UPDATE guilds
+                SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, $2, true),
                     updated_at = NOW()
+                WHERE guild_id = $3
             """,
-                guild_id,
                 path_parts,
-                json.dumps(value)
+                json.dumps(value),
+                guild_id
             )
+
+            # Log after update
+            after = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
+            logger.debug(f"[DB] After update for guild {guild_id}: {after['data'] if after else 'None'}")
+            logger.debug(f"[DB] Update result: {result}")
 
     # ================ REQUÊTES UTILES ================
 
