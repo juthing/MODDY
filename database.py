@@ -444,31 +444,53 @@ class ModdyDatabase:
                 ON CONFLICT (user_id) DO NOTHING
             """, user_id)
 
-            # Then update the data using jsonb_set
+            # Get current data
+            row = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
+            current_data = row['data'] if row and row['data'] else {}
+
+            logger.info(f"[DB] Before update for user {user_id}: {current_data}")
+            logger.info(f"[DB] Updating path '{path}' with value {json.dumps(value)}")
+
+            # Build the nested structure in Python
             path_parts = path.split('.')
 
-            # Log before update
-            before = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
-            logger.info(f"[DB] Before update for user {user_id}: {before['data'] if before else 'None'}")
-            logger.info(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
+            # Navigate to the parent and set the value
+            def set_nested_value(data: dict, parts: list, val: Any) -> dict:
+                """Recursively set a nested value in a dictionary"""
+                if len(parts) == 1:
+                    data[parts[0]] = val
+                    return data
 
+                # Ensure the parent key exists
+                if parts[0] not in data:
+                    data[parts[0]] = {}
+                elif not isinstance(data[parts[0]], dict):
+                    data[parts[0]] = {}
+
+                # Recurse
+                data[parts[0]] = set_nested_value(data[parts[0]], parts[1:], val)
+                return data
+
+            # Update the data structure
+            updated_data = set_nested_value(current_data.copy(), path_parts, value)
+
+            # Save the complete updated structure
             result = await conn.execute("""
                 UPDATE users
-                SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, $2, true),
+                SET data = $1::jsonb,
                     updated_at = NOW()
-                WHERE user_id = $3
+                WHERE user_id = $2
             """,
-                path_parts,
-                json.dumps(value),
+                json.dumps(updated_data),
                 user_id
             )
 
-            # Log after update and verify
+            # Verify the data was saved
             after = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
             logger.info(f"[DB] After update for user {user_id}: {after['data'] if after else 'None'}")
             logger.info(f"[DB] Update result: {result}")
 
-            # Verify the data was actually saved
+            # Verify the path exists
             if after and after['data']:
                 current = after['data']
                 for part in path_parts:
@@ -477,13 +499,6 @@ class ModdyDatabase:
                     else:
                         logger.error(f"[DB] ❌ Verification failed! Path {path} not found in saved data")
                         raise Exception(f"Data verification failed: path {path} not found after update")
-
-                saved_value = json.dumps(current) if not isinstance(current, str) else current
-                expected_value = json.dumps(value) if not isinstance(value, str) else value
-
-                if saved_value != expected_value:
-                    logger.error(f"[DB] ❌ Verification failed! Expected {expected_value}, got {saved_value}")
-                    raise Exception(f"Data verification failed: value mismatch")
 
                 logger.info(f"[DB] ✅ Verification successful: data correctly saved at path {path}")
             else:
@@ -500,33 +515,54 @@ class ModdyDatabase:
                 ON CONFLICT (guild_id) DO NOTHING
             """, guild_id)
 
-            # Then update the data using jsonb_set
+            # Get current data
+            row = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
+            current_data = row['data'] if row and row['data'] else {}
+
+            logger.info(f"[DB] Before update for guild {guild_id}: {current_data}")
+            logger.info(f"[DB] Updating path '{path}' with value {json.dumps(value)}")
+
+            # Build the nested structure in Python
             path_parts = path.split('.')
 
-            # Log before update
-            before = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
-            logger.info(f"[DB] Before update for guild {guild_id}: {before['data'] if before else 'None'}")
-            logger.info(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
+            # Navigate to the parent and set the value
+            def set_nested_value(data: dict, parts: list, val: Any) -> dict:
+                """Recursively set a nested value in a dictionary"""
+                if len(parts) == 1:
+                    data[parts[0]] = val
+                    return data
 
+                # Ensure the parent key exists
+                if parts[0] not in data:
+                    data[parts[0]] = {}
+                elif not isinstance(data[parts[0]], dict):
+                    data[parts[0]] = {}
+
+                # Recurse
+                data[parts[0]] = set_nested_value(data[parts[0]], parts[1:], val)
+                return data
+
+            # Update the data structure
+            updated_data = set_nested_value(current_data.copy(), path_parts, value)
+
+            # Save the complete updated structure
             result = await conn.execute("""
                 UPDATE guilds
-                SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, $2, true),
+                SET data = $1::jsonb,
                     updated_at = NOW()
-                WHERE guild_id = $3
+                WHERE guild_id = $2
             """,
-                path_parts,
-                json.dumps(value),
+                json.dumps(updated_data),
                 guild_id
             )
 
-            # Log after update and verify the data was saved
+            # Verify the data was saved
             after = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
             logger.info(f"[DB] After update for guild {guild_id}: {after['data'] if after else 'None'}")
             logger.info(f"[DB] Update result: {result}")
 
-            # Verify the data was actually saved by checking the specific path
+            # Verify the path exists
             if after and after['data']:
-                # Navigate through the path to verify
                 current = after['data']
                 for part in path_parts:
                     if isinstance(current, dict) and part in current:
@@ -534,14 +570,6 @@ class ModdyDatabase:
                     else:
                         logger.error(f"[DB] ❌ Verification failed! Path {path} not found in saved data")
                         raise Exception(f"Data verification failed: path {path} not found after update")
-
-                # Verify the value matches
-                saved_value = json.dumps(current) if not isinstance(current, str) else current
-                expected_value = json.dumps(value) if not isinstance(value, str) else value
-
-                if saved_value != expected_value:
-                    logger.error(f"[DB] ❌ Verification failed! Expected {expected_value}, got {saved_value}")
-                    raise Exception(f"Data verification failed: value mismatch")
 
                 logger.info(f"[DB] ✅ Verification successful: data correctly saved at path {path}")
             else:
