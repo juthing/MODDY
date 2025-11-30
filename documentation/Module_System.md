@@ -582,6 +582,153 @@ await bot.db.update_guild_data(
 )
 ```
 
+### ⚠️ Pièges courants et solutions
+
+#### 1. PostgreSQL JSONB peut retourner dict OU string
+
+**Problème :** `asyncpg` peut retourner les champs JSONB soit comme `dict` soit comme `str` JSON selon la configuration.
+
+**Symptôme :**
+```python
+# Peut échouer avec: AttributeError: 'str' object has no attribute 'get'
+config = guild_data['data'].get('modules')
+```
+
+**Solution :** Utiliser `_parse_jsonb()` partout dans `database.py`
+```python
+def _parse_jsonb(self, value: Any) -> dict:
+    """Parse JSONB value that can be either a dict or a JSON string"""
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return {}
+
+# Utilisation dans get_guild()
+return {
+    'guild_id': row['guild_id'],
+    'attributes': self._parse_jsonb(row['attributes']),
+    'data': self._parse_jsonb(row['data']),  # ← Toujours un dict
+}
+```
+
+#### 2. jsonb_set ne peut pas créer les chemins imbriqués
+
+**Problème :** `jsonb_set` de PostgreSQL échoue silencieusement si les clés parentes n'existent pas.
+
+**Exemple d'échec :**
+```sql
+-- Si data = '{}', cette requête NE MARCHE PAS
+UPDATE guilds
+SET data = jsonb_set(data, '{modules,welcome}', '{"enabled": true}', true)
+WHERE guild_id = 123;
+-- Résultat: data reste '{}'
+```
+
+**Solution :** Construire la structure en Python avant de sauvegarder
+```python
+async def update_guild_data(self, guild_id: int, path: str, value: Any):
+    # 1. Lire les données actuelles
+    row = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
+    current_data = self._parse_jsonb(row['data']) if row else {}
+
+    # 2. Construire la structure imbriquée en Python
+    def set_nested_value(data: dict, parts: list, val: Any) -> dict:
+        if len(parts) == 1:
+            data[parts[0]] = val
+            return data
+
+        # Créer la clé parente si elle n'existe pas
+        if parts[0] not in data:
+            data[parts[0]] = {}
+
+        # Récursion
+        data[parts[0]] = set_nested_value(data[parts[0]], parts[1:], val)
+        return data
+
+    path_parts = path.split('.')
+    updated_data = set_nested_value(copy.deepcopy(current_data), path_parts, value)
+
+    # 3. Sauvegarder la structure complète
+    await conn.execute(
+        "UPDATE guilds SET data = $1::jsonb WHERE guild_id = $2",
+        json.dumps(updated_data),
+        guild_id
+    )
+```
+
+#### 3. Toujours vérifier que les données sont sauvegardées
+
+**Problème :** Les opérations DB peuvent échouer silencieusement (UPDATE sur ligne inexistante, etc.)
+
+**Solution :** Ajouter une vérification après chaque sauvegarde
+```python
+# Après l'UPDATE
+after = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
+saved_data = self._parse_jsonb(after['data'])
+
+# Vérifier que le chemin existe
+current = saved_data
+for part in path_parts:
+    if isinstance(current, dict) and part in current:
+        current = current[part]
+    else:
+        logger.error(f"[DB] ❌ Verification failed! Path {path} not found")
+        raise Exception(f"Data verification failed: path {path} not found")
+
+logger.info(f"[DB] ✅ Verification successful: data saved at path {path}")
+```
+
+#### 4. UPSERT pour garantir l'existence de l'entité
+
+**Problème :** Faire un `UPDATE` sur une ligne qui n'existe pas ne fait rien.
+
+**Solution :** Toujours faire un `INSERT ... ON CONFLICT DO NOTHING` avant l'UPDATE
+```python
+# 1. Garantir que le guild existe
+await conn.execute("""
+    INSERT INTO guilds (guild_id, data, attributes, created_at, updated_at)
+    VALUES ($1, '{}'::jsonb, '{}'::jsonb, NOW(), NOW())
+    ON CONFLICT (guild_id) DO NOTHING
+""", guild_id)
+
+# 2. Maintenant l'UPDATE marchera toujours
+await conn.execute(
+    "UPDATE guilds SET data = $1::jsonb WHERE guild_id = $2",
+    json.dumps(updated_data),
+    guild_id
+)
+```
+
+#### 5. Utiliser copy.deepcopy() pour les structures imbriquées
+
+**Problème :** `.copy()` ne fait qu'une copie superficielle, modifier les objets imbriqués modifie l'original.
+
+**Solution :**
+```python
+import copy
+
+# ❌ MAUVAIS - copie superficielle
+updated_data = current_data.copy()
+
+# ✅ BON - copie profonde
+updated_data = copy.deepcopy(current_data)
+```
+
+### Checklist avant de travailler avec la DB
+
+- [ ] Utiliser `_parse_jsonb()` pour lire les champs JSONB
+- [ ] Construire les structures imbriquées en Python, pas avec `jsonb_set`
+- [ ] Faire `INSERT ... ON CONFLICT DO NOTHING` avant les UPDATE
+- [ ] Utiliser `copy.deepcopy()` pour copier les structures imbriquées
+- [ ] Vérifier que les données sont sauvegardées après chaque UPDATE
+- [ ] Logger les états avant/après pour faciliter le debug
+
 ---
 
 ## Bonnes pratiques
