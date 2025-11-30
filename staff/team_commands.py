@@ -357,7 +357,11 @@ class TeamCommands(StaffCommandsCog):
         if await staff_permissions.can_use_command_type(message.author.id, CommandType.MODERATOR):
             mod_commands = [
                 ("mod.blacklist @user [reason]", "Blacklist a user"),
-                ("mod.unblacklist @user [reason]", "Remove user from blacklist")
+                ("mod.unblacklist @user [reason]", "Remove user from blacklist"),
+                ("mod.interserver_info [moddy_id]", "Get inter-server message info"),
+                ("mod.interserver_delete [moddy_id]", "Delete inter-server message"),
+                ("mod.interserver_blacklist @user [reason]", "Blacklist user from inter-server"),
+                ("mod.interserver_unblacklist @user [reason]", "Remove inter-server blacklist")
             ]
 
             fields.append({
