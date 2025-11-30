@@ -216,20 +216,22 @@ class ModdyBot(commands.Bot):
         Les commandes globales sont déjà synchronisées globalement et disponibles partout.
         """
         try:
-            if not self._guild_only_commands:
-                logger.info("ℹ️ No guild-only commands to sync")
-                return
-
             # Synchroniser les commandes guild-only dans chaque serveur
             guild_count = 0
             for guild in self.guilds:
                 try:
+                    # IMPORTANT: Clear d'abord toutes les commandes de ce serveur
+                    # Cela supprime les anciennes commandes synchronisées avec copy_global_to()
+                    # et permet à Discord de réutiliser les commandes globales
+                    self.tree.clear_commands(guild=guild)
+
                     # Ajouter UNIQUEMENT les guild-only à ce serveur (pas les globales)
                     # Les commandes globales sont déjà disponibles partout sans copy_global_to()
-                    for command in self._guild_only_commands:
-                        self.tree.add_command(command, guild=guild)
+                    if self._guild_only_commands:
+                        for command in self._guild_only_commands:
+                            self.tree.add_command(command, guild=guild)
 
-                    # Sync SEULEMENT les guild-only pour ce serveur
+                    # Sync les guild-only pour ce serveur (ou sync vide si pas de guild-only)
                     await self.tree.sync(guild=guild)
 
                     guild_count += 1
@@ -237,7 +239,10 @@ class ModdyBot(commands.Bot):
                 except Exception as e:
                     logger.error(f"❌ Error syncing commands for guild {guild.id}: {e}")
 
-            logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
+            if self._guild_only_commands:
+                logger.info(f"✅ Guild-specific commands synced for {guild_count} servers")
+            else:
+                logger.info(f"✅ Cleared guild commands for {guild_count} servers (no guild-only commands)")
 
         except Exception as e:
             logger.error(f"❌ Error syncing guild commands: {e}")
@@ -255,13 +260,19 @@ class ModdyBot(commands.Bot):
             guild: Le serveur pour lequel synchroniser les commandes
         """
         try:
+            # IMPORTANT: Clear d'abord toutes les commandes de ce serveur
+            # Cela supprime les anciennes commandes synchronisées avec copy_global_to()
+            # et permet à Discord de réutiliser les commandes globales
+            self.tree.clear_commands(guild=guild)
+
             # Ajouter UNIQUEMENT les guild-only à ce serveur (pas les globales)
             # Les commandes globales sont déjà disponibles partout sans copy_global_to()
             # Utilise le cache self._guild_only_commands car elles ne sont plus dans l'arbre global
-            for command in self._guild_only_commands:
-                self.tree.add_command(command, guild=guild)
+            if self._guild_only_commands:
+                for command in self._guild_only_commands:
+                    self.tree.add_command(command, guild=guild)
 
-            # Synchroniser SEULEMENT les guild-only pour ce serveur
+            # Synchroniser les guild-only pour ce serveur (ou sync vide si pas de guild-only)
             await self.tree.sync(guild=guild)
 
             logger.info(f"✅ Commands synced for {guild.name} ({guild.id})")

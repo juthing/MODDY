@@ -630,11 +630,16 @@ class DeveloperCommands(StaffCommandsCog):
                     guild_id = int(args.strip())
                     guild = discord.Object(id=guild_id)
 
+                    # Clear old commands first to remove any previously synced commands
+                    # This allows Discord to use global commands
+                    self.bot.tree.clear_commands(guild=guild)
+
                     # Add ONLY guild-only commands to this guild (not global commands)
                     # Global commands are already available everywhere without copy_global_to()
                     # Using copy_global_to() would make Discord ignore global commands for this guild
-                    for command in self.bot._guild_only_commands:
-                        self.bot.tree.add_command(command, guild=guild)
+                    if self.bot._guild_only_commands:
+                        for command in self.bot._guild_only_commands:
+                            self.bot.tree.add_command(command, guild=guild)
 
                     synced = await self.bot.tree.sync(guild=guild)
 
