@@ -43,7 +43,7 @@ Utilisez une commande globale quand :
 
 ### Comment créer une commande globale ?
 
-**Simple : N'ajoutez PAS le décorateur `@app_commands.guild_only()`**
+**N'ajoutez PAS `@app_commands.guild_only()` et ajoutez les décorateurs de contexte**
 
 ```python
 import discord
@@ -58,6 +58,8 @@ class MonCog(commands.Cog):
         name="ping",
         description="Check the bot's latency"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def ping(self, interaction: discord.Interaction):
         """Cette commande sera GLOBALE - accessible partout"""
         await interaction.response.send_message(f"Pong! {round(self.bot.latency * 1000)}ms")
@@ -65,6 +67,8 @@ class MonCog(commands.Cog):
 async def setup(bot):
     await bot.add_cog(MonCog(bot))
 ```
+
+**Important** : Les décorateurs `allowed_installs` et `allowed_contexts` sont **obligatoires** pour que la commande soit disponible en DMs (depuis la mise à jour Discord 2024).
 
 **Résultat** : `/ping` est disponible partout (DMs + tous les serveurs)
 
@@ -474,6 +478,25 @@ Discord va :
 
 **La solution** : Ne synchroniser QUE les guild-only pour chaque serveur. Les commandes globales restent synchronisées globalement et sont automatiquement disponibles partout (serveurs + DMs) sans avoir besoin de les copier.
 
+### Q: Pourquoi mes commandes globales ne sont pas disponibles en DMs même après sync ?
+
+**R:** Depuis la mise à jour Discord 2024, les commandes ont besoin de **contextes d'intégration explicites** pour être disponibles en DMs.
+
+**Par défaut**, même les commandes globales sont uniquement disponibles dans les serveurs. Pour qu'elles soient disponibles en DMs, vous devez ajouter :
+
+```python
+@app_commands.allowed_installs(guilds=True, users=True)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+```
+
+**Explication** :
+- `allowed_installs` : Où la commande peut être installée (serveurs ET profils utilisateurs)
+- `allowed_contexts` : Où la commande peut être utilisée (serveurs, DMs, canaux privés)
+
+**Sans ces décorateurs**, la commande sera globale mais uniquement disponible dans les serveurs, PAS en DMs.
+
+**Avec ces décorateurs**, la commande sera vraiment disponible partout (serveurs + DMs).
+
 ---
 
 ## Contributeurs
@@ -485,5 +508,6 @@ Ce système a été développé pour résoudre le problème où les commandes gu
 
 ### Historique des corrections
 
-- **30 novembre 2025** : Correction du problème où les commandes globales n'étaient pas disponibles en DMs. Retrait de `copy_global_to()` qui causait Discord à ignorer les commandes globales quand des commandes spécifiques au serveur étaient synchronisées.
+- **30 novembre 2025** (final fix) : Ajout de `allowed_installs` et `allowed_contexts` à toutes les commandes globales. C'était le vrai problème : depuis Discord 2024, les commandes ont besoin de contextes d'intégration explicites pour être disponibles en DMs.
+- **30 novembre 2025** (tentative) : Retrait de `copy_global_to()` et ajout de `clear_commands()` pour nettoyer les anciennes commandes. Cela n'a pas résolu le problème car la vraie cause était les contextes manquants.
 - **29 novembre 2025** : Version initiale avec synchronisation en 2 phases (setup_hook + on_ready)
