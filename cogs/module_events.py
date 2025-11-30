@@ -54,14 +54,32 @@ class ModuleEvents(commands.Cog):
     async def on_message(self, message: discord.Message):
         """
         Événement déclenché pour chaque message
-        Peut être utilisé pour les modules de modération, etc.
+        Peut être utilisé pour les modules de modération, inter-serveur, etc.
         """
         # Ignore les messages du bot
         if message.author.bot:
             return
 
-        # À implémenter si besoin pour d'autres modules (modération, auto-réponses, etc.)
-        pass
+        # Ignore les DMs
+        if not message.guild:
+            return
+
+        if not self.bot.module_manager:
+            return
+
+        try:
+            # Récupère l'instance du module Inter-Server pour ce serveur
+            interserver_module = await self.bot.module_manager.get_module_instance(
+                message.guild.id,
+                'interserver'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if interserver_module and interserver_module.enabled:
+                await interserver_module.on_message(message)
+
+        except Exception as e:
+            logger.error(f"Error in on_message for guild {message.guild.id}: {e}", exc_info=True)
 
 
 async def setup(bot):
