@@ -446,7 +446,13 @@ class ModdyDatabase:
 
             # Then update the data using jsonb_set
             path_parts = path.split('.')
-            await conn.execute("""
+
+            # Log before update
+            before = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
+            logger.info(f"[DB] Before update for user {user_id}: {before['data'] if before else 'None'}")
+            logger.info(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
+
+            result = await conn.execute("""
                 UPDATE users
                 SET data = jsonb_set(COALESCE(data, '{}'::jsonb), $1, $2, true),
                     updated_at = NOW()
@@ -456,6 +462,33 @@ class ModdyDatabase:
                 json.dumps(value),
                 user_id
             )
+
+            # Log after update and verify
+            after = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
+            logger.info(f"[DB] After update for user {user_id}: {after['data'] if after else 'None'}")
+            logger.info(f"[DB] Update result: {result}")
+
+            # Verify the data was actually saved
+            if after and after['data']:
+                current = after['data']
+                for part in path_parts:
+                    if isinstance(current, dict) and part in current:
+                        current = current[part]
+                    else:
+                        logger.error(f"[DB] ❌ Verification failed! Path {path} not found in saved data")
+                        raise Exception(f"Data verification failed: path {path} not found after update")
+
+                saved_value = json.dumps(current) if not isinstance(current, str) else current
+                expected_value = json.dumps(value) if not isinstance(value, str) else value
+
+                if saved_value != expected_value:
+                    logger.error(f"[DB] ❌ Verification failed! Expected {expected_value}, got {saved_value}")
+                    raise Exception(f"Data verification failed: value mismatch")
+
+                logger.info(f"[DB] ✅ Verification successful: data correctly saved at path {path}")
+            else:
+                logger.error(f"[DB] ❌ Verification failed! No data found for user {user_id}")
+                raise Exception("Data verification failed: no data in database")
 
     async def update_guild_data(self, guild_id: int, path: str, value: Any):
         """Met à jour une partie spécifique de la data serveur"""
@@ -472,8 +505,8 @@ class ModdyDatabase:
 
             # Log before update
             before = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
-            logger.debug(f"[DB] Before update for guild {guild_id}: {before['data'] if before else 'None'}")
-            logger.debug(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
+            logger.info(f"[DB] Before update for guild {guild_id}: {before['data'] if before else 'None'}")
+            logger.info(f"[DB] Updating path {path_parts} with value {json.dumps(value)}")
 
             result = await conn.execute("""
                 UPDATE guilds
@@ -486,10 +519,34 @@ class ModdyDatabase:
                 guild_id
             )
 
-            # Log after update
+            # Log after update and verify the data was saved
             after = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
-            logger.debug(f"[DB] After update for guild {guild_id}: {after['data'] if after else 'None'}")
-            logger.debug(f"[DB] Update result: {result}")
+            logger.info(f"[DB] After update for guild {guild_id}: {after['data'] if after else 'None'}")
+            logger.info(f"[DB] Update result: {result}")
+
+            # Verify the data was actually saved by checking the specific path
+            if after and after['data']:
+                # Navigate through the path to verify
+                current = after['data']
+                for part in path_parts:
+                    if isinstance(current, dict) and part in current:
+                        current = current[part]
+                    else:
+                        logger.error(f"[DB] ❌ Verification failed! Path {path} not found in saved data")
+                        raise Exception(f"Data verification failed: path {path} not found after update")
+
+                # Verify the value matches
+                saved_value = json.dumps(current) if not isinstance(current, str) else current
+                expected_value = json.dumps(value) if not isinstance(value, str) else value
+
+                if saved_value != expected_value:
+                    logger.error(f"[DB] ❌ Verification failed! Expected {expected_value}, got {saved_value}")
+                    raise Exception(f"Data verification failed: value mismatch")
+
+                logger.info(f"[DB] ✅ Verification successful: data correctly saved at path {path}")
+            else:
+                logger.error(f"[DB] ❌ Verification failed! No data found for guild {guild_id}")
+                raise Exception("Data verification failed: no data in database")
 
     # ================ REQUÊTES UTILES ================
 
