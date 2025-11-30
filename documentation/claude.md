@@ -8,4 +8,6 @@ In all cases, you must read `/documentation/Components_V2.md` to know how to cre
 
 Additionally, in cogs and modules concerning “unexpected” errors, you must let the bot’s global error system handle them (`error_handler.py`). Also, embed/container titles must always start with `###` followed by the icon, then the title. Example:
 `### [module or command icon/emoji] module or command name`.
+Additionally, commits, PRs, and code comments must be written in English.
+
 
