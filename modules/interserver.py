@@ -206,16 +206,31 @@ class InterServerModule(ModuleBase):
                     logger.warning(f"Could not get webhook for channel {channel.id} in guild {channel.guild.id}")
                     continue
 
+                # Prépare les kwargs pour le webhook
+                webhook_kwargs = {
+                    'username': username,
+                    'allowed_mentions': allowed_mentions,
+                    'wait': False
+                }
+
+                # Ajoute le contenu s'il existe
+                if content:
+                    webhook_kwargs['content'] = content
+
+                # Ajoute l'avatar s'il existe
+                if avatar_url:
+                    webhook_kwargs['avatar_url'] = avatar_url
+
+                # Ajoute les embeds s'il y en a
+                if embeds:
+                    webhook_kwargs['embeds'] = embeds
+
+                # Ajoute les fichiers s'il y en a
+                if files:
+                    webhook_kwargs['files'] = files
+
                 # Envoie le message via le webhook
-                await webhook.send(
-                    content=content or None,
-                    username=username,
-                    avatar_url=avatar_url,
-                    embeds=embeds if embeds else None,
-                    files=files if files else None,
-                    allowed_mentions=allowed_mentions,
-                    wait=False
-                )
+                await webhook.send(**webhook_kwargs)
 
             except discord.Forbidden:
                 logger.warning(f"Missing permissions to send webhook in channel {channel.id}")
