@@ -37,7 +37,9 @@ class WelcomeConfigView(ui.LayoutView):
         self.locale = locale
 
         # Configuration actuelle (ou par défaut)
-        if current_config and current_config.get('enabled') is not None:
+        # Check if we have a real saved config by looking for channel_id
+        # (enabled is calculated dynamically and not saved in the config)
+        if current_config and current_config.get('channel_id') is not None:
             self.current_config = current_config.copy()
             self.has_existing_config = True
         else:
