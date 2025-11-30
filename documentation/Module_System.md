@@ -720,14 +720,56 @@ updated_data = current_data.copy()
 updated_data = copy.deepcopy(current_data)
 ```
 
-### Checklist avant de travailler avec la DB
+#### 6. Détecter une config existante avec les bonnes clés
 
+**Problème :** L'UI de configuration doit détecter si une config existe, mais certaines clés sont calculées dynamiquement et ne sont pas sauvegardées.
+
+**Exemple d'échec :**
+```python
+# Dans WelcomeConfigView.__init__()
+# ❌ MAUVAIS - vérifie 'enabled' qui n'est pas sauvegardé
+if current_config and current_config.get('enabled') is not None:
+    self.has_existing_config = True
+
+# Dans WelcomeModule.load_config()
+# 'enabled' est calculé, pas sauvegardé !
+self.enabled = self.channel_id is not None
+```
+
+**Résultat :** L'UI pense qu'il n'y a pas de config même si elle existe dans la DB.
+
+**Solution :** Vérifier une clé qui est **toujours sauvegardée** dans la config
+```python
+# ✅ BON - vérifie channel_id qui est toujours dans la config sauvegardée
+if current_config and current_config.get('channel_id') is not None:
+    self.current_config = current_config.copy()
+    self.has_existing_config = True
+else:
+    # Nouvelle config
+    self.current_config = Module(bot, guild_id).get_default_config()
+    self.has_existing_config = False
+```
+
+**Règle générale :**
+- Détecter la config existante avec une clé **obligatoire et persistée**
+- Ne pas utiliser de clés calculées dynamiquement (`enabled`, `is_configured`, etc.)
+- Utiliser des clés de configuration essentielles (`channel_id`, `category_id`, etc.)
+
+### Checklist pour les modules et la DB
+
+**Base de données :**
 - [ ] Utiliser `_parse_jsonb()` pour lire les champs JSONB
 - [ ] Construire les structures imbriquées en Python, pas avec `jsonb_set`
 - [ ] Faire `INSERT ... ON CONFLICT DO NOTHING` avant les UPDATE
 - [ ] Utiliser `copy.deepcopy()` pour copier les structures imbriquées
 - [ ] Vérifier que les données sont sauvegardées après chaque UPDATE
 - [ ] Logger les états avant/après pour faciliter le debug
+
+**Interface de configuration :**
+- [ ] Détecter config existante avec une clé **sauvegardée** (pas `enabled`)
+- [ ] Ne calculer `enabled` que dans `load_config()`, ne pas le sauvegarder
+- [ ] Utiliser des clés obligatoires pour la détection (`channel_id`, etc.)
+- [ ] Tester le rechargement de config après sauvegarde
 
 ---
 
