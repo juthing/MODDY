@@ -116,6 +116,15 @@ class ConfigMainView(ui.LayoutView):
                 self.locale,
                 module_config
             )
+        elif module_id == 'interserver':
+            from modules.configs.interserver_config import InterServerConfigView
+            config_view = InterServerConfigView(
+                self.bot,
+                self.guild_id,
+                self.user_id,
+                self.locale,
+                module_config
+            )
         # Ajouter d'autres modules ici au fur et à mesure
         # elif module_id == 'ticket':
         #     from modules.configs.ticket_config import TicketConfigView

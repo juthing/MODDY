@@ -525,6 +525,32 @@
           "label": "Utiliser un embed"
         }
       }
+    },
+    "interserver": {
+      "config": {
+        "title": "Configuration du module Inter-Server",
+        "description": "Connectez votre serveur avec d'autres serveurs Discord pour créer un portail de communication inter-serveurs.",
+        "channel": {
+          "section_title": "Salon inter-serveur",
+          "section_description": "Sélectionnez le salon qui sera connecté aux autres serveurs",
+          "placeholder": "Sélectionnez un salon"
+        },
+        "options": {
+          "section_title": "Options d'affichage",
+          "section_description": "Configurez comment les messages sont affichés dans les autres serveurs",
+          "placeholder": "Sélectionnez les options à activer",
+          "show_server_name": "Afficher le nom du serveur",
+          "show_server_name_desc": "Ajoute le nom du serveur à côté du nom d'utilisateur",
+          "show_avatar": "Afficher l'avatar",
+          "show_avatar_desc": "Affiche l'avatar de l'auteur original",
+          "allowed_mentions": "Autoriser les mentions",
+          "allowed_mentions_desc": "Permet les @mentions dans les messages inter-serveurs"
+        },
+        "warning": {
+          "title": "Avertissement de sécurité",
+          "description": "Les messages envoyés dans ce salon seront visibles par tous les serveurs connectés. Assurez-vous que vos membres comprennent cela."
+        }
+      }
     }
   },
   "languages": {

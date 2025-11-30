@@ -526,6 +526,32 @@
           "label": "Use an embed"
         }
       }
+    },
+    "interserver": {
+      "config": {
+        "title": "Inter-Server Module Configuration",
+        "description": "Connect your server with other Discord servers to create an inter-server communication portal.",
+        "channel": {
+          "section_title": "Inter-server channel",
+          "section_description": "Select the channel that will be connected to other servers",
+          "placeholder": "Select a channel"
+        },
+        "options": {
+          "section_title": "Display options",
+          "section_description": "Configure how messages are displayed in other servers",
+          "placeholder": "Select options to enable",
+          "show_server_name": "Show server name",
+          "show_server_name_desc": "Adds the server name next to the username",
+          "show_avatar": "Show avatar",
+          "show_avatar_desc": "Displays the original author's avatar",
+          "allowed_mentions": "Allow mentions",
+          "allowed_mentions_desc": "Allows @mentions in inter-server messages"
+        },
+        "warning": {
+          "title": "Security warning",
+          "description": "Messages sent in this channel will be visible to all connected servers. Make sure your members understand this."
+        }
+      }
     }
   },
   "languages": {
