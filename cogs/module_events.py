@@ -81,6 +81,57 @@ class ModuleEvents(commands.Cog):
         except Exception as e:
             logger.error(f"Error in on_message for guild {message.guild.id}: {e}", exc_info=True)
 
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        """
+        Événement déclenché quand un message est supprimé
+        Supprime tous les messages relayés si c'est un message inter-serveur
+        """
+        # Ignore les messages des bots
+        if message.author.bot:
+            return
+
+        # Ignore les DMs
+        if not message.guild:
+            return
+
+        if not self.bot.module_manager or not self.bot.db:
+            return
+
+        try:
+            # Vérifie si c'est un message inter-serveur
+            interserver_msg = await self.bot.db.get_interserver_message_by_original(message.id)
+            if not interserver_msg:
+                return
+
+            # Supprime tous les messages relayés
+            relayed_messages = interserver_msg.get('relayed_messages', [])
+            for relayed in relayed_messages:
+                try:
+                    guild = self.bot.get_guild(relayed['guild_id'])
+                    if not guild:
+                        continue
+
+                    channel = guild.get_channel(relayed['channel_id'])
+                    if not channel:
+                        continue
+
+                    # Supprime le message
+                    msg = await channel.fetch_message(relayed['message_id'])
+                    await msg.delete()
+                except discord.NotFound:
+                    # Message déjà supprimé
+                    pass
+                except Exception as e:
+                    logger.error(f"Error deleting relayed message {relayed['message_id']}: {e}")
+
+            # Marque le message comme supprimé en DB
+            await self.bot.db.delete_interserver_message(interserver_msg['moddy_id'])
+            logger.info(f"Deleted inter-server message {interserver_msg['moddy_id']} and all relayed copies")
+
+        except Exception as e:
+            logger.error(f"Error in on_message_delete for inter-server: {e}", exc_info=True)
+
 
 async def setup(bot):
     """Charge le cog"""
