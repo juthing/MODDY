@@ -5,6 +5,7 @@ Base de données locale sur le VPS
 
 import asyncpg
 import json
+import copy
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Union
 from enum import Enum
@@ -446,7 +447,17 @@ class ModdyDatabase:
 
             # Get current data
             row = await conn.fetchrow("SELECT data FROM users WHERE user_id = $1", user_id)
-            current_data = row['data'] if row and row['data'] else {}
+
+            # Handle both dict and string JSON responses from PostgreSQL
+            if row and row['data']:
+                if isinstance(row['data'], str):
+                    current_data = json.loads(row['data'])
+                elif isinstance(row['data'], dict):
+                    current_data = row['data']
+                else:
+                    current_data = {}
+            else:
+                current_data = {}
 
             logger.info(f"[DB] Before update for user {user_id}: {current_data}")
             logger.info(f"[DB] Updating path '{path}' with value {json.dumps(value)}")
@@ -471,8 +482,8 @@ class ModdyDatabase:
                 data[parts[0]] = set_nested_value(data[parts[0]], parts[1:], val)
                 return data
 
-            # Update the data structure
-            updated_data = set_nested_value(current_data.copy(), path_parts, value)
+            # Update the data structure (use deepcopy to avoid modifying original)
+            updated_data = set_nested_value(copy.deepcopy(current_data), path_parts, value)
 
             # Save the complete updated structure
             result = await conn.execute("""
@@ -517,7 +528,17 @@ class ModdyDatabase:
 
             # Get current data
             row = await conn.fetchrow("SELECT data FROM guilds WHERE guild_id = $1", guild_id)
-            current_data = row['data'] if row and row['data'] else {}
+
+            # Handle both dict and string JSON responses from PostgreSQL
+            if row and row['data']:
+                if isinstance(row['data'], str):
+                    current_data = json.loads(row['data'])
+                elif isinstance(row['data'], dict):
+                    current_data = row['data']
+                else:
+                    current_data = {}
+            else:
+                current_data = {}
 
             logger.info(f"[DB] Before update for guild {guild_id}: {current_data}")
             logger.info(f"[DB] Updating path '{path}' with value {json.dumps(value)}")
@@ -542,8 +563,8 @@ class ModdyDatabase:
                 data[parts[0]] = set_nested_value(data[parts[0]], parts[1:], val)
                 return data
 
-            # Update the data structure
-            updated_data = set_nested_value(current_data.copy(), path_parts, value)
+            # Update the data structure (use deepcopy to avoid modifying original)
+            updated_data = set_nested_value(copy.deepcopy(current_data), path_parts, value)
 
             # Save the complete updated structure
             result = await conn.execute("""
