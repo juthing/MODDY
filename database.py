@@ -21,6 +21,19 @@ class ModdyDatabase:
         self.pool: Optional[asyncpg.Pool] = None
         self.database_url = database_url or "postgresql://moddy:password@localhost/moddy"
 
+    def _parse_jsonb(self, value: Any) -> dict:
+        """Parse JSONB value that can be either a dict or a JSON string"""
+        if not value:
+            return {}
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return {}
+        return {}
+
     async def connect(self):
         """Establishes the database connection"""
         try:
@@ -315,8 +328,8 @@ class ModdyDatabase:
 
             return {
                 'user_id': row['user_id'],
-                'attributes': json.loads(row['attributes']) if row['attributes'] else {},
-                'data': json.loads(row['data']) if row['data'] else {},
+                'attributes': self._parse_jsonb(row['attributes']),
+                'data': self._parse_jsonb(row['data']),
                 'created_at': row.get('created_at', datetime.now(timezone.utc)),
                 'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
@@ -343,8 +356,8 @@ class ModdyDatabase:
 
             return {
                 'guild_id': row['guild_id'],
-                'attributes': json.loads(row['attributes']) if row['attributes'] else {},
-                'data': json.loads(row['data']) if row['data'] else {},
+                'attributes': self._parse_jsonb(row['attributes']),
+                'data': self._parse_jsonb(row['data']),
                 'created_at': row.get('created_at', datetime.now(timezone.utc)),
                 'updated_at': row.get('updated_at', datetime.now(timezone.utc))
             }
