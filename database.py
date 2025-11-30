@@ -501,9 +501,15 @@ class ModdyDatabase:
             logger.info(f"[DB] After update for user {user_id}: {after['data'] if after else 'None'}")
             logger.info(f"[DB] Update result: {result}")
 
-            # Verify the path exists
+            # Verify the path exists - handle both dict and string JSON
             if after and after['data']:
-                current = after['data']
+                # Convert to dict if it's a string
+                if isinstance(after['data'], str):
+                    saved_data = json.loads(after['data'])
+                else:
+                    saved_data = after['data']
+
+                current = saved_data
                 for part in path_parts:
                     if isinstance(current, dict) and part in current:
                         current = current[part]
@@ -582,9 +588,15 @@ class ModdyDatabase:
             logger.info(f"[DB] After update for guild {guild_id}: {after['data'] if after else 'None'}")
             logger.info(f"[DB] Update result: {result}")
 
-            # Verify the path exists
+            # Verify the path exists - handle both dict and string JSON
             if after and after['data']:
-                current = after['data']
+                # Convert to dict if it's a string
+                if isinstance(after['data'], str):
+                    saved_data = json.loads(after['data'])
+                else:
+                    saved_data = after['data']
+
+                current = saved_data
                 for part in path_parts:
                     if isinstance(current, dict) and part in current:
                         current = current[part]
