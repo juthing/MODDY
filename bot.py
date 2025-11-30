@@ -172,11 +172,11 @@ class ModdyBot(commands.Bot):
 
         # Sync slash commands
         if DEBUG:
-            # In debug, sync only on the test server
-            guild = discord.Object(id=1234567890)  # Replace with your test server id
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
+            # In debug mode, sync commands the same way as production
+            # This ensures global commands work in DMs even in debug mode
+            await self.sync_commands()
             logger.info("✅ Commands synced (debug mode)")
+            logger.info("ℹ️ Guild-only commands will be synced in on_ready()")
         else:
             # In production, sync commands properly
             await self.sync_commands()
@@ -210,6 +210,10 @@ class ModdyBot(commands.Bot):
         """
         Synchronise les commandes guild-only pour TOUS les serveurs.
         Appelé dans on_ready() quand self.guilds est disponible.
+
+        IMPORTANT: Ne PAS copier les commandes globales avec copy_global_to()
+        car cela ferait que Discord ignore les commandes globales pour ce serveur.
+        Les commandes globales sont déjà synchronisées globalement et disponibles partout.
         """
         try:
             if not self._guild_only_commands:
@@ -220,14 +224,12 @@ class ModdyBot(commands.Bot):
             guild_count = 0
             for guild in self.guilds:
                 try:
-                    # Copier les commandes globales vers ce serveur
-                    self.tree.copy_global_to(guild=guild)
-
-                    # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur (pas à l'arbre global)
+                    # Ajouter UNIQUEMENT les guild-only à ce serveur (pas les globales)
+                    # Les commandes globales sont déjà disponibles partout sans copy_global_to()
                     for command in self._guild_only_commands:
                         self.tree.add_command(command, guild=guild)
 
-                    # Sync pour ce serveur (globales + guild-only)
+                    # Sync SEULEMENT les guild-only pour ce serveur
                     await self.tree.sync(guild=guild)
 
                     guild_count += 1
@@ -243,22 +245,23 @@ class ModdyBot(commands.Bot):
     async def sync_guild_commands(self, guild: discord.Guild):
         """
         Synchronise les commandes spécifiques à un serveur.
-        Copie les globales et ajoute les guild-only spécifiquement à ce serveur.
+        Ajoute UNIQUEMENT les guild-only spécifiquement à ce serveur.
+
+        IMPORTANT: Ne PAS copier les commandes globales avec copy_global_to()
+        car cela ferait que Discord ignore les commandes globales pour ce serveur.
+        Les commandes globales sont déjà synchronisées globalement et disponibles partout.
 
         Args:
             guild: Le serveur pour lequel synchroniser les commandes
         """
         try:
-            # Copier les commandes globales vers ce serveur
-            # L'arbre global ne contient PAS les guild-only (elles ont été retirées définitivement)
-            self.tree.copy_global_to(guild=guild)
-
-            # Ajouter les guild-only SPÉCIFIQUEMENT à ce serveur
+            # Ajouter UNIQUEMENT les guild-only à ce serveur (pas les globales)
+            # Les commandes globales sont déjà disponibles partout sans copy_global_to()
             # Utilise le cache self._guild_only_commands car elles ne sont plus dans l'arbre global
             for command in self._guild_only_commands:
                 self.tree.add_command(command, guild=guild)
 
-            # Synchroniser pour ce serveur
+            # Synchroniser SEULEMENT les guild-only pour ce serveur
             await self.tree.sync(guild=guild)
 
             logger.info(f"✅ Commands synced for {guild.name} ({guild.id})")

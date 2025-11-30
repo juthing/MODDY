@@ -630,8 +630,12 @@ class DeveloperCommands(StaffCommandsCog):
                     guild_id = int(args.strip())
                     guild = discord.Object(id=guild_id)
 
-                    # Copy global commands to guild and sync
-                    self.bot.tree.copy_global_to(guild=guild)
+                    # Add ONLY guild-only commands to this guild (not global commands)
+                    # Global commands are already available everywhere without copy_global_to()
+                    # Using copy_global_to() would make Discord ignore global commands for this guild
+                    for command in self.bot._guild_only_commands:
+                        self.bot.tree.add_command(command, guild=guild)
+
                     synced = await self.bot.tree.sync(guild=guild)
 
                     guild_obj = self.bot.get_guild(guild_id)
@@ -639,7 +643,7 @@ class DeveloperCommands(StaffCommandsCog):
 
                     view = create_success_message(
                         "Commands Synced",
-                        f"Successfully synced **{len(synced)}** commands to **{guild_name}**.\n\n-# Commands should appear immediately in this server.",
+                        f"Successfully synced **{len(synced)}** guild-only commands to **{guild_name}**.\n\n-# Global commands are already available everywhere.",
                         footer=f"Executed by {message.author}"
                     )
 

@@ -136,7 +136,7 @@ async def sync_commands(self):
 
 **Important** : Les guild-only sont **stockées dans `self._guild_only_commands`** et ne sont **jamais** remises dans l'arbre global.
 
-#### Phase 2 : Après connexion - on_ready() (`bot.py:206-238`)
+#### Phase 2 : Après connexion - on_ready() (`bot.py:209-243`)
 
 ```python
 async def sync_all_guild_commands(self):
@@ -144,9 +144,12 @@ async def sync_all_guild_commands(self):
     Appelée dans on_ready() quand self.guilds est disponible.
 
     Pour chaque serveur où Moddy est présent:
-       - Copie les commandes globales avec copy_global_to(guild)
-       - Ajoute les guild-only SPÉCIFIQUEMENT à l'arbre du serveur avec add_command(cmd, guild=guild)
-       - Sync l'arbre du serveur (globales + guild-only)
+       - Ajoute les guild-only UNIQUEMENT à l'arbre du serveur avec add_command(cmd, guild=guild)
+       - Sync SEULEMENT les guild-only pour ce serveur avec sync(guild=guild)
+
+    IMPORTANT: Ne PAS copier les commandes globales avec copy_global_to()
+    car cela ferait que Discord ignore les commandes globales pour ce serveur.
+    Les commandes globales sont déjà synchronisées globalement et disponibles partout.
     """
 ```
 
@@ -156,17 +159,18 @@ async def sync_all_guild_commands(self):
 - Les arbres global et serveur sont **complètement séparés** dans discord.py
 - Les guild-only ne sont **jamais** dans l'arbre global, uniquement dans les arbres des serveurs avec Moddy
 - Les guild-only sont stockées dans `self._guild_only_commands` (cache permanent)
+- **CRUCIAL**: Ne PAS utiliser `copy_global_to()` car si un serveur a des commandes synchronisées spécifiquement, Discord ignore les commandes globales pour ce serveur
 
-#### Quand Moddy rejoint un nouveau serveur (`bot.py:527-533`)
+#### Quand Moddy rejoint un nouveau serveur (`bot.py:563-577`)
 
 ```python
 async def on_guild_join(self, guild: discord.Guild):
     # ...
-    # Copie les commandes globales et ajoute les guild-only pour ce serveur
+    # Ajoute UNIQUEMENT les guild-only pour ce serveur
     await self.sync_guild_commands(guild)
 ```
 
-**Résultat** : `/config` devient immédiatement disponible dans ce nouveau serveur (mais pas ailleurs)
+**Résultat** : `/config` devient immédiatement disponible dans ce nouveau serveur (mais pas ailleurs), et toutes les commandes globales restent accessibles
 
 #### Quand Moddy quitte un serveur (`bot.py:542-549`)
 
@@ -433,9 +437,9 @@ async def setup(bot):
 
 3. **Phase 2 - on_ready() (après connexion)** :
    - À ce moment, `self.guilds` est disponible (liste des serveurs)
-   - Pour chaque serveur : `copy_global_to(guild)` copie les commandes globales (sans guild-only)
    - Pour chaque serveur : `add_command(cmd, guild=guild)` ajoute les guild-only **uniquement à ce serveur**
-   - `sync(guild=X)` synchronise l'arbre de X (globales + guild-only)
+   - `sync(guild=X)` synchronise UNIQUEMENT les guild-only pour ce serveur
+   - **IMPORTANT** : Ne PAS utiliser `copy_global_to()` car cela ferait que Discord ignore les commandes globales
 
 4. **Pourquoi 2 phases ?** :
    - Dans `setup_hook()`, le bot n'est pas connecté → `self.guilds` est **vide**
@@ -451,6 +455,25 @@ C'est pourquoi la synchronisation est divisée en 2 phases :
 - **setup_hook()** : Sync les commandes globales (pas besoin de connaître les serveurs)
 - **on_ready()** : Sync les guild-only pour chaque serveur (nécessite `self.guilds`)
 
+### Q: Pourquoi ne pas utiliser `copy_global_to()` pour les serveurs ?
+
+**R:** C'est un comportement subtil mais crucial de l'API Discord :
+
+**Quand un serveur a des commandes synchronisées spécifiquement** (via `sync(guild=X)`), **Discord affiche UNIQUEMENT ces commandes et ignore complètement les commandes globales** pour ce serveur.
+
+Donc si on fait :
+```python
+tree.copy_global_to(guild=X)  # Copie les globales dans l'arbre du serveur
+tree.sync(guild=X)             # Sync l'arbre du serveur
+```
+
+Discord va :
+1. Voir que le serveur X a des commandes synchronisées spécifiquement
+2. Utiliser UNIQUEMENT ces commandes pour le serveur X
+3. **Ignorer les commandes globales** pour le serveur X (y compris dans les DMs !)
+
+**La solution** : Ne synchroniser QUE les guild-only pour chaque serveur. Les commandes globales restent synchronisées globalement et sont automatiquement disponibles partout (serveurs + DMs) sans avoir besoin de les copier.
+
 ---
 
 ## Contributeurs
@@ -458,4 +481,9 @@ C'est pourquoi la synchronisation est divisée en 2 phases :
 Ce système a été développé pour résoudre le problème où les commandes guild-only (comme `/config`) étaient accessibles dans tous les serveurs, même ceux sans Moddy.
 
 **Documentation créée le** : 29 novembre 2025
-**Dernière mise à jour** : 29 novembre 2025 (version finale avec synchronisation en 2 phases : setup_hook + on_ready)
+**Dernière mise à jour** : 30 novembre 2025
+
+### Historique des corrections
+
+- **30 novembre 2025** : Correction du problème où les commandes globales n'étaient pas disponibles en DMs. Retrait de `copy_global_to()` qui causait Discord à ignorer les commandes globales quand des commandes spécifiques au serveur étaient synchronisées.
+- **29 novembre 2025** : Version initiale avec synchronisation en 2 phases (setup_hook + on_ready)
