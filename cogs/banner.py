@@ -81,6 +81,8 @@ class Banner(commands.Cog):
         name="banner",
         description="Display a user's banner"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         user="The user whose banner you want to see",
         incognito="Make response visible only to you"

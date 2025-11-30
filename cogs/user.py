@@ -606,6 +606,8 @@ class User(commands.Cog):
         name="user",
         description="Display detailed information about a Discord user"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         user="The user to lookup",
         incognito="Make response visible only to you"
