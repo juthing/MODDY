@@ -405,6 +405,8 @@ class Webhook(commands.Cog):
             return None
 
     @app_commands.command(name="webhook", description="Inspect and manage Discord webhooks")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         webhook="Webhook URL or ID/Token",
         incognito="Make response visible only to you"

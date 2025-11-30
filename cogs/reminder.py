@@ -820,6 +820,8 @@ class Reminder(commands.Cog):
         name="reminder-add",
         description="Add a new reminder"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         message="What should I remind you?",
         time="When to remind (e.g. 1h30m, 2d, tomorrow 3pm)",
@@ -905,6 +907,8 @@ class Reminder(commands.Cog):
         name="reminders",
         description="Manage your reminders"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         incognito="Make response visible only to you"
     )

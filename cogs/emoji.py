@@ -155,6 +155,8 @@ class Emoji(commands.Cog):
         name="emoji",
         description="Display information about a Discord emoji"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         emoji="The emoji to lookup",
         incognito="Make response visible only to you"

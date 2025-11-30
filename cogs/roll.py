@@ -62,6 +62,8 @@ class Roll(commands.Cog):
         name="roll",
         description="Roll a random dice"
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(
         max="Maximum dice value (optional, defaults to 6)",
         incognito="Make response visible only to you"
