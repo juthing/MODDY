@@ -15,10 +15,14 @@ COMMON_PERMISSIONS = [
 
 # Permissions specific to Moderator role
 MODERATOR_PERMISSIONS = [
-    "blacklist",     # Blacklist users
-    "unblacklist",   # Unblacklist users
-    "userinfo",      # View user information
-    "guildinfo",     # View guild information
+    "blacklist",              # Blacklist users
+    "unblacklist",            # Unblacklist users
+    "userinfo",               # View user information
+    "guildinfo",              # View guild information
+    "interserver_info",       # View inter-server message info
+    "interserver_delete",     # Delete inter-server messages
+    "interserver_blacklist",  # Blacklist users from inter-server
+    "interserver_unblacklist",# Unblacklist users from inter-server
 ]
 
 # Permissions specific to Support role
@@ -82,6 +86,10 @@ def get_permission_label(permission: str) -> str:
         "unblacklist": "Unblacklist Users",
         "userinfo": "User Information",
         "guildinfo": "Guild Information",
+        "interserver_info": "Inter-Server Message Info",
+        "interserver_delete": "Delete Inter-Server Messages",
+        "interserver_blacklist": "Blacklist from Inter-Server",
+        "interserver_unblacklist": "Unblacklist from Inter-Server",
 
         # Support
         "ticket_view": "View Tickets",
