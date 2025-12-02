@@ -317,7 +317,12 @@ class ModdyBot(commands.Bot):
                 embed = discord.Embed(color=COLORS["error"])
 
                 if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
+                    # Try to send a followup message first (preferred)
+                    try:
+                        await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
+                    except:
+                        # If followup fails, edit the original response as fallback
+                        await interaction.edit_original_response(content=None, embed=embed, view=FallbackErrorView())
                 else:
                     await interaction.response.send_message(embed=embed, view=FallbackErrorView(), ephemeral=True)
             except Exception as e:

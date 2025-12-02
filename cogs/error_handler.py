@@ -314,7 +314,12 @@ class ErrorTracker(commands.Cog):
             # For slash commands
             if hasattr(ctx, 'interaction') and ctx.interaction:
                 if ctx.interaction.response.is_done():
-                    await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                    # Try to send a followup message first (preferred)
+                    try:
+                        await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                    except:
+                        # If followup fails, edit the original response as fallback
+                        await ctx.interaction.edit_original_response(content=None, embed=embed, view=error_view)
                 else:
                     await ctx.interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
             else:
@@ -461,8 +466,14 @@ class ErrorTracker(commands.Cog):
 
         try:
             if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                # Try to send a followup message first (preferred)
+                try:
+                    await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                except:
+                    # If followup fails, edit the original response as fallback
+                    await interaction.edit_original_response(content=None, embed=embed, view=error_view)
             else:
+                # Send the error as the initial response
                 await interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
         except Exception as send_error:
             # Last resort: log the failure
