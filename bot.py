@@ -291,7 +291,7 @@ class ModdyBot(commands.Bot):
             logger.error(f"Slash command error (no ErrorTracker): {error}", exc_info=error)
 
             try:
-                # Simple fallback message
+                # Simple fallback message with Components V2 (no embed needed)
                 from discord import ui
 
                 class FallbackErrorView(ui.LayoutView):
@@ -314,17 +314,15 @@ class ModdyBot(commands.Bot):
                         container.add_item(button_row)
                         self.add_item(container)
 
-                embed = discord.Embed(color=COLORS["error"])
-
                 if interaction.response.is_done():
                     # Try to send a followup message first (preferred)
                     try:
-                        await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
+                        await interaction.followup.send(view=FallbackErrorView(), ephemeral=True)
                     except:
                         # If followup fails, edit the original response as fallback
-                        await interaction.edit_original_response(content=None, embed=embed, view=FallbackErrorView())
+                        await interaction.edit_original_response(content=None, view=FallbackErrorView())
                 else:
-                    await interaction.response.send_message(embed=embed, view=FallbackErrorView(), ephemeral=True)
+                    await interaction.response.send_message(view=FallbackErrorView(), ephemeral=True)
             except Exception as e:
                 logger.error(f"Failed to send fallback error message: {e}")
 

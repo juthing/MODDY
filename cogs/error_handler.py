@@ -307,28 +307,26 @@ class ErrorTracker(commands.Cog):
         # Create error view with Components V2
         error_view = ErrorView(error_code)
 
-        # Create a simple embed with red border
-        embed = discord.Embed(color=COLORS["error"])
-
         try:
             # For slash commands
             if hasattr(ctx, 'interaction') and ctx.interaction:
                 if ctx.interaction.response.is_done():
                     # Try to send a followup message first (preferred)
                     try:
-                        await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                        await ctx.interaction.followup.send(view=error_view, ephemeral=True)
                     except:
                         # If followup fails, edit the original response as fallback
-                        await ctx.interaction.edit_original_response(content=None, embed=embed, view=error_view)
+                        await ctx.interaction.edit_original_response(content=None, view=error_view)
                 else:
-                    await ctx.interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
+                    await ctx.interaction.response.send_message(view=error_view, ephemeral=True)
             else:
-                # For text commands
+                # For text commands, send embed for compatibility
+                embed = discord.Embed(color=COLORS["error"])
                 await ctx.send(embed=embed, view=error_view)
         except Exception as send_error:
             # If we can't send in the channel, try DMs
             try:
-                await ctx.author.send(embed=embed, view=error_view)
+                await ctx.author.send(view=error_view)
             except:
                 # Last resort: log the failure
                 import logging
@@ -397,12 +395,11 @@ class ErrorTracker(commands.Cog):
                     container.add_item(button_row)
                     self.add_item(container)
 
-            embed = discord.Embed(color=COLORS["error"])
             try:
                 if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, view=PermissionErrorView(), ephemeral=True)
+                    await interaction.followup.send(view=PermissionErrorView(), ephemeral=True)
                 else:
-                    await interaction.response.send_message(embed=embed, view=PermissionErrorView(), ephemeral=True)
+                    await interaction.response.send_message(view=PermissionErrorView(), ephemeral=True)
             except:
                 pass
             return
@@ -421,12 +418,11 @@ class ErrorTracker(commands.Cog):
                     )
                     self.add_item(container)
 
-            embed = discord.Embed(color=COLORS["warning"])
             try:
                 if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, view=CooldownErrorView(error.retry_after), ephemeral=True)
+                    await interaction.followup.send(view=CooldownErrorView(error.retry_after), ephemeral=True)
                 else:
-                    await interaction.response.send_message(embed=embed, view=CooldownErrorView(error.retry_after), ephemeral=True)
+                    await interaction.response.send_message(view=CooldownErrorView(error.retry_after), ephemeral=True)
             except:
                 pass
             return
@@ -460,21 +456,20 @@ class ErrorTracker(commands.Cog):
         # Log to Discord
         await self.send_error_log(error_code, error_details, is_fatal)
 
-        # Send error to user
+        # Send error to user with Components V2 (no embed needed)
         error_view = ErrorView(error_code)
-        embed = discord.Embed(color=COLORS["error"])
 
         try:
             if interaction.response.is_done():
                 # Try to send a followup message first (preferred)
                 try:
-                    await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                    await interaction.followup.send(view=error_view, ephemeral=True)
                 except:
                     # If followup fails, edit the original response as fallback
-                    await interaction.edit_original_response(content=None, embed=embed, view=error_view)
+                    await interaction.edit_original_response(content=None, view=error_view)
             else:
                 # Send the error as the initial response
-                await interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
+                await interaction.response.send_message(view=error_view, ephemeral=True)
         except Exception as send_error:
             # Last resort: log the failure
             import logging
