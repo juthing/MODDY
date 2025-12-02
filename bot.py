@@ -317,7 +317,12 @@ class ModdyBot(commands.Bot):
                 embed = discord.Embed(color=COLORS["error"])
 
                 if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
+                    # Edit the original response to replace it with the error message
+                    try:
+                        await interaction.edit_original_response(content=None, embed=embed, view=FallbackErrorView())
+                    except:
+                        # Fallback to followup if editing fails
+                        await interaction.followup.send(embed=embed, view=FallbackErrorView(), ephemeral=True)
                 else:
                     await interaction.response.send_message(embed=embed, view=FallbackErrorView(), ephemeral=True)
             except Exception as e:
