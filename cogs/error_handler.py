@@ -314,20 +314,18 @@ class ErrorTracker(commands.Cog):
             # For slash commands
             if hasattr(ctx, 'interaction') and ctx.interaction:
                 if ctx.interaction.response.is_done():
-                    # Edit the original response to replace it with the error message
-                    await ctx.interaction.edit_original_response(content=None, embed=embed, view=error_view)
+                    # Try to send a followup message first (preferred)
+                    try:
+                        await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                    except:
+                        # If followup fails, edit the original response as fallback
+                        await ctx.interaction.edit_original_response(content=None, embed=embed, view=error_view)
                 else:
                     await ctx.interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
             else:
                 # For text commands
                 await ctx.send(embed=embed, view=error_view)
         except Exception as send_error:
-            # If editing fails, try followup as fallback
-            try:
-                if hasattr(ctx, 'interaction') and ctx.interaction and ctx.interaction.response.is_done():
-                    await ctx.interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
-            except:
-                pass
             # If we can't send in the channel, try DMs
             try:
                 await ctx.author.send(embed=embed, view=error_view)
@@ -468,18 +466,16 @@ class ErrorTracker(commands.Cog):
 
         try:
             if interaction.response.is_done():
-                # Edit the original response to replace it with the error message
-                await interaction.edit_original_response(content=None, embed=embed, view=error_view)
+                # Try to send a followup message first (preferred)
+                try:
+                    await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
+                except:
+                    # If followup fails, edit the original response as fallback
+                    await interaction.edit_original_response(content=None, embed=embed, view=error_view)
             else:
                 # Send the error as the initial response
                 await interaction.response.send_message(embed=embed, view=error_view, ephemeral=True)
         except Exception as send_error:
-            # If editing fails, try sending a followup as fallback
-            try:
-                if interaction.response.is_done():
-                    await interaction.followup.send(embed=embed, view=error_view, ephemeral=True)
-            except:
-                pass
             # Last resort: log the failure
             import logging
             logger = logging.getLogger('moddy')
