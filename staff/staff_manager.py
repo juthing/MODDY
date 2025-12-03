@@ -58,43 +58,43 @@ class RoleSelectView(ui.View):
                     label="Manager",
                     value=StaffRole.MANAGER.value,
                     description="Can manage all staff and assign roles",
-                    emoji="👑"
+                    emoji=discord.PartialEmoji(name="manager_badge", id=1437514336355483749)
                 ),
                 discord.SelectOption(
                     label="Moderator Supervisor",
                     value=StaffRole.SUPERVISOR_MOD.value,
                     description="Supervises moderators",
-                    emoji="🛡️"
+                    emoji=discord.PartialEmoji(name="mod_supervisor_badge", id=1437514356135821322)
                 ),
                 discord.SelectOption(
                     label="Communication Supervisor",
                     value=StaffRole.SUPERVISOR_COM.value,
                     description="Supervises communication team",
-                    emoji="📢"
+                    emoji=discord.PartialEmoji(name="communication_supervisor_badge", id=1437514333763535068)
                 ),
                 discord.SelectOption(
                     label="Support Supervisor",
                     value=StaffRole.SUPERVISOR_SUP.value,
                     description="Supervises support team",
-                    emoji="🎫"
+                    emoji=discord.PartialEmoji(name="support_supervisor_badge", id=1437514347923636435)
                 ),
                 discord.SelectOption(
                     label="Moderator",
                     value=StaffRole.MODERATOR.value,
                     description="Moderation staff member",
-                    emoji="🔨"
+                    emoji=discord.PartialEmoji(name="moderator_badge", id=1437514357230796891)
                 ),
                 discord.SelectOption(
                     label="Communication",
                     value=StaffRole.COMMUNICATION.value,
                     description="Communication staff member",
-                    emoji="💬"
+                    emoji=discord.PartialEmoji(name="comunication_badge", id=1437514353304670268)
                 ),
                 discord.SelectOption(
                     label="Support",
                     value=StaffRole.SUPPORT.value,
                     description="Support staff member",
-                    emoji="🎧"
+                    emoji=discord.PartialEmoji(name="supportagent_badge", id=1437514361861177350)
                 )
             ]
         )
@@ -102,12 +102,22 @@ class RoleSelectView(ui.View):
         self.add_item(select)
 
         # Add confirm button
-        confirm_btn = ui.Button(label="Confirm", style=discord.ButtonStyle.green, emoji="✅", custom_id="confirm_roles")
+        confirm_btn = ui.Button(
+            label="Confirm",
+            style=discord.ButtonStyle.green,
+            emoji=discord.PartialEmoji(name="done", id=1398729525277229066),
+            custom_id="confirm_roles"
+        )
         confirm_btn.callback = self.confirm_button
         self.add_item(confirm_btn)
 
         # Add cancel button
-        cancel_btn = ui.Button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌", custom_id="cancel_roles")
+        cancel_btn = ui.Button(
+            label="Cancel",
+            style=discord.ButtonStyle.red,
+            emoji=discord.PartialEmoji(name="undone", id=1398729502028333218),
+            custom_id="cancel_roles"
+        )
         cancel_btn.callback = self.cancel_button
         self.add_item(cancel_btn)
 
@@ -259,49 +269,49 @@ class StaffPermissionsManagementView(ui.LayoutView):
                     label="Manager",
                     value=StaffRole.MANAGER.value,
                     description="Can manage all staff and assign roles",
-                    emoji="👑",
+                    emoji=discord.PartialEmoji(name="manager_badge", id=1437514336355483749),
                     default=StaffRole.MANAGER in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Moderator Supervisor",
                     value=StaffRole.SUPERVISOR_MOD.value,
                     description="Supervises moderators",
-                    emoji="🛡️",
+                    emoji=discord.PartialEmoji(name="mod_supervisor_badge", id=1437514356135821322),
                     default=StaffRole.SUPERVISOR_MOD in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Communication Supervisor",
                     value=StaffRole.SUPERVISOR_COM.value,
                     description="Supervises communication team",
-                    emoji="📢",
+                    emoji=discord.PartialEmoji(name="communication_supervisor_badge", id=1437514333763535068),
                     default=StaffRole.SUPERVISOR_COM in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Support Supervisor",
                     value=StaffRole.SUPERVISOR_SUP.value,
                     description="Supervises support team",
-                    emoji="🎫",
+                    emoji=discord.PartialEmoji(name="support_supervisor_badge", id=1437514347923636435),
                     default=StaffRole.SUPERVISOR_SUP in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Moderator",
                     value=StaffRole.MODERATOR.value,
                     description="Moderation staff member",
-                    emoji="🔨",
+                    emoji=discord.PartialEmoji(name="moderator_badge", id=1437514357230796891),
                     default=StaffRole.MODERATOR in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Communication",
                     value=StaffRole.COMMUNICATION.value,
                     description="Communication staff member",
-                    emoji="💬",
+                    emoji=discord.PartialEmoji(name="comunication_badge", id=1437514353304670268),
                     default=StaffRole.COMMUNICATION in self.selected_roles
                 ),
                 discord.SelectOption(
                     label="Support",
                     value=StaffRole.SUPPORT.value,
                     description="Support staff member",
-                    emoji="🎧",
+                    emoji=discord.PartialEmoji(name="supportagent_badge", id=1437514361861177350),
                     default=StaffRole.SUPPORT in self.selected_roles
                 )
             ]
@@ -392,12 +402,20 @@ class StaffPermissionsManagementView(ui.LayoutView):
         buttons_row = ui.ActionRow()
 
         # Save button
-        @buttons_row.button(label="Save Changes", style=discord.ButtonStyle.green, emoji="✅")
+        @buttons_row.button(
+            label="Save Changes",
+            style=discord.ButtonStyle.green,
+            emoji=discord.PartialEmoji(name="done", id=1398729525277229066)
+        )
         async def save_button(interaction: discord.Interaction, button: ui.Button):
             await self.save_callback(interaction)
 
         # Cancel button
-        @buttons_row.button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌")
+        @buttons_row.button(
+            label="Cancel",
+            style=discord.ButtonStyle.red,
+            emoji=discord.PartialEmoji(name="undone", id=1398729502028333218)
+        )
         async def cancel_button(interaction: discord.Interaction, button: ui.Button):
             await self.cancel_callback(interaction)
 
