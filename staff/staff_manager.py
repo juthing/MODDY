@@ -351,7 +351,7 @@ class StaffPermissionsManagementView(ui.LayoutView):
                             name=self._get_role_badge_name(role),
                             id=self._get_role_badge_id(role)
                         ),
-                        default=role == self.selected_role_for_config
+                        default=role.value == self.selected_role_for_config
                     )
                 )
 
