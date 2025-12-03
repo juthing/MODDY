@@ -401,24 +401,25 @@ class StaffPermissionsManagementView(ui.LayoutView):
 
         buttons_row = ui.ActionRow()
 
-        # Save button
-        @buttons_row.button(
+        # Create buttons explicitly
+        save_btn = ui.Button(
             label="Save Changes",
             style=discord.ButtonStyle.green,
-            emoji=discord.PartialEmoji(name="done", id=1398729525277229066)
+            emoji=discord.PartialEmoji(name="done", id=1398729525277229066),
+            custom_id=f"save_perms_{self.target_user.id}"
         )
-        async def save_button(interaction: discord.Interaction, button: ui.Button):
-            await self.save_callback(interaction)
+        save_btn.callback = self.save_callback
 
-        # Cancel button
-        @buttons_row.button(
+        cancel_btn = ui.Button(
             label="Cancel",
             style=discord.ButtonStyle.red,
-            emoji=discord.PartialEmoji(name="undone", id=1398729502028333218)
+            emoji=discord.PartialEmoji(name="undone", id=1398729502028333218),
+            custom_id=f"cancel_perms_{self.target_user.id}"
         )
-        async def cancel_button(interaction: discord.Interaction, button: ui.Button):
-            await self.cancel_callback(interaction)
+        cancel_btn.callback = self.cancel_callback
 
+        buttons_row.add_item(save_btn)
+        buttons_row.add_item(cancel_btn)
         container.add_item(buttons_row)
 
         # Add container to view
