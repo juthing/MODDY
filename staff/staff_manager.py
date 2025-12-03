@@ -198,8 +198,8 @@ class RoleSelectView(ui.View):
         await interaction.response.edit_message(view=view, content=None)
 
 
-class StaffPermissionsManagementView(ui.View):
-    """View for managing staff permissions with role-based permission system"""
+class StaffPermissionsManagementView(ui.LayoutView):
+    """View for managing staff permissions with role-based permission system using Components V2"""
 
     def __init__(self, bot, target_user: discord.User, modifier: discord.User, perm_manager, initial_message: discord.Message):
         super().__init__(timeout=600)  # 10 minutes
@@ -235,7 +235,20 @@ class StaffPermissionsManagementView(ui.View):
         # Clear all items
         self.clear_items()
 
-        # Add role selection menu
+        # Create main container
+        container = ui.Container()
+
+        # Header
+        container.add_item(ui.TextDisplay(
+            content=f"### {EMOJIS['settings']} Staff Permissions Management\n"
+                   f"Configure roles and permissions for {self.target_user.mention}"
+        ))
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+
+        # Role Selection Section
+        container.add_item(ui.TextDisplay(content="**Select Roles**\n-# Choose which roles to assign to this staff member"))
+
+        role_select_row = ui.ActionRow()
         role_select = ui.Select(
             placeholder="Select roles for this staff member",
             min_values=0,
@@ -294,12 +307,29 @@ class StaffPermissionsManagementView(ui.View):
             ]
         )
         role_select.callback = self.role_select_callback
-        self.add_item(role_select)
+        role_select_row.add_item(role_select)
+        container.add_item(role_select_row)
+
+        # Show selected roles summary
+        if self.selected_roles:
+            role_badges = []
+            for role in self.selected_roles:
+                badge = self._get_role_badge(role)
+                role_badges.append(f"{badge} {role.value}")
+
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(content=f"**Currently Selected Roles:**\n{', '.join(role_badges)}"))
 
         # Add common permissions select if there are roles
         if self.selected_roles:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+            container.add_item(ui.TextDisplay(
+                content=f"**Common Permissions**\n-# These permissions apply to all assigned roles"
+            ))
+
+            common_select_row = ui.ActionRow()
             common_select = ui.Select(
-                placeholder="Select common permissions (all roles)",
+                placeholder="Select common permissions (available to all roles)",
                 min_values=0,
                 max_values=len(COMMON_PERMISSIONS),
                 custom_id="common_permissions",
@@ -312,14 +342,29 @@ class StaffPermissionsManagementView(ui.View):
                 ]
             )
             common_select.callback = self.common_permissions_callback
-            self.add_item(common_select)
+            common_select_row.add_item(common_select)
+            container.add_item(common_select_row)
+
+            # Show selected common permissions
+            if self.common_permissions:
+                perm_list = ", ".join([get_permission_label(p) for p in self.common_permissions])
+                container.add_item(ui.TextDisplay(content=f"-# Selected: {perm_list}"))
 
             # Add permission select for each role
             for role in self.selected_roles:
                 available_perms = ROLE_PERMISSIONS_MAP.get(role.value, [])
                 if available_perms:
+                    container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+
+                    badge = self._get_role_badge(role)
+                    container.add_item(ui.TextDisplay(
+                        content=f"**{badge} {get_role_display_name(role.value)} Permissions**\n"
+                               f"-# Configure specific permissions for this role"
+                    ))
+
+                    role_perm_select_row = ui.ActionRow()
                     role_perm_select = ui.Select(
-                        placeholder=f"Permissions for {get_role_display_name(role.value)}",
+                        placeholder=f"Select permissions for {get_role_display_name(role.value)}",
                         min_values=0,
                         max_values=len(available_perms),
                         custom_id=f"perms_{role.value}",
@@ -332,17 +377,48 @@ class StaffPermissionsManagementView(ui.View):
                         ]
                     )
                     role_perm_select.callback = self.create_role_permission_callback(role.value)
-                    self.add_item(role_perm_select)
+                    role_perm_select_row.add_item(role_perm_select)
+                    container.add_item(role_perm_select_row)
 
-        # Add save button
-        save_btn = ui.Button(label="Save Changes", style=discord.ButtonStyle.green, emoji="✅")
-        save_btn.callback = self.save_callback
-        self.add_item(save_btn)
+                    # Show selected permissions for this role
+                    role_perms = self.role_permissions.get(role.value, [])
+                    if role_perms:
+                        perm_list = ", ".join([get_permission_label(p) for p in role_perms])
+                        container.add_item(ui.TextDisplay(content=f"-# Selected: {perm_list}"))
 
-        # Add cancel button
-        cancel_btn = ui.Button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌")
-        cancel_btn.callback = self.cancel_callback
-        self.add_item(cancel_btn)
+        # Add buttons row
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+
+        buttons_row = ui.ActionRow()
+
+        # Save button
+        @buttons_row.button(label="Save Changes", style=discord.ButtonStyle.green, emoji="✅")
+        async def save_button(interaction: discord.Interaction, button: ui.Button):
+            await self.save_callback(interaction)
+
+        # Cancel button
+        @buttons_row.button(label="Cancel", style=discord.ButtonStyle.red, emoji="❌")
+        async def cancel_button(interaction: discord.Interaction, button: ui.Button):
+            await self.cancel_callback(interaction)
+
+        container.add_item(buttons_row)
+
+        # Add container to view
+        self.add_item(container)
+
+    def _get_role_badge(self, role: StaffRole) -> str:
+        """Get emoji badge for a role"""
+        badges = {
+            StaffRole.DEV: EMOJIS['dev_badge'],
+            StaffRole.MANAGER: EMOJIS['manager_badge'],
+            StaffRole.SUPERVISOR_MOD: EMOJIS['mod_supervisor_badge'],
+            StaffRole.SUPERVISOR_COM: EMOJIS['communication_supervisor_badge'],
+            StaffRole.SUPERVISOR_SUP: EMOJIS['support_supervisor_badge'],
+            StaffRole.MODERATOR: EMOJIS['moderator_badge'],
+            StaffRole.COMMUNICATION: EMOJIS['comunication_badge'],
+            StaffRole.SUPPORT: EMOJIS['supportagent_badge'],
+        }
+        return badges.get(role, "")
 
     async def role_select_callback(self, interaction: discord.Interaction):
         """Handle role selection changes"""
@@ -353,8 +429,22 @@ class StaffPermissionsManagementView(ui.View):
             )
             return
 
-        # Get selected roles
-        select = [item for item in self.children if isinstance(item, ui.Select) and item.custom_id == "role_select"][0]
+        # Find the role select in the container
+        container = self.children[0]  # First item is our container
+        select = None
+        for item in container.children:
+            if isinstance(item, ui.ActionRow):
+                for child in item.children:
+                    if isinstance(child, ui.Select) and child.custom_id == "role_select":
+                        select = child
+                        break
+            if select:
+                break
+
+        if not select:
+            await interaction.response.send_message("❌ Error finding role selector.", ephemeral=True)
+            return
+
         new_roles = [StaffRole(v) for v in select.values]
 
         # Check permissions
@@ -385,11 +475,8 @@ class StaffPermissionsManagementView(ui.View):
         # Rebuild the view
         await self.rebuild_view()
 
-        # Update the message
-        layout_view = await self.create_layout_view()
-        await interaction.response.edit_message(view=layout_view)
-        # Re-send the interactive view
-        await interaction.followup.send(view=self, ephemeral=True)
+        # Update the message with rebuilt view
+        await interaction.response.edit_message(view=self)
 
     async def common_permissions_callback(self, interaction: discord.Interaction):
         """Handle common permissions selection"""
@@ -400,10 +487,25 @@ class StaffPermissionsManagementView(ui.View):
             )
             return
 
-        select = [item for item in self.children if isinstance(item, ui.Select) and item.custom_id == "common_permissions"][0]
-        self.common_permissions = select.values
+        # Find the common permissions select in the container
+        container = self.children[0]
+        select = None
+        for item in container.children:
+            if isinstance(item, ui.ActionRow):
+                for child in item.children:
+                    if isinstance(child, ui.Select) and child.custom_id == "common_permissions":
+                        select = child
+                        break
+            if select:
+                break
 
-        await interaction.response.defer()
+        if select:
+            self.common_permissions = select.values
+            # Rebuild to show updated selections
+            await self.rebuild_view()
+            await interaction.response.edit_message(view=self)
+        else:
+            await interaction.response.defer()
 
     def create_role_permission_callback(self, role_name: str):
         """Create a callback for a specific role's permissions"""
@@ -415,10 +517,25 @@ class StaffPermissionsManagementView(ui.View):
                 )
                 return
 
-            select = [item for item in self.children if isinstance(item, ui.Select) and item.custom_id == f"perms_{role_name}"][0]
-            self.role_permissions[role_name] = select.values
+            # Find the role permission select in the container
+            container = self.children[0]
+            select = None
+            for item in container.children:
+                if isinstance(item, ui.ActionRow):
+                    for child in item.children:
+                        if isinstance(child, ui.Select) and child.custom_id == f"perms_{role_name}":
+                            select = child
+                            break
+                if select:
+                    break
 
-            await interaction.response.defer()
+            if select:
+                self.role_permissions[role_name] = select.values
+                # Rebuild to show updated selections
+                await self.rebuild_view()
+                await interaction.response.edit_message(view=self)
+            else:
+                await interaction.response.defer()
 
         return callback
 
@@ -447,17 +564,24 @@ class StaffPermissionsManagementView(ui.View):
                     WHERE user_id = $3
                 """, json.dumps(all_role_perms), self.modifier.id, self.target_user.id)
 
-            # Create success view
-            view = create_success_message(
+            # Create final view showing saved state
+            await self.rebuild_view()
+
+            # Create success message
+            success_view = create_success_message(
                 "Staff Permissions Updated",
                 f"Permissions for {self.target_user.mention} have been successfully updated."
             )
 
-            await interaction.response.send_message(view=view, ephemeral=True)
+            await interaction.response.send_message(view=success_view, ephemeral=True)
 
-            # Update the original message to show final state
-            layout_view = await self.create_layout_view(final=True)
-            await self.initial_message.edit(view=layout_view)
+            # Update the original message to disable buttons
+            if self.initial_message:
+                try:
+                    # Clear the view to remove interactive components
+                    await self.initial_message.edit(view=None)
+                except:
+                    pass  # Message might have been deleted
 
         except Exception as e:
             logger.error(f"Error saving staff permissions: {e}")
@@ -477,66 +601,6 @@ class StaffPermissionsManagementView(ui.View):
 
         view = create_error_message("Cancelled", "Permission changes cancelled.")
         await interaction.response.send_message(view=view, ephemeral=True)
-
-    async def create_layout_view(self, final: bool = False):
-        """Create the layout view showing current state"""
-        # Build role display with badges
-        role_display_lines = []
-        if self.selected_roles:
-            for role in self.selected_roles:
-                badge = ""
-                if role == StaffRole.DEV:
-                    badge = EMOJIS['dev_badge']
-                elif role == StaffRole.MANAGER:
-                    badge = EMOJIS['manager_badge']
-                elif role == StaffRole.SUPERVISOR_MOD:
-                    badge = EMOJIS['mod_supervisor_badge']
-                elif role == StaffRole.SUPERVISOR_COM:
-                    badge = EMOJIS['communication_supervisor_badge']
-                elif role == StaffRole.SUPERVISOR_SUP:
-                    badge = EMOJIS['support_supervisor_badge']
-                elif role == StaffRole.MODERATOR:
-                    badge = EMOJIS['moderator_badge']
-                elif role == StaffRole.COMMUNICATION:
-                    badge = EMOJIS['comunication_badge']
-                elif role == StaffRole.SUPPORT:
-                    badge = EMOJIS['supportagent_badge']
-
-                role_display_lines.append(f"{badge} {role.value}")
-
-                # Show permissions for this role
-                perms = self.role_permissions.get(role.value, [])
-                if perms:
-                    role_display_lines.append(f"  └ Permissions: {', '.join([get_permission_label(p) for p in perms])}")
-                else:
-                    role_display_lines.append(f"  └ No permissions assigned")
-        else:
-            role_display_lines.append("*No roles assigned*")
-
-        # Build container
-        container_components = [
-            discord.ui.TextDisplay(content=f"{EMOJIS['settings']} **Staff Permissions Management**\nManaging {self.target_user.mention}"),
-            discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(content=f"**Roles & Permissions**\n" + "\n".join(role_display_lines)),
-        ]
-
-        # Show common permissions if any
-        if self.common_permissions:
-            container_components.extend([
-                discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"**Common Permissions (All Roles)**\n" + ", ".join([get_permission_label(p) for p in self.common_permissions]))
-            ])
-
-        if not final:
-            container_components.extend([
-                discord.ui.Separator(spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content="*Use the menus below to configure roles and permissions*")
-            ])
-
-        class PermissionsLayout(discord.ui.LayoutView):
-            container1 = discord.ui.Container(*container_components)
-
-        return PermissionsLayout()
 
 
 class DenyCommandModal(ui.Modal, title="Deny Specific Commands"):
@@ -907,19 +971,15 @@ class StaffManagement(StaffCommandsCog):
             await message.reply(view=view, mention_author=False)
             return
 
-        # Create the permissions management view
+        # Create the permissions management view (Components V2)
         perm_view = StaffPermissionsManagementView(self.bot, target_user, message.author, staff_permissions, None)
         await perm_view.initialize()
 
-        # Create and send the layout view
-        layout_view = await perm_view.create_layout_view()
-        reply_message = await self.reply_with_tracking(message, layout_view)
+        # Send the interactive Components V2 view
+        reply_message = await self.reply_with_tracking(message, perm_view)
 
         # Update the view with the message reference
         perm_view.initial_message = reply_message
-
-        # Send the interactive view in a followup (ephemeral)
-        await message.channel.send(view=perm_view)
 
     async def handle_stafflist_command(self, message: discord.Message, args: str):
         """
