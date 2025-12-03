@@ -238,10 +238,9 @@ class StaffPermissionsManagementView(ui.LayoutView):
 
         self.common_permissions = role_perms_data.get('common', [])
 
-        # Set default role for configuration (first role with permissions)
-        roles_with_perms = [role for role in self.selected_roles if ROLE_PERMISSIONS_MAP.get(role.value)]
-        if roles_with_perms:
-            self.selected_role_for_config = roles_with_perms[0]
+        # Set default to common permissions
+        if self.selected_roles:
+            self.selected_role_for_config = "common"
 
         # Build the view
         await self.rebuild_view()
@@ -259,7 +258,6 @@ class StaffPermissionsManagementView(ui.LayoutView):
             content=f"### {EMOJIS['settings']} Staff Permissions Management\n"
                    f"Configure roles and permissions for {self.target_user.mention}"
         ))
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
 
         # Role Selection Section
         container.add_item(ui.TextDisplay(content="**Select Roles**\n-# Choose which roles to assign to this staff member"))
@@ -326,117 +324,100 @@ class StaffPermissionsManagementView(ui.LayoutView):
         role_select_row.add_item(role_select)
         container.add_item(role_select_row)
 
-        # Show selected roles summary
+        # Add permission configuration if there are roles
         if self.selected_roles:
-            role_badges = []
-            for role in self.selected_roles:
-                badge = self._get_role_badge(role)
-                role_badges.append(f"{badge} {role.value}")
+            # Build options: Common + all roles with permissions
+            config_options = []
 
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-            container.add_item(ui.TextDisplay(content=f"**Currently Selected Roles:**\n{', '.join(role_badges)}"))
-
-        # Add common permissions select if there are roles
-        if self.selected_roles:
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
-            container.add_item(ui.TextDisplay(
-                content=f"**Common Permissions**\n-# These permissions apply to all assigned roles"
-            ))
-
-            common_select_row = ui.ActionRow()
-            common_select = ui.Select(
-                placeholder="Select common permissions (available to all roles)",
-                min_values=0,
-                max_values=len(COMMON_PERMISSIONS),
-                custom_id="common_permissions",
-                options=[
-                    discord.SelectOption(
-                        label=get_permission_label(perm),
-                        value=perm,
-                        default=perm in self.common_permissions
-                    ) for perm in COMMON_PERMISSIONS
-                ]
+            # Add Common Permissions option
+            config_options.append(
+                discord.SelectOption(
+                    label="Common Permissions",
+                    value="common",
+                    description="Permissions available to all roles",
+                    emoji=discord.PartialEmoji(name="settings", id=1398729549323440208),
+                    default=self.selected_role_for_config == "common"
+                )
             )
-            common_select.callback = self.common_permissions_callback
-            common_select_row.add_item(common_select)
-            container.add_item(common_select_row)
 
-            # Show selected common permissions
-            if self.common_permissions:
-                perm_list = ", ".join([get_permission_label(p) for p in self.common_permissions])
-                container.add_item(ui.TextDisplay(content=f"-# Selected: {perm_list}"))
-
-            # Add role selection for configuration
+            # Add role-specific options
             roles_with_perms = [role for role in self.selected_roles if ROLE_PERMISSIONS_MAP.get(role.value)]
+            for role in roles_with_perms:
+                config_options.append(
+                    discord.SelectOption(
+                        label=get_role_display_name(role.value),
+                        value=role.value,
+                        emoji=discord.PartialEmoji(
+                            name=self._get_role_badge_name(role),
+                            id=self._get_role_badge_id(role)
+                        ),
+                        default=role == self.selected_role_for_config
+                    )
+                )
 
-            if roles_with_perms:
-                container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+            if config_options:
                 container.add_item(ui.TextDisplay(
-                    content=f"**Role-Specific Permissions**\n-# Select a role to configure its specific permissions"
+                    content=f"**Configure Permissions**\n-# Select which permissions to configure"
                 ))
 
-                # Menu to select which role to configure
+                # Menu to select what to configure (common or specific role)
                 role_config_select_row = ui.ActionRow()
                 role_config_select = ui.Select(
-                    placeholder="Select a role to configure",
+                    placeholder="Select what to configure",
                     min_values=1,
                     max_values=1,
                     custom_id="role_to_configure",
-                    options=[
-                        discord.SelectOption(
-                            label=get_role_display_name(role.value),
-                            value=role.value,
-                            emoji=discord.PartialEmoji(
-                                name=self._get_role_badge_name(role),
-                                id=self._get_role_badge_id(role)
-                            ),
-                            default=role == self.selected_role_for_config
-                        ) for role in roles_with_perms
-                    ]
+                    options=config_options
                 )
                 role_config_select.callback = self.role_config_select_callback
                 role_config_select_row.add_item(role_config_select)
                 container.add_item(role_config_select_row)
 
-                # Show permissions for the selected role only
-                if self.selected_role_for_config and self.selected_role_for_config in roles_with_perms:
-                    available_perms = ROLE_PERMISSIONS_MAP.get(self.selected_role_for_config.value, [])
+                # Show permissions menu based on selection
+                if self.selected_role_for_config == "common":
+                    # Common permissions
+                    common_select_row = ui.ActionRow()
+                    common_select = ui.Select(
+                        placeholder="Select common permissions",
+                        min_values=0,
+                        max_values=len(COMMON_PERMISSIONS),
+                        custom_id="common_permissions",
+                        options=[
+                            discord.SelectOption(
+                                label=get_permission_label(perm),
+                                value=perm,
+                                default=perm in self.common_permissions
+                            ) for perm in COMMON_PERMISSIONS
+                        ]
+                    )
+                    common_select.callback = self.common_permissions_callback
+                    common_select_row.add_item(common_select)
+                    container.add_item(common_select_row)
+
+                elif self.selected_role_for_config and self.selected_role_for_config in [r.value for r in roles_with_perms]:
+                    # Role-specific permissions
+                    available_perms = ROLE_PERMISSIONS_MAP.get(self.selected_role_for_config, [])
                     if available_perms:
-                        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
-                        badge = self._get_role_badge(self.selected_role_for_config)
-                        container.add_item(ui.TextDisplay(
-                            content=f"**{badge} {get_role_display_name(self.selected_role_for_config.value)} Permissions**"
-                        ))
-
                         role_perm_select_row = ui.ActionRow()
                         role_perm_select = ui.Select(
-                            placeholder=f"Select permissions for {get_role_display_name(self.selected_role_for_config.value)}",
+                            placeholder=f"Select permissions",
                             min_values=0,
                             max_values=len(available_perms),
-                            custom_id=f"perms_{self.selected_role_for_config.value}",
+                            custom_id=f"perms_{self.selected_role_for_config}",
                             options=[
                                 discord.SelectOption(
                                     label=get_permission_label(perm),
                                     value=perm,
-                                    default=perm in self.role_permissions.get(self.selected_role_for_config.value, [])
+                                    default=perm in self.role_permissions.get(self.selected_role_for_config, [])
                                 ) for perm in available_perms
                             ]
                         )
-                        role_perm_select.callback = self.create_role_permission_callback(self.selected_role_for_config.value)
+                        role_perm_select.callback = self.create_role_permission_callback(self.selected_role_for_config)
                         role_perm_select_row.add_item(role_perm_select)
                         container.add_item(role_perm_select_row)
 
-                        # Show selected permissions for this role
-                        role_perms = self.role_permissions.get(self.selected_role_for_config.value, [])
-                        if role_perms:
-                            perm_list = ", ".join([get_permission_label(p) for p in role_perms])
-                            container.add_item(ui.TextDisplay(content=f"-# Selected: {perm_list}"))
-                        else:
-                            container.add_item(ui.TextDisplay(content=f"-# No permissions selected for this role"))
-
         # Add buttons row
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.large))
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         buttons_row = ui.ActionRow()
 
@@ -528,10 +509,15 @@ class StaffPermissionsManagementView(ui.LayoutView):
                 break
 
         if select and select.values:
-            selected_role_value = select.values[0]
-            self.selected_role_for_config = StaffRole(selected_role_value)
+            selected_value = select.values[0]
 
-            # Rebuild to show permissions for selected role
+            # If "common", set as string, otherwise convert to StaffRole
+            if selected_value == "common":
+                self.selected_role_for_config = "common"
+            else:
+                self.selected_role_for_config = selected_value
+
+            # Rebuild to show permissions for selected role/common
             await self.rebuild_view()
             await interaction.response.edit_message(view=self)
         else:
@@ -589,12 +575,12 @@ class StaffPermissionsManagementView(ui.LayoutView):
             if role.value not in self.role_permissions:
                 self.role_permissions[role.value] = []
 
-        # Set default role for configuration (first role with permissions)
-        roles_with_perms = [role for role in new_roles if ROLE_PERMISSIONS_MAP.get(role.value)]
-        if roles_with_perms:
-            # Keep current selection if still valid, otherwise select first
-            if self.selected_role_for_config not in roles_with_perms:
-                self.selected_role_for_config = roles_with_perms[0]
+        # Set default to common if roles exist
+        if new_roles:
+            # Check if current selection is still valid
+            valid_values = ["common"] + [r.value for r in new_roles if ROLE_PERMISSIONS_MAP.get(r.value)]
+            if self.selected_role_for_config not in valid_values:
+                self.selected_role_for_config = "common"
         else:
             self.selected_role_for_config = None
 
