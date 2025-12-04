@@ -11,11 +11,12 @@ import logging
 
 from utils.i18n import t
 from config import EMOJIS
+from cogs.error_handler import BaseView
 
 logger = logging.getLogger('moddy.cogs.config')
 
 
-class ConfigMainView(ui.LayoutView):
+class ConfigMainView(BaseView):
     """
     Vue principale de la commande /config
     Affiche la liste des modules disponibles et permet d'accéder à leur configuration
@@ -32,6 +33,7 @@ class ConfigMainView(ui.LayoutView):
             locale: Langue de l'utilisateur
         """
         super().__init__(timeout=300)
+        # Set bot for error handling
         self.bot = bot
         self.guild_id = guild_id
         self.user_id = user_id

@@ -13,9 +13,10 @@ import re
 from utils.embeds import ModdyEmbed, ModdyResponse, ModdyColors
 from utils.incognito import add_incognito_option, get_incognito_setting
 from utils.i18n import i18n
+from cogs.error_handler import BaseView, BaseModal
 
 
-class WebhookView(ui.LayoutView):
+class WebhookView(BaseView):
     """View to manage webhook with Components V2"""
 
     def __init__(self, webhook_data: dict, author: discord.User, locale: str):
@@ -227,7 +228,7 @@ class WebhookView(ui.LayoutView):
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
 
-class EditWebhookModal(ui.Modal):
+class EditWebhookModal(BaseModal):
     """Modal to edit webhook name and avatar"""
 
     def __init__(self, webhook_data: dict, view: WebhookView, locale: str):
@@ -290,7 +291,7 @@ class EditWebhookModal(ui.Modal):
             await interaction.followup.send(embed=error_embed, ephemeral=True)
 
 
-class SendMessageModal(ui.Modal):
+class SendMessageModal(BaseModal):
     """Modal to send a message through the webhook"""
 
     def __init__(self, webhook_data: dict, locale: str):

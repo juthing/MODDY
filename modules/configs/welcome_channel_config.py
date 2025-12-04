@@ -9,11 +9,12 @@ from typing import Optional, Dict, Any
 import logging
 
 from utils.i18n import t
+from cogs.error_handler import BaseView, BaseModal
 
 logger = logging.getLogger('moddy.modules.welcome_channel_config')
 
 
-class MessageEditModal(ui.Modal, title="Modifier le message"):
+class MessageEditModal(BaseModal, title="Modifier le message"):
     """Modal pour éditer le message de bienvenue"""
 
     def __init__(self, locale: str, current_value: str, callback_func):
@@ -35,7 +36,7 @@ class MessageEditModal(ui.Modal, title="Modifier le message"):
         await self.callback_func(interaction, self.message_input.value)
 
 
-class EmbedTitleModal(ui.Modal, title="Modifier le titre de l'embed"):
+class EmbedTitleModal(BaseModal, title="Modifier le titre de l'embed"):
     """Modal pour éditer le titre de l'embed"""
 
     def __init__(self, locale: str, current_value: str, callback_func):
@@ -57,7 +58,7 @@ class EmbedTitleModal(ui.Modal, title="Modifier le titre de l'embed"):
         await self.callback_func(interaction, self.title_input.value)
 
 
-class EmbedDescriptionModal(ui.Modal, title="Modifier la description de l'embed"):
+class EmbedDescriptionModal(BaseModal, title="Modifier la description de l'embed"):
     """Modal pour éditer la description de l'embed"""
 
     def __init__(self, locale: str, current_value: Optional[str], callback_func):
@@ -79,7 +80,7 @@ class EmbedDescriptionModal(ui.Modal, title="Modifier la description de l'embed"
         await self.callback_func(interaction, self.desc_input.value if self.desc_input.value else None)
 
 
-class EmbedColorModal(ui.Modal, title="Modifier la couleur de l'embed"):
+class EmbedColorModal(BaseModal, title="Modifier la couleur de l'embed"):
     """Modal pour éditer la couleur de l'embed"""
 
     def __init__(self, locale: str, current_value: int, callback_func):
@@ -114,7 +115,7 @@ class EmbedColorModal(ui.Modal, title="Modifier la couleur de l'embed"):
             )
 
 
-class WelcomeChannelConfigView(ui.LayoutView):
+class WelcomeChannelConfigView(BaseView):
     """
     Interface de configuration du module Welcome Channel
     """
@@ -383,6 +384,7 @@ class WelcomeChannelConfigView(ui.LayoutView):
             self.working_config['message_template'],
             self._on_message_edited
         )
+        modal.bot = self.bot  # Set bot for error handling
         await interaction.response.send_modal(modal)
 
     async def _on_message_edited(self, interaction: discord.Interaction, new_message: str):
@@ -422,6 +424,7 @@ class WelcomeChannelConfigView(ui.LayoutView):
             self.working_config['embed_title'],
             self._on_embed_title_edited
         )
+        modal.bot = self.bot  # Set bot for error handling
         await interaction.response.send_modal(modal)
 
     async def _on_embed_title_edited(self, interaction: discord.Interaction, new_title: str):
@@ -441,6 +444,7 @@ class WelcomeChannelConfigView(ui.LayoutView):
             self.working_config.get('embed_description'),
             self._on_embed_description_edited
         )
+        modal.bot = self.bot  # Set bot for error handling
         await interaction.response.send_modal(modal)
 
     async def _on_embed_description_edited(self, interaction: discord.Interaction, new_desc: Optional[str]):
@@ -460,6 +464,7 @@ class WelcomeChannelConfigView(ui.LayoutView):
             self.working_config['embed_color'],
             self._on_embed_color_edited
         )
+        modal.bot = self.bot  # Set bot for error handling
         await interaction.response.send_modal(modal)
 
     async def _on_embed_color_edited(self, interaction: discord.Interaction, new_color: int):

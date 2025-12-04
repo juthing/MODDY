@@ -9,11 +9,12 @@ from typing import Optional, Dict, Any
 import logging
 
 from utils.i18n import t
+from cogs.error_handler import BaseView
 
 logger = logging.getLogger('moddy.modules.interserver_config')
 
 
-class InterServerConfigView(ui.LayoutView):
+class InterServerConfigView(BaseView):
     """
     Interface de configuration du module Inter-Server
     Permet de configurer le salon de communication inter-serveurs

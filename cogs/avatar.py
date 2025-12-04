@@ -5,6 +5,7 @@ Displays a user's avatar with Components V2
 
 import discord
 from discord import app_commands, ui
+from cogs.error_handler import BaseView
 from discord.ext import commands
 from typing import Optional
 import aiohttp
@@ -13,7 +14,7 @@ from utils.incognito import add_incognito_option, get_incognito_setting
 from utils.i18n import i18n
 
 
-class AvatarView(ui.LayoutView):
+class AvatarView(BaseView):
     """View to display user avatar using Components V2"""
 
     def __init__(self, user_data: dict, locale: str):

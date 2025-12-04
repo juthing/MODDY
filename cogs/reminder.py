@@ -16,6 +16,7 @@ from discord.ui import LayoutView, Container, TextDisplay, Separator
 from discord import SeparatorSpacing
 
 from utils.i18n import t
+from cogs.error_handler import BaseModal
 
 logger = logging.getLogger('moddy.reminder')
 
@@ -251,7 +252,7 @@ def format_datetime_for_user(dt: datetime, user_tz: ZoneInfo, locale: str = "en"
     return local_dt.strftime("%m/%d/%Y %I:%M %p")
 
 
-class ReminderAddModal(ui.Modal):
+class ReminderAddModal(BaseModal):
     """Modal for adding a new reminder"""
 
     def __init__(self, locale: str, bot, channel_id: int = None, guild_id: int = None, parent_view=None):
@@ -332,7 +333,7 @@ class ReminderAddModal(ui.Modal):
             await self.parent_view.refresh(interaction)
 
 
-class ReminderEditModal(ui.Modal):
+class ReminderEditModal(BaseModal):
     """Modal for editing a reminder"""
 
     def __init__(self, locale: str, bot, reminder: Dict, parent_view=None):

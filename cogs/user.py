@@ -5,6 +5,7 @@ Display detailed information about a Discord user
 
 import discord
 from discord import app_commands, ui
+from cogs.error_handler import BaseView
 from discord.ext import commands
 from typing import Optional
 import aiohttp
@@ -69,7 +70,7 @@ DISCORD_BADGE_URLS = {
 }
 
 
-class UserInfoView(ui.LayoutView):
+class UserInfoView(BaseView):
     """View for displaying user information using Components V2"""
 
     def __init__(self, user_data: dict, bot_data: Optional[dict], moddy_attributes: dict, locale: str, author_id: int, bot):

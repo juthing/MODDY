@@ -5,6 +5,7 @@ Uses the DeepL API to translate text with automatic detection
 
 import discord
 from discord import app_commands, ui
+from cogs.error_handler import BaseView
 from discord.ext import commands
 from typing import Optional
 import aiohttp
@@ -18,7 +19,7 @@ from config import COLORS, DEEPL_API_KEY
 from utils.i18n import i18n
 
 
-class TranslateView(ui.LayoutView):
+class TranslateView(BaseView):
     """View to re-translate into another language using Components V2"""
 
     def __init__(self, bot, original_text: str, translated_text: str, from_lang: str, current_to_lang: str, locale: str, author: discord.User):
