@@ -481,18 +481,18 @@
         "delete": "Supprimer la configuration"
       },
       "save": {
-        "success": "✅ Configuration enregistrée avec succès !",
-        "error": "❌ Erreur lors de l'enregistrement : {error}"
+        "success": "<:done:1398729525277229066> Configuration enregistrée avec succès !",
+        "error": "<:error:1444049460924776478> Erreur lors de l'enregistrement : {error}"
       },
       "delete": {
-        "success": "🗑️ Configuration supprimée avec succès !",
-        "error": "❌ Erreur lors de la suppression."
+        "success": "<:delete:1401600770431909939> Configuration supprimée avec succès !",
+        "error": "<:error:1444049460924776478> Erreur lors de la suppression."
       },
       "errors": {
-        "guild_only": "❌ Cette commande ne peut être utilisée que sur un serveur.",
-        "bot_not_in_guild": "❌ Moddy doit être présent sur ce serveur pour utiliser cette commande.",
-        "wrong_user": "❌ Seul l'utilisateur qui a lancé la configuration peut utiliser cette interface.",
-        "no_user_perms": "❌ Vous devez avoir la permission **Gérer le serveur** pour utiliser cette commande.",
+        "guild_only": "<:error:1444049460924776478> Cette commande ne peut être utilisée que sur un serveur.",
+        "bot_not_in_guild": "<:error:1444049460924776478> Moddy doit être présent sur ce serveur pour utiliser cette commande.",
+        "wrong_user": "<:error:1444049460924776478> Seul l'utilisateur qui a lancé la configuration peut utiliser cette interface.",
+        "no_user_perms": "<:error:1444049460924776478> Vous devez avoir la permission **Gérer le serveur** pour utiliser cette commande.",
         "channel_not_found": "Salon introuvable",
         "no_admin_perms": {
           "title": "Permissions insuffisantes",
