@@ -98,8 +98,6 @@ class InterServerConfigView(ui.LayoutView):
         channel_row.add_item(channel_select)
         container.add_item(channel_row)
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Section : Options d'affichage
         container.add_item(ui.TextDisplay(
             f"**{t('modules.interserver.config.options.section_title', locale=self.locale)}**"

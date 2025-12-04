@@ -99,8 +99,6 @@ class WelcomeConfigView(ui.LayoutView):
         channel_row.add_item(channel_select)
         container.add_item(channel_row)
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Section : Message de bienvenue
         container.add_item(ui.TextDisplay(
             f"**{t('modules.welcome.config.message.section_title', locale=self.locale)}**"
@@ -113,8 +111,6 @@ class WelcomeConfigView(ui.LayoutView):
         container.add_item(ui.TextDisplay(
             f"-# {t('modules.welcome.config.message.edit_todo', locale=self.locale)}"
         ))
-
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # Section : Options d'embed
         container.add_item(ui.TextDisplay(

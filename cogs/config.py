@@ -50,7 +50,7 @@ class ConfigMainView(ui.LayoutView):
             f"### <:settings:1398729549323440208> {t('modules.config.main.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
-            f"{t('modules.config.main.description', locale=self.locale)}\n"
+            f"\n{t('modules.config.main.description', locale=self.locale)}"
         ))
 
         # Menu déroulant pour sélectionner un module

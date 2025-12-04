@@ -111,7 +111,7 @@ def create_error_message(title: str, description: str, fields: Optional[List[Dic
     view = LayoutView()
     container = Container()
 
-    error_text = f"{EMOJIS['undone']} **{title}**\n{description}"
+    error_text = f"{EMOJIS['error']} **{title}**\n{description}"
     container.add_item(TextDisplay(error_text))
 
     if fields:

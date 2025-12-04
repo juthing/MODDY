@@ -482,18 +482,18 @@
         "delete": "Delete configuration"
       },
       "save": {
-        "success": "✅ Configuration saved successfully!",
-        "error": "❌ Error while saving: {error}"
+        "success": "<:done:1398729525277229066> Configuration saved successfully!",
+        "error": "<:error:1444049460924776478> Error while saving: {error}"
       },
       "delete": {
-        "success": "🗑️ Configuration deleted successfully!",
-        "error": "❌ Error while deleting."
+        "success": "<:delete:1401600770431909939> Configuration deleted successfully!",
+        "error": "<:error:1444049460924776478> Error while deleting."
       },
       "errors": {
-        "guild_only": "❌ This command can only be used on a server.",
-        "bot_not_in_guild": "❌ Moddy must be present on this server to use this command.",
-        "wrong_user": "❌ Only the user who started the configuration can use this interface.",
-        "no_user_perms": "❌ You must have the **Manage Server** permission to use this command.",
+        "guild_only": "<:error:1444049460924776478> This command can only be used on a server.",
+        "bot_not_in_guild": "<:error:1444049460924776478> Moddy must be present on this server to use this command.",
+        "wrong_user": "<:error:1444049460924776478> Only the user who started the configuration can use this interface.",
+        "no_user_perms": "<:error:1444049460924776478> You must have the **Manage Server** permission to use this command.",
         "channel_not_found": "Channel not found",
         "no_admin_perms": {
           "title": "Insufficient Permissions",
