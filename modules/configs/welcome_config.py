@@ -192,14 +192,18 @@ class WelcomeConfigView(ui.LayoutView):
         self.locale = locale
 
         # Configuration actuelle (ou par défaut)
+        from modules.welcome import WelcomeModule
+        default_config = WelcomeModule(bot, guild_id).get_default_config()
+
         # Check if we have a real saved config by looking for channel_id or send_dm
         if current_config and (current_config.get('channel_id') is not None or current_config.get('send_dm') is True):
-            self.current_config = current_config.copy()
+            # Merge current config with defaults to ensure all keys exist
+            self.current_config = default_config.copy()
+            self.current_config.update(current_config)
             self.has_existing_config = True
         else:
             # Utilise la config par défaut du module
-            from modules.welcome import WelcomeModule
-            self.current_config = WelcomeModule(bot, guild_id).get_default_config()
+            self.current_config = default_config
             self.has_existing_config = False
 
         # Configuration en cours de modification (copie de travail)
