@@ -13,6 +13,161 @@ from utils.i18n import t
 logger = logging.getLogger('moddy.modules.welcome_config')
 
 
+class MessageEditModal(ui.Modal, title="Modifier le message"):
+    """Modal pour éditer le message de bienvenue"""
+
+    def __init__(self, locale: str, current_value: str, callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        # Champ de texte pour le message
+        self.message_input = ui.TextInput(
+            label=t('modules.welcome.config.message.modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.message.modal.placeholder', locale=locale),
+            default=current_value,
+            style=discord.TextStyle.paragraph,
+            max_length=2000,
+            required=True
+        )
+        self.add_item(self.message_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.callback_func(interaction, self.message_input.value)
+
+
+class EmbedTitleModal(ui.Modal, title="Modifier le titre de l'embed"):
+    """Modal pour éditer le titre de l'embed"""
+
+    def __init__(self, locale: str, current_value: str, callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        self.title_input = ui.TextInput(
+            label=t('modules.welcome.config.embed.title_modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.embed.title_modal.placeholder', locale=locale),
+            default=current_value,
+            style=discord.TextStyle.short,
+            max_length=256,
+            required=True
+        )
+        self.add_item(self.title_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.callback_func(interaction, self.title_input.value)
+
+
+class EmbedDescriptionModal(ui.Modal, title="Modifier la description de l'embed"):
+    """Modal pour éditer la description de l'embed"""
+
+    def __init__(self, locale: str, current_value: Optional[str], callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        self.desc_input = ui.TextInput(
+            label=t('modules.welcome.config.embed.description_modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.embed.description_modal.placeholder', locale=locale),
+            default=current_value or "",
+            style=discord.TextStyle.paragraph,
+            max_length=4096,
+            required=False
+        )
+        self.add_item(self.desc_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.callback_func(interaction, self.desc_input.value if self.desc_input.value else None)
+
+
+class EmbedColorModal(ui.Modal, title="Modifier la couleur de l'embed"):
+    """Modal pour éditer la couleur de l'embed"""
+
+    def __init__(self, locale: str, current_value: int, callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        # Convertir int en hex string
+        hex_color = f"#{current_value:06X}"
+
+        self.color_input = ui.TextInput(
+            label=t('modules.welcome.config.embed.color_modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.embed.color_modal.placeholder', locale=locale),
+            default=hex_color,
+            style=discord.TextStyle.short,
+            max_length=7,
+            required=True
+        )
+        self.add_item(self.color_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Convertir hex string en int
+        color_str = self.color_input.value.strip()
+        if not color_str.startswith('#'):
+            color_str = '#' + color_str
+
+        try:
+            color_int = int(color_str[1:], 16)
+            await self.callback_func(interaction, color_int)
+        except ValueError:
+            await interaction.response.send_message(
+                t('modules.welcome.config.embed.color_modal.error', locale=self.locale),
+                ephemeral=True
+            )
+
+
+class EmbedFooterModal(ui.Modal, title="Modifier le footer de l'embed"):
+    """Modal pour éditer le footer de l'embed"""
+
+    def __init__(self, locale: str, current_value: Optional[str], callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        self.footer_input = ui.TextInput(
+            label=t('modules.welcome.config.embed.footer_modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.embed.footer_modal.placeholder', locale=locale),
+            default=current_value or "",
+            style=discord.TextStyle.short,
+            max_length=2048,
+            required=False
+        )
+        self.add_item(self.footer_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.callback_func(interaction, self.footer_input.value if self.footer_input.value else None)
+
+
+class EmbedImageModal(ui.Modal, title="Modifier l'image de l'embed"):
+    """Modal pour éditer l'URL de l'image de l'embed"""
+
+    def __init__(self, locale: str, current_value: Optional[str], callback_func):
+        super().__init__(timeout=300)
+        self.locale = locale
+        self.callback_func = callback_func
+
+        self.image_input = ui.TextInput(
+            label=t('modules.welcome.config.embed.image_modal.label', locale=locale),
+            placeholder=t('modules.welcome.config.embed.image_modal.placeholder', locale=locale),
+            default=current_value or "",
+            style=discord.TextStyle.short,
+            max_length=512,
+            required=False
+        )
+        self.add_item(self.image_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        url = self.image_input.value.strip() if self.image_input.value else None
+        if url and not url.startswith(('http://', 'https://')):
+            await interaction.response.send_message(
+                t('modules.welcome.config.embed.image_modal.error', locale=self.locale),
+                ephemeral=True
+            )
+            return
+        await self.callback_func(interaction, url)
+
+
 class WelcomeConfigView(ui.LayoutView):
     """
     Interface de configuration du module Welcome
@@ -37,9 +192,8 @@ class WelcomeConfigView(ui.LayoutView):
         self.locale = locale
 
         # Configuration actuelle (ou par défaut)
-        # Check if we have a real saved config by looking for channel_id
-        # (enabled is calculated dynamically and not saved in the config)
-        if current_config and current_config.get('channel_id') is not None:
+        # Check if we have a real saved config by looking for channel_id or send_dm
+        if current_config and (current_config.get('channel_id') is not None or current_config.get('send_dm') is True):
             self.current_config = current_config.copy()
             self.has_existing_config = True
         else:
@@ -72,34 +226,57 @@ class WelcomeConfigView(ui.LayoutView):
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Section : Salon d'envoi
+        # === SECTION: MODE D'ENVOI ===
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.welcome.config.channel.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
-            f"-# {t('modules.welcome.config.channel.section_description', locale=self.locale)}"
+            f"**{t('modules.welcome.config.send_mode.section_title', locale=self.locale)}**"
         ))
 
-        # Sélecteur de salon
-        channel_row = ui.ActionRow()
-        channel_select = ui.ChannelSelect(
-            placeholder=t('modules.welcome.config.channel.placeholder', locale=self.locale),
-            channel_types=[discord.ChannelType.text],
-            min_values=0,
-            max_values=1
+        # Toggle Send DM
+        send_dm_row = ui.ActionRow()
+        send_dm_btn = ui.Button(
+            label=t('modules.welcome.config.send_mode.send_dm', locale=self.locale),
+            style=discord.ButtonStyle.success if self.working_config['send_dm'] else discord.ButtonStyle.secondary,
+            emoji=discord.PartialEmoji.from_str("<:done:1398729525277229066>" if self.working_config['send_dm'] else "<:undone:1398729502028333218>"),
+            custom_id="toggle_send_dm"
         )
+        send_dm_btn.callback = self.on_toggle_send_dm
+        send_dm_row.add_item(send_dm_btn)
+        container.add_item(send_dm_row)
 
-        # Pré-sélectionne le salon actuel si configuré
-        if self.working_config.get('channel_id'):
-            channel = self.bot.get_channel(self.working_config['channel_id'])
-            if channel:
-                channel_select.default_values = [channel]
+        container.add_item(ui.TextDisplay(
+            f"-# {t('modules.welcome.config.send_mode.send_dm_desc', locale=self.locale)}"
+        ))
 
-        channel_select.callback = self.on_channel_select
-        channel_row.add_item(channel_select)
-        container.add_item(channel_row)
+        # Sélecteur de salon (uniquement si send_dm est désactivé)
+        if not self.working_config['send_dm']:
+            container.add_item(ui.TextDisplay(
+                f"**{t('modules.welcome.config.channel.section_title', locale=self.locale)}**"
+            ))
+            container.add_item(ui.TextDisplay(
+                f"-# {t('modules.welcome.config.channel.section_description', locale=self.locale)}"
+            ))
 
-        # Section : Message de bienvenue
+            channel_row = ui.ActionRow()
+            channel_select = ui.ChannelSelect(
+                placeholder=t('modules.welcome.config.channel.placeholder', locale=self.locale),
+                channel_types=[discord.ChannelType.text],
+                min_values=0,
+                max_values=1
+            )
+
+            # Pré-sélectionne le salon actuel si configuré
+            if self.working_config.get('channel_id'):
+                channel = self.bot.get_channel(self.working_config['channel_id'])
+                if channel:
+                    channel_select.default_values = [channel]
+
+            channel_select.callback = self.on_channel_select
+            channel_row.add_item(channel_select)
+            container.add_item(channel_row)
+
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # === SECTION: MESSAGE ===
         container.add_item(ui.TextDisplay(
             f"**{t('modules.welcome.config.message.section_title', locale=self.locale)}**"
         ))
@@ -107,20 +284,141 @@ class WelcomeConfigView(ui.LayoutView):
             f"-# {t('modules.welcome.config.message.section_description', locale=self.locale)}"
         ))
 
-        # TODO: Ajouter un bouton pour éditer le message via modal
+        # Affichage du message actuel
         container.add_item(ui.TextDisplay(
-            f"-# {t('modules.welcome.config.message.edit_todo', locale=self.locale)}"
+            f"-# {t('modules.config.current_value', locale=self.locale)} `{self.working_config['message_template'][:100]}{'...' if len(self.working_config['message_template']) > 100 else ''}`"
         ))
 
-        # Section : Options d'embed
+        # Boutons pour éditer le message et toggle mention
+        message_row = ui.ActionRow()
+
+        edit_message_btn = ui.Button(
+            label=t('modules.welcome.config.message.edit_button', locale=self.locale),
+            style=discord.ButtonStyle.primary,
+            emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+            custom_id="edit_message"
+        )
+        edit_message_btn.callback = self.on_edit_message
+        message_row.add_item(edit_message_btn)
+
+        mention_btn = ui.Button(
+            label=t('modules.welcome.config.message.mention_user', locale=self.locale),
+            style=discord.ButtonStyle.success if self.working_config['mention_user'] else discord.ButtonStyle.secondary,
+            emoji=discord.PartialEmoji.from_str("<:done:1398729525277229066>" if self.working_config['mention_user'] else "<:undone:1398729502028333218>"),
+            custom_id="toggle_mention"
+        )
+        mention_btn.callback = self.on_toggle_mention
+        message_row.add_item(mention_btn)
+
+        container.add_item(message_row)
+
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # === SECTION: EMBED ===
         container.add_item(ui.TextDisplay(
             f"**{t('modules.welcome.config.embed.section_title', locale=self.locale)}**"
         ))
-        container.add_item(ui.TextDisplay(
-            f"-# {t('modules.welcome.config.embed.section_description', locale=self.locale)}"
-        ))
 
-        # TODO: Ajouter un toggle pour activer/désactiver l'embed
+        # Toggle Embed
+        embed_toggle_row = ui.ActionRow()
+        embed_btn = ui.Button(
+            label=t('modules.welcome.config.embed.toggle', locale=self.locale),
+            style=discord.ButtonStyle.success if self.working_config['embed_enabled'] else discord.ButtonStyle.secondary,
+            emoji=discord.PartialEmoji.from_str("<:done:1398729525277229066>" if self.working_config['embed_enabled'] else "<:undone:1398729502028333218>"),
+            custom_id="toggle_embed"
+        )
+        embed_btn.callback = self.on_toggle_embed
+        embed_toggle_row.add_item(embed_btn)
+        container.add_item(embed_toggle_row)
+
+        # Options d'embed (uniquement si embed activé)
+        if self.working_config['embed_enabled']:
+            container.add_item(ui.TextDisplay(
+                f"-# {t('modules.welcome.config.embed.section_description', locale=self.locale)}"
+            ))
+
+            # Boutons pour éditer le titre et la couleur
+            embed_row1 = ui.ActionRow()
+
+            edit_title_btn = ui.Button(
+                label=t('modules.welcome.config.embed.edit_title', locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                custom_id="edit_embed_title"
+            )
+            edit_title_btn.callback = self.on_edit_embed_title
+            embed_row1.add_item(edit_title_btn)
+
+            edit_color_btn = ui.Button(
+                label=t('modules.welcome.config.embed.edit_color', locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                emoji=discord.PartialEmoji.from_str("<:color:1398729435565396008>"),
+                custom_id="edit_embed_color"
+            )
+            edit_color_btn.callback = self.on_edit_embed_color
+            embed_row1.add_item(edit_color_btn)
+
+            container.add_item(embed_row1)
+
+            # Bouton pour éditer la description
+            embed_row2 = ui.ActionRow()
+
+            edit_desc_btn = ui.Button(
+                label=t('modules.welcome.config.embed.edit_description', locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                custom_id="edit_embed_description"
+            )
+            edit_desc_btn.callback = self.on_edit_embed_description
+            embed_row2.add_item(edit_desc_btn)
+
+            container.add_item(embed_row2)
+
+            # Boutons pour footer et image
+            embed_row3 = ui.ActionRow()
+
+            edit_footer_btn = ui.Button(
+                label=t('modules.welcome.config.embed.edit_footer', locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                custom_id="edit_embed_footer"
+            )
+            edit_footer_btn.callback = self.on_edit_embed_footer
+            embed_row3.add_item(edit_footer_btn)
+
+            edit_image_btn = ui.Button(
+                label=t('modules.welcome.config.embed.edit_image', locale=self.locale),
+                style=discord.ButtonStyle.primary,
+                emoji=discord.PartialEmoji.from_str("<:edit:1401600709824086169>"),
+                custom_id="edit_embed_image"
+            )
+            edit_image_btn.callback = self.on_edit_embed_image
+            embed_row3.add_item(edit_image_btn)
+
+            container.add_item(embed_row3)
+
+            # Toggles pour thumbnail et author
+            embed_row4 = ui.ActionRow()
+
+            thumbnail_btn = ui.Button(
+                label=t('modules.welcome.config.embed.thumbnail', locale=self.locale),
+                style=discord.ButtonStyle.success if self.working_config['embed_thumbnail_enabled'] else discord.ButtonStyle.secondary,
+                emoji=discord.PartialEmoji.from_str("<:done:1398729525277229066>" if self.working_config['embed_thumbnail_enabled'] else "<:undone:1398729502028333218>"),
+                custom_id="toggle_thumbnail"
+            )
+            thumbnail_btn.callback = self.on_toggle_thumbnail
+            embed_row4.add_item(thumbnail_btn)
+
+            author_btn = ui.Button(
+                label=t('modules.welcome.config.embed.author', locale=self.locale),
+                style=discord.ButtonStyle.success if self.working_config['embed_author_enabled'] else discord.ButtonStyle.secondary,
+                emoji=discord.PartialEmoji.from_str("<:done:1398729525277229066>" if self.working_config['embed_author_enabled'] else "<:undone:1398729502028333218>"),
+                custom_id="toggle_author"
+            )
+            author_btn.callback = self.on_toggle_author
+            embed_row4.add_item(author_btn)
+
+            container.add_item(embed_row4)
 
         self.add_item(container)
 
@@ -176,6 +474,18 @@ class WelcomeConfigView(ui.LayoutView):
 
         self.add_item(button_row)
 
+    # === CALLBACKS ===
+
+    async def on_toggle_send_dm(self, interaction: discord.Interaction):
+        """Toggle pour envoyer en DM"""
+        if not await self.check_user(interaction):
+            return
+
+        self.working_config['send_dm'] = not self.working_config['send_dm']
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
     async def on_channel_select(self, interaction: discord.Interaction):
         """Callback quand un salon est sélectionné"""
         if not await self.check_user(interaction):
@@ -195,6 +505,160 @@ class WelcomeConfigView(ui.LayoutView):
         self._build_view()
 
         # Met à jour le message
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_message(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer le message"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = MessageEditModal(
+            self.locale,
+            self.working_config['message_template'],
+            self._on_message_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_message_edited(self, interaction: discord.Interaction, new_message: str):
+        """Callback après édition du message"""
+        self.working_config['message_template'] = new_message
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_toggle_mention(self, interaction: discord.Interaction):
+        """Toggle pour mentionner l'utilisateur"""
+        if not await self.check_user(interaction):
+            return
+
+        self.working_config['mention_user'] = not self.working_config['mention_user']
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_toggle_embed(self, interaction: discord.Interaction):
+        """Toggle pour activer l'embed"""
+        if not await self.check_user(interaction):
+            return
+
+        self.working_config['embed_enabled'] = not self.working_config['embed_enabled']
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_embed_title(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer le titre de l'embed"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = EmbedTitleModal(
+            self.locale,
+            self.working_config['embed_title'],
+            self._on_embed_title_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_embed_title_edited(self, interaction: discord.Interaction, new_title: str):
+        """Callback après édition du titre"""
+        self.working_config['embed_title'] = new_title
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_embed_description(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer la description de l'embed"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = EmbedDescriptionModal(
+            self.locale,
+            self.working_config.get('embed_description'),
+            self._on_embed_description_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_embed_description_edited(self, interaction: discord.Interaction, new_desc: Optional[str]):
+        """Callback après édition de la description"""
+        self.working_config['embed_description'] = new_desc
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_embed_color(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer la couleur de l'embed"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = EmbedColorModal(
+            self.locale,
+            self.working_config['embed_color'],
+            self._on_embed_color_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_embed_color_edited(self, interaction: discord.Interaction, new_color: int):
+        """Callback après édition de la couleur"""
+        self.working_config['embed_color'] = new_color
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_embed_footer(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer le footer de l'embed"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = EmbedFooterModal(
+            self.locale,
+            self.working_config.get('embed_footer'),
+            self._on_embed_footer_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_embed_footer_edited(self, interaction: discord.Interaction, new_footer: Optional[str]):
+        """Callback après édition du footer"""
+        self.working_config['embed_footer'] = new_footer
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_edit_embed_image(self, interaction: discord.Interaction):
+        """Ouvre le modal pour éditer l'URL de l'image"""
+        if not await self.check_user(interaction):
+            return
+
+        modal = EmbedImageModal(
+            self.locale,
+            self.working_config.get('embed_image_url'),
+            self._on_embed_image_edited
+        )
+        await interaction.response.send_modal(modal)
+
+    async def _on_embed_image_edited(self, interaction: discord.Interaction, new_url: Optional[str]):
+        """Callback après édition de l'URL de l'image"""
+        self.working_config['embed_image_url'] = new_url
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_toggle_thumbnail(self, interaction: discord.Interaction):
+        """Toggle pour afficher la thumbnail"""
+        if not await self.check_user(interaction):
+            return
+
+        self.working_config['embed_thumbnail_enabled'] = not self.working_config['embed_thumbnail_enabled']
+        self.has_changes = True
+        self._build_view()
+        await interaction.response.edit_message(view=self)
+
+    async def on_toggle_author(self, interaction: discord.Interaction):
+        """Toggle pour afficher l'auteur"""
+        if not await self.check_user(interaction):
+            return
+
+        self.working_config['embed_author_enabled'] = not self.working_config['embed_author_enabled']
+        self.has_changes = True
+        self._build_view()
         await interaction.response.edit_message(view=self)
 
     async def on_back(self, interaction: discord.Interaction):

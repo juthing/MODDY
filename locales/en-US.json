@@ -510,6 +510,11 @@
       "config": {
         "title": "Welcome Module Configuration",
         "description": "Configure welcome messages for new members on your server.",
+        "send_mode": {
+          "section_title": "Send Mode",
+          "send_dm": "Send as private message",
+          "send_dm_desc": "Sends the welcome message as a DM instead of a public channel"
+        },
         "channel": {
           "section_title": "Send Channel",
           "section_description": "In which channel should the welcome message be sent?",
@@ -518,14 +523,48 @@
         },
         "message": {
           "section_title": "Welcome Message",
-          "section_description": "Customize the welcome message. Available variables: {user}, {username}, {server}, {member_count}",
+          "section_description": "Customize the welcome message. Variables: {user}, {username}, {server}, {member_count}",
           "label": "Welcome message",
-          "edit_todo": "Message editing via modal to be implemented"
+          "edit_button": "Edit message",
+          "mention_user": "Mention user",
+          "modal": {
+            "label": "Welcome message",
+            "placeholder": "Welcome {user} to {server}!"
+          }
         },
         "embed": {
           "section_title": "Embed Options",
-          "section_description": "Enable embed for a more aesthetic message",
-          "label": "Use an embed"
+          "section_description": "Customize the embed appearance",
+          "toggle": "Enable embed",
+          "edit_title": "Edit title",
+          "edit_description": "Edit description",
+          "edit_color": "Edit color",
+          "edit_footer": "Edit footer",
+          "edit_image": "Edit image",
+          "thumbnail": "Show avatar",
+          "author": "Show as author",
+          "title_modal": {
+            "label": "Embed title",
+            "placeholder": "Welcome!"
+          },
+          "description_modal": {
+            "label": "Embed description",
+            "placeholder": "Leave empty to use the welcome message"
+          },
+          "color_modal": {
+            "label": "Embed color (hex)",
+            "placeholder": "#5865F2",
+            "error": "Invalid color! Use the #RRGGBB format"
+          },
+          "footer_modal": {
+            "label": "Embed footer",
+            "placeholder": "Leave empty to not display a footer"
+          },
+          "image_modal": {
+            "label": "Image URL",
+            "placeholder": "https://example.com/image.png",
+            "error": "Invalid URL! The URL must start with http:// or https://"
+          }
         }
       }
     },
