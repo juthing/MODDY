@@ -509,6 +509,11 @@
       "config": {
         "title": "Configuration du module Welcome",
         "description": "Configurez les messages de bienvenue pour les nouveaux membres de votre serveur.",
+        "send_mode": {
+          "section_title": "Mode d'envoi",
+          "send_dm": "Envoyer en message privé",
+          "send_dm_desc": "Envoie le message de bienvenue en DM au lieu d'un salon public"
+        },
         "channel": {
           "section_title": "Salon d'envoi",
           "section_description": "Dans quel salon doit être envoyé le message de bienvenue ?",
@@ -517,14 +522,48 @@
         },
         "message": {
           "section_title": "Message de bienvenue",
-          "section_description": "Personnalisez le message de bienvenue. Variables disponibles : {user}, {username}, {server}, {member_count}",
+          "section_description": "Personnalisez le message de bienvenue. Variables : {user}, {username}, {server}, {member_count}",
           "label": "Message de bienvenue",
-          "edit_todo": "Edition du message via modal à implémenter"
+          "edit_button": "Modifier le message",
+          "mention_user": "Mentionner l'utilisateur",
+          "modal": {
+            "label": "Message de bienvenue",
+            "placeholder": "Bienvenue {user} sur {server} !"
+          }
         },
         "embed": {
           "section_title": "Options d'embed",
-          "section_description": "Activer l'embed pour un message plus esthétique",
-          "label": "Utiliser un embed"
+          "section_description": "Personnalisez l'apparence de l'embed",
+          "toggle": "Activer l'embed",
+          "edit_title": "Modifier le titre",
+          "edit_description": "Modifier la description",
+          "edit_color": "Modifier la couleur",
+          "edit_footer": "Modifier le footer",
+          "edit_image": "Modifier l'image",
+          "thumbnail": "Afficher l'avatar",
+          "author": "Afficher comme auteur",
+          "title_modal": {
+            "label": "Titre de l'embed",
+            "placeholder": "Bienvenue !"
+          },
+          "description_modal": {
+            "label": "Description de l'embed",
+            "placeholder": "Laissez vide pour utiliser le message de bienvenue"
+          },
+          "color_modal": {
+            "label": "Couleur de l'embed (hex)",
+            "placeholder": "#5865F2",
+            "error": "Couleur invalide ! Utilisez le format #RRGGBB"
+          },
+          "footer_modal": {
+            "label": "Footer de l'embed",
+            "placeholder": "Laissez vide pour ne pas afficher de footer"
+          },
+          "image_modal": {
+            "label": "URL de l'image",
+            "placeholder": "https://exemple.com/image.png",
+            "error": "URL invalide ! L'URL doit commencer par http:// ou https://"
+          }
         }
       }
     },
