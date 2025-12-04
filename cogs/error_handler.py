@@ -16,6 +16,176 @@ import sys
 from collections import deque
 
 from config import COLORS
+import logging
+
+logger = logging.getLogger('moddy.error_handler')
+
+
+class BaseView(ui.LayoutView):
+    """
+    Base class for ALL UI Views with centralized error handling.
+
+    ALL discord.ui Views MUST inherit from this class to ensure:
+    1. Errors are caught and logged with FULL traceback in ONE log line
+    2. User ALWAYS receives an error embed
+    3. Error handler processes ALL exceptions
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = None  # MUST be set by subclass
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        """
+        Called when an error occurs in ANY UI component callback.
+        This ensures ALL UI errors are caught and handled properly.
+        NO EXCEPTIONS ESCAPE THIS HANDLER.
+        """
+        # Log the error with FULL traceback in ONE SINGLE log entry
+        error_tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
+        compact_tb = error_tb.replace('\n', ' ⮐ ')
+        logger.error(f"UI Error in {self.__class__.__name__} - Item: {item.__class__.__name__} - {compact_tb}")
+
+        # Get bot - try self.bot first, then interaction.client
+        bot = self.bot if self.bot else interaction.client
+
+        # Get error tracker cog
+        error_tracker = bot.get_cog('ErrorTracker') if bot else None
+
+        if error_tracker:
+            # Use centralized error handler
+            error_code = error_tracker.generate_error_code(error)
+            error_details = error_tracker.format_error_details(error)
+
+            # Add UI context
+            error_details.update({
+                "command": f"UI:{self.__class__.__name__}",
+                "user": f"{interaction.user} ({interaction.user.id})",
+                "guild": f"{interaction.guild.name} ({interaction.guild.id})" if interaction.guild else "DM",
+                "channel": f"#{interaction.channel.name}" if hasattr(interaction.channel, 'name') else "DM",
+                "item": f"{item.__class__.__name__}"
+            })
+
+            # Store error
+            error_tracker.store_error(error_code, error_details)
+            await error_tracker.store_error_db(error_code, error_details)
+
+            # Determine if fatal
+            is_fatal = isinstance(error, (
+                RuntimeError,
+                AttributeError,
+                ImportError,
+                MemoryError,
+                SystemError,
+                ModuleNotFoundError
+            ))
+
+            # Log to Discord channel
+            await error_tracker.send_error_log(error_code, error_details, is_fatal)
+
+            # ALWAYS show error to user
+            error_view = ErrorView(error_code)
+
+            try:
+                if interaction.response.is_done():
+                    try:
+                        await interaction.followup.send(view=error_view, ephemeral=True)
+                    except:
+                        try:
+                            await interaction.edit_original_response(view=error_view)
+                        except Exception as edit_error:
+                            logger.error(f"Failed to edit response: {edit_error}")
+                else:
+                    await interaction.response.send_message(view=error_view, ephemeral=True)
+            except Exception as send_error:
+                logger.error(f"CRITICAL: Failed to send error view to user: {send_error}")
+        else:
+            # FALLBACK: No error tracker, but STILL show error to user
+            logger.error(f"ERROR TRACKER NOT AVAILABLE - Falling back to basic error message")
+            try:
+                error_msg = f"❌ **An error occurred**\n\n`{type(error).__name__}: {str(error)}`\n\nThis error has been logged."
+
+                if interaction.response.is_done():
+                    await interaction.followup.send(error_msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+            except Exception as fallback_error:
+                logger.error(f"CRITICAL: Failed to send even fallback error message: {fallback_error}")
+
+
+class BaseModal(ui.Modal):
+    """
+    Base class for ALL UI Modals with centralized error handling.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = None  # MUST be set by subclass
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """
+        Called when an error occurs in a Modal submit.
+        """
+        # Log with FULL traceback in ONE line
+        error_tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
+        compact_tb = error_tb.replace('\n', ' ⮐ ')
+        logger.error(f"Modal Error in {self.__class__.__name__}: {compact_tb}")
+
+        # Get bot - try self.bot first, then interaction.client
+        bot = self.bot if self.bot else interaction.client
+
+        error_tracker = bot.get_cog('ErrorTracker') if bot else None
+
+        if error_tracker:
+            error_code = error_tracker.generate_error_code(error)
+            error_details = error_tracker.format_error_details(error)
+
+            error_details.update({
+                "command": f"Modal:{self.__class__.__name__}",
+                "user": f"{interaction.user} ({interaction.user.id})",
+                "guild": f"{interaction.guild.name} ({interaction.guild.id})" if interaction.guild else "DM",
+                "channel": f"#{interaction.channel.name}" if hasattr(interaction.channel, 'name') else "DM"
+            })
+
+            error_tracker.store_error(error_code, error_details)
+            await error_tracker.store_error_db(error_code, error_details)
+
+            is_fatal = isinstance(error, (
+                RuntimeError,
+                AttributeError,
+                ImportError,
+                MemoryError,
+                SystemError,
+                ModuleNotFoundError
+            ))
+
+            await error_tracker.send_error_log(error_code, error_details, is_fatal)
+
+            error_view = ErrorView(error_code)
+
+            try:
+                if interaction.response.is_done():
+                    try:
+                        await interaction.followup.send(view=error_view, ephemeral=True)
+                    except:
+                        try:
+                            await interaction.edit_original_response(view=error_view)
+                        except:
+                            pass
+                else:
+                    await interaction.response.send_message(view=error_view, ephemeral=True)
+            except Exception as send_error:
+                logger.error(f"CRITICAL: Failed to send error view to user: {send_error}")
+        else:
+            try:
+                error_msg = f"❌ **An error occurred**\n\n`{type(error).__name__}: {str(error)}`\n\nThis error has been logged."
+
+                if interaction.response.is_done():
+                    await interaction.followup.send(error_msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(error_msg, ephemeral=True)
+            except Exception as fallback_error:
+                logger.error(f"CRITICAL: Failed to send fallback error message: {fallback_error}")
 
 
 class ErrorView(ui.LayoutView):

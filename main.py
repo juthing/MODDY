@@ -236,6 +236,28 @@ class ServiceManager:
 service_manager = ServiceManager()
 
 
+class CompactExceptionFormatter(logging.Formatter):
+    """
+    Custom formatter that displays exceptions on a SINGLE log line.
+    Instead of multiple lines, tracebacks are compacted with ⮐ as separator.
+    """
+
+    def format(self, record):
+        # Format the base message
+        result = super().format(record)
+
+        # If there's exception info, format it compactly
+        if record.exc_info:
+            # Get the exception traceback as a string
+            import traceback
+            exc_text = ''.join(traceback.format_exception(*record.exc_info))
+            # Replace newlines with arrow separator to keep it on one line
+            compact_exc = exc_text.replace('\n', ' ⮐ ')
+            result = f"{result} ⮐ TRACEBACK: {compact_exc}"
+
+        return result
+
+
 def setup_logging():
     """Configures the unified logging system."""
 
@@ -250,8 +272,13 @@ def setup_logging():
     # Custom formatter with colors (if available)
     try:
         from colorlog import ColoredFormatter
+
+        class CompactColoredFormatter(ColoredFormatter, CompactExceptionFormatter):
+            """Combines colored formatting with compact exceptions"""
+            pass
+
         colored_format = '%(log_color)s%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        console_handler.setFormatter(ColoredFormatter(
+        console_handler.setFormatter(CompactColoredFormatter(
             colored_format,
             datefmt=date_format,
             log_colors={
@@ -263,7 +290,7 @@ def setup_logging():
             }
         ))
     except ImportError:
-        console_handler.setFormatter(logging.Formatter(log_format, date_format))
+        console_handler.setFormatter(CompactExceptionFormatter(log_format, date_format))
 
     # File handler
     log_dir = Path(__file__).parent / 'logs'
@@ -274,7 +301,7 @@ def setup_logging():
         encoding='utf-8'
     )
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter(log_format, date_format))
+    file_handler.setFormatter(CompactExceptionFormatter(log_format, date_format))
 
     # Root logger configuration
     root_logger = logging.getLogger()

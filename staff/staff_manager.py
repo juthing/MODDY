@@ -9,6 +9,7 @@ from discord import ui
 from discord.ui import LayoutView, Container, TextDisplay, Separator, ActionRow, Select, Button
 from discord import SeparatorSpacing, SelectOption, ButtonStyle
 from typing import Optional, List, Dict
+from cogs.error_handler import BaseView
 import logging
 import json
 from datetime import datetime, timezone
@@ -208,7 +209,7 @@ class RoleSelectView(ui.View):
         await interaction.response.edit_message(view=view, content=None)
 
 
-class StaffPermissionsManagementView(ui.LayoutView):
+class StaffPermissionsManagementView(BaseView):
     """View for managing staff permissions with role-based permission system using Components V2"""
 
     def __init__(self, bot, target_user: discord.User, modifier: discord.User, perm_manager, initial_message: discord.Message):
