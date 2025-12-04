@@ -503,70 +503,84 @@
       "current_value": "Valeur actuelle :",
       "not_configured": "Non configuré"
     },
-    "welcome": {
-      "name": "Welcome",
-      "description": "Envoie un message de bienvenue aux nouveaux membres",
+    "welcome_channel": {
+      "name": "Welcome Channel",
+      "description": "Message de bienvenue dans un salon public",
       "config": {
-        "title": "Configuration du module Welcome",
-        "description": "Configurez les messages de bienvenue pour les nouveaux membres. Vous pouvez activer un message dans un salon public et/ou un message privé en DM.",
+        "title": "Configuration du Welcome Channel",
+        "description": "Configurez le message de bienvenue envoyé dans un salon public quand un nouveau membre rejoint le serveur.",
         "channel": {
-          "section_title": "Message public (dans un salon)",
-          "section_description": "Message de bienvenue envoyé dans un salon du serveur",
-          "enable": "Activer le message public",
-          "channel_placeholder": "Sélectionnez un salon",
-          "message_label": "Message",
-          "edit_message": "Modifier le message",
+          "placeholder": "Sélectionnez un salon"
+        },
+        "message": {
+          "section_title": "Message de bienvenue",
+          "section_description": "Personnalisez le message. Variables disponibles : {user}, {username}, {server}, {member_count}",
+          "edit_button": "Modifier le message",
           "mention_user": "Mentionner l'utilisateur",
-          "embed_toggle": "Activer l'embed",
-          "edit_embed_title": "Titre de l'embed",
-          "edit_embed_description": "Description de l'embed",
-          "edit_embed_color": "Couleur",
-          "embed_thumbnail": "Avatar",
-          "embed_author": "Auteur",
-          "message_modal": {
-            "label": "Message de bienvenue public",
+          "modal": {
+            "label": "Message de bienvenue",
             "placeholder": "Bienvenue {user} sur {server} !"
-          },
-          "embed_title_modal": {
-            "label": "Titre de l'embed public",
+          }
+        },
+        "embed": {
+          "section_title": "Options d'embed",
+          "section_description": "Personnalisez l'apparence de l'embed",
+          "toggle": "Activer l'embed",
+          "edit_title": "Modifier le titre",
+          "edit_description": "Modifier la description",
+          "edit_color": "Modifier la couleur",
+          "thumbnail": "Afficher l'avatar",
+          "author": "Afficher comme auteur",
+          "title_modal": {
+            "label": "Titre de l'embed",
             "placeholder": "Bienvenue !"
           },
-          "embed_description_modal": {
-            "label": "Description de l'embed public",
+          "description_modal": {
+            "label": "Description de l'embed",
             "placeholder": "Laissez vide pour utiliser le message de bienvenue"
           },
-          "embed_color_modal": {
-            "label": "Couleur de l'embed public (hex)",
+          "color_modal": {
+            "label": "Couleur de l'embed (hex)",
             "placeholder": "#5865F2",
             "error": "Couleur invalide ! Utilisez le format #RRGGBB"
           }
-        },
-        "dm": {
-          "section_title": "Message privé (DM)",
-          "section_description": "Message de bienvenue envoyé en privé au nouveau membre",
-          "enable": "Activer le message privé",
-          "message_label": "Message",
-          "edit_message": "Modifier le message",
-          "embed_toggle": "Activer l'embed",
-          "edit_embed_title": "Titre de l'embed",
-          "edit_embed_description": "Description de l'embed",
-          "edit_embed_color": "Couleur",
-          "embed_thumbnail": "Avatar",
-          "embed_author": "Auteur",
-          "message_modal": {
-            "label": "Message de bienvenue privé",
+        }
+      }
+    },
+    "welcome_dm": {
+      "name": "Welcome DM",
+      "description": "Message de bienvenue en message privé",
+      "config": {
+        "title": "Configuration du Welcome DM",
+        "description": "Configurez le message de bienvenue envoyé en privé (DM) aux nouveaux membres.",
+        "message": {
+          "section_title": "Message de bienvenue",
+          "section_description": "Personnalisez le message. Variables disponibles : {user}, {username}, {server}, {member_count}",
+          "edit_button": "Modifier le message",
+          "modal": {
+            "label": "Message de bienvenue",
             "placeholder": "Bienvenue sur le serveur {server} !"
-          },
-          "embed_title_modal": {
-            "label": "Titre de l'embed privé",
+          }
+        },
+        "embed": {
+          "section_title": "Options d'embed",
+          "section_description": "Personnalisez l'apparence de l'embed",
+          "toggle": "Activer l'embed",
+          "edit_title": "Modifier le titre",
+          "edit_description": "Modifier la description",
+          "edit_color": "Modifier la couleur",
+          "thumbnail": "Afficher l'avatar",
+          "author": "Afficher comme auteur",
+          "title_modal": {
+            "label": "Titre de l'embed",
             "placeholder": "Bienvenue !"
           },
-          "embed_description_modal": {
-            "label": "Description de l'embed privé",
+          "description_modal": {
+            "label": "Description de l'embed",
             "placeholder": "Laissez vide pour utiliser le message de bienvenue"
           },
-          "embed_color_modal": {
-            "label": "Couleur de l'embed privé (hex)",
+          "color_modal": {
+            "label": "Couleur de l'embed (hex)",
             "placeholder": "#5865F2",
             "error": "Couleur invalide ! Utilisez le format #RRGGBB"
           }

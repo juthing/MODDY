@@ -504,70 +504,84 @@
       "current_value": "Current value:",
       "not_configured": "Not configured"
     },
-    "welcome": {
-      "name": "Welcome",
-      "description": "Send a welcome message to new members",
+    "welcome_channel": {
+      "name": "Welcome Channel",
+      "description": "Welcome message in a public channel",
       "config": {
-        "title": "Welcome Module Configuration",
-        "description": "Configure welcome messages for new members. You can enable a public channel message and/or a private DM message.",
+        "title": "Welcome Channel Configuration",
+        "description": "Configure the welcome message sent in a public channel when a new member joins the server.",
         "channel": {
-          "section_title": "Public Message (in a channel)",
-          "section_description": "Welcome message sent in a server channel",
-          "enable": "Enable public message",
-          "channel_placeholder": "Select a channel",
-          "message_label": "Message",
-          "edit_message": "Edit message",
+          "placeholder": "Select a channel"
+        },
+        "message": {
+          "section_title": "Welcome message",
+          "section_description": "Customize the message. Available variables: {user}, {username}, {server}, {member_count}",
+          "edit_button": "Edit message",
           "mention_user": "Mention user",
-          "embed_toggle": "Enable embed",
-          "edit_embed_title": "Embed title",
-          "edit_embed_description": "Embed description",
-          "edit_embed_color": "Color",
-          "embed_thumbnail": "Avatar",
-          "embed_author": "Author",
-          "message_modal": {
-            "label": "Public welcome message",
+          "modal": {
+            "label": "Welcome message",
             "placeholder": "Welcome {user} to {server}!"
-          },
-          "embed_title_modal": {
-            "label": "Public embed title",
+          }
+        },
+        "embed": {
+          "section_title": "Embed options",
+          "section_description": "Customize the embed appearance",
+          "toggle": "Enable embed",
+          "edit_title": "Edit title",
+          "edit_description": "Edit description",
+          "edit_color": "Edit color",
+          "thumbnail": "Show avatar",
+          "author": "Show as author",
+          "title_modal": {
+            "label": "Embed title",
             "placeholder": "Welcome!"
           },
-          "embed_description_modal": {
-            "label": "Public embed description",
+          "description_modal": {
+            "label": "Embed description",
             "placeholder": "Leave empty to use the welcome message"
           },
-          "embed_color_modal": {
-            "label": "Public embed color (hex)",
+          "color_modal": {
+            "label": "Embed color (hex)",
             "placeholder": "#5865F2",
             "error": "Invalid color! Use the #RRGGBB format"
           }
-        },
-        "dm": {
-          "section_title": "Private Message (DM)",
-          "section_description": "Welcome message sent privately to the new member",
-          "enable": "Enable private message",
-          "message_label": "Message",
-          "edit_message": "Edit message",
-          "embed_toggle": "Enable embed",
-          "edit_embed_title": "Embed title",
-          "edit_embed_description": "Embed description",
-          "edit_embed_color": "Color",
-          "embed_thumbnail": "Avatar",
-          "embed_author": "Author",
-          "message_modal": {
-            "label": "Private welcome message",
+        }
+      }
+    },
+    "welcome_dm": {
+      "name": "Welcome DM",
+      "description": "Welcome message via private message",
+      "config": {
+        "title": "Welcome DM Configuration",
+        "description": "Configure the welcome message sent privately (DM) to new members.",
+        "message": {
+          "section_title": "Welcome message",
+          "section_description": "Customize the message. Available variables: {user}, {username}, {server}, {member_count}",
+          "edit_button": "Edit message",
+          "modal": {
+            "label": "Welcome message",
             "placeholder": "Welcome to {server}!"
-          },
-          "embed_title_modal": {
-            "label": "Private embed title",
+          }
+        },
+        "embed": {
+          "section_title": "Embed options",
+          "section_description": "Customize the embed appearance",
+          "toggle": "Enable embed",
+          "edit_title": "Edit title",
+          "edit_description": "Edit description",
+          "edit_color": "Edit color",
+          "thumbnail": "Show avatar",
+          "author": "Show as author",
+          "title_modal": {
+            "label": "Embed title",
             "placeholder": "Welcome!"
           },
-          "embed_description_modal": {
-            "label": "Private embed description",
+          "description_modal": {
+            "label": "Embed description",
             "placeholder": "Leave empty to use the welcome message"
           },
-          "embed_color_modal": {
-            "label": "Private embed color (hex)",
+          "color_modal": {
+            "label": "Embed color (hex)",
             "placeholder": "#5865F2",
             "error": "Invalid color! Use the #RRGGBB format"
           }
