@@ -111,9 +111,18 @@ class ConfigMainView(ui.LayoutView):
         # Import dynamique de la vue de configuration correspondante
         config_view = None
 
-        if module_id == 'welcome':
-            from modules.configs.welcome_config import WelcomeConfigView
-            config_view = WelcomeConfigView(
+        if module_id == 'welcome_channel':
+            from modules.configs.welcome_channel_config import WelcomeChannelConfigView
+            config_view = WelcomeChannelConfigView(
+                self.bot,
+                self.guild_id,
+                self.user_id,
+                self.locale,
+                module_config
+            )
+        elif module_id == 'welcome_dm':
+            from modules.configs.welcome_dm_config import WelcomeDmConfigView
+            config_view = WelcomeDmConfigView(
                 self.bot,
                 self.guild_id,
                 self.user_id,
