@@ -614,6 +614,30 @@
           "description": "Les messages envoyés dans ce salon seront visibles par tous les serveurs connectés. Assurez-vous que vos membres comprennent cela."
         }
       }
+    },
+    "starboard": {
+      "name": "Starboard",
+      "description": "Tableau d'honneur des messages populaires",
+      "config": {
+        "title": "Configuration du Starboard",
+        "description": "Configurez le tableau d'honneur qui affiche automatiquement les messages ayant reçu beaucoup de réactions étoiles.",
+        "channel": {
+          "section_title": "Salon du starboard",
+          "section_description": "Sélectionnez le salon où seront affichés les messages populaires",
+          "placeholder": "Sélectionnez un salon"
+        },
+        "reaction_count": {
+          "section_title": "Nombre de réactions requis",
+          "section_description": "Nombre de réactions ⭐ nécessaires pour qu'un message apparaisse dans le starboard",
+          "edit_button": "Modifier le seuil",
+          "modal": {
+            "label": "Nombre de réactions",
+            "placeholder": "5",
+            "error_range": "Le nombre de réactions doit être entre 1 et 100",
+            "error_invalid": "Veuillez entrer un nombre valide"
+          }
+        }
+      }
     }
   },
   "languages": {

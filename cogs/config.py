@@ -140,6 +140,15 @@ class ConfigMainView(BaseView):
                 self.locale,
                 module_config
             )
+        elif module_id == 'starboard':
+            from modules.configs.starboard_config import StarboardConfigView
+            config_view = StarboardConfigView(
+                self.bot,
+                self.guild_id,
+                self.user_id,
+                self.locale,
+                module_config
+            )
         # Ajouter d'autres modules ici au fur et à mesure
         # elif module_id == 'ticket':
         #     from modules.configs.ticket_config import TicketConfigView
