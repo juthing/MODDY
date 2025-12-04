@@ -132,6 +132,68 @@ class ModuleEvents(commands.Cog):
         except Exception as e:
             logger.error(f"Error in on_message_delete for inter-server: {e}", exc_info=True)
 
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        """
+        Événement déclenché quand une réaction est ajoutée à un message
+        Transmet l'événement au module Starboard si activé
+        """
+        # Ignore les réactions du bot
+        if payload.user_id == self.bot.user.id:
+            return
+
+        # Ignore les DMs
+        if not payload.guild_id:
+            return
+
+        if not self.bot.module_manager:
+            return
+
+        try:
+            # Récupère l'instance du module Starboard pour ce serveur
+            starboard_module = await self.bot.module_manager.get_module_instance(
+                payload.guild_id,
+                'starboard'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if starboard_module and starboard_module.enabled:
+                await starboard_module.on_reaction_add(payload)
+
+        except Exception as e:
+            logger.error(f"Error in on_raw_reaction_add for guild {payload.guild_id}: {e}", exc_info=True)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+        """
+        Événement déclenché quand une réaction est retirée d'un message
+        Transmet l'événement au module Starboard pour mise à jour
+        """
+        # Ignore les réactions du bot
+        if payload.user_id == self.bot.user.id:
+            return
+
+        # Ignore les DMs
+        if not payload.guild_id:
+            return
+
+        if not self.bot.module_manager:
+            return
+
+        try:
+            # Récupère l'instance du module Starboard pour ce serveur
+            starboard_module = await self.bot.module_manager.get_module_instance(
+                payload.guild_id,
+                'starboard'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if starboard_module and starboard_module.enabled:
+                await starboard_module.on_reaction_remove(payload)
+
+        except Exception as e:
+            logger.error(f"Error in on_raw_reaction_remove for guild {payload.guild_id}: {e}", exc_info=True)
+
 
 async def setup(bot):
     """Charge le cog"""

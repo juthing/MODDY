@@ -615,6 +615,30 @@
           "description": "Messages sent in this channel will be visible to all connected servers. Make sure your members understand this."
         }
       }
+    },
+    "starboard": {
+      "name": "Starboard",
+      "description": "Hall of fame for popular messages",
+      "config": {
+        "title": "Starboard Configuration",
+        "description": "Configure the starboard that automatically displays messages with many star reactions.",
+        "channel": {
+          "section_title": "Starboard channel",
+          "section_description": "Select the channel where popular messages will be displayed",
+          "placeholder": "Select a channel"
+        },
+        "reaction_count": {
+          "section_title": "Required reaction count",
+          "section_description": "Number of ⭐ reactions needed for a message to appear in the starboard",
+          "edit_button": "Edit threshold",
+          "modal": {
+            "label": "Reaction count",
+            "placeholder": "5",
+            "error_range": "Reaction count must be between 1 and 100",
+            "error_invalid": "Please enter a valid number"
+          }
+        }
+      }
     }
   },
   "languages": {
