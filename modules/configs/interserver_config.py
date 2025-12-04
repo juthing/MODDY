@@ -63,18 +63,10 @@ class InterServerConfigView(ui.LayoutView):
 
         # Titre et description
         container.add_item(ui.TextDisplay(
-            f"### {t('modules.interserver.config.title', locale=self.locale)}"
+            f"### <:groups:1446127489842806967> {t('modules.interserver.config.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
             t('modules.interserver.config.description', locale=self.locale)
-        ))
-
-        # État du module
-        is_configured = self.has_existing_config and self.working_config.get('channel_id') is not None
-        status_text = t('modules.config.status.enabled', locale=self.locale) if is_configured else t('modules.config.status.disabled', locale=self.locale)
-        status_emoji = "✅" if is_configured else "❌"
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.config.status.label', locale=self.locale)}** {status_emoji} {status_text}"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
@@ -86,17 +78,6 @@ class InterServerConfigView(ui.LayoutView):
         container.add_item(ui.TextDisplay(
             f"-# {t('modules.interserver.config.channel.section_description', locale=self.locale)}"
         ))
-
-        # Affichage du salon actuel
-        if self.working_config.get('channel_id'):
-            channel = self.bot.get_channel(self.working_config['channel_id'])
-            if channel:
-                channel_display = f"{channel.mention}"
-            else:
-                channel_display = f"{t('modules.config.errors.channel_not_found', locale=self.locale)} (ID: {self.working_config['channel_id']})"
-            container.add_item(ui.TextDisplay(
-                f"{t('modules.config.current_value', locale=self.locale)} {channel_display}"
-            ))
 
         # Sélecteur de salon
         channel_row = ui.ActionRow()
@@ -127,24 +108,6 @@ class InterServerConfigView(ui.LayoutView):
             f"-# {t('modules.interserver.config.options.section_description', locale=self.locale)}"
         ))
 
-        # Option : Afficher le nom du serveur
-        show_server_status = t('common.yes', locale=self.locale) if self.working_config.get('show_server_name', True) else t('common.no', locale=self.locale)
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.options.show_server_name', locale=self.locale)}:** {show_server_status}"
-        ))
-
-        # Option : Afficher l'avatar
-        show_avatar_status = t('common.yes', locale=self.locale) if self.working_config.get('show_avatar', True) else t('common.no', locale=self.locale)
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.options.show_avatar', locale=self.locale)}:** {show_avatar_status}"
-        ))
-
-        # Option : Autoriser les mentions
-        mentions_status = t('common.yes', locale=self.locale) if self.working_config.get('allowed_mentions', False) else t('common.no', locale=self.locale)
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.options.allowed_mentions', locale=self.locale)}:** {mentions_status}"
-        ))
-
         # Sélecteur pour les options
         options_row = ui.ActionRow()
         options_select = ui.Select(
@@ -154,21 +117,21 @@ class InterServerConfigView(ui.LayoutView):
                     label=t('modules.interserver.config.options.show_server_name', locale=self.locale),
                     value="show_server_name",
                     description=t('modules.interserver.config.options.show_server_name_desc', locale=self.locale),
-                    emoji="🏷️",
+                    emoji=discord.PartialEmoji.from_str("<:label:1398729473649676440>"),
                     default=self.working_config.get('show_server_name', True)
                 ),
                 discord.SelectOption(
                     label=t('modules.interserver.config.options.show_avatar', locale=self.locale),
                     value="show_avatar",
                     description=t('modules.interserver.config.options.show_avatar_desc', locale=self.locale),
-                    emoji="👤",
+                    emoji=discord.PartialEmoji.from_str("<:user:1398729712204779571>"),
                     default=self.working_config.get('show_avatar', True)
                 ),
                 discord.SelectOption(
                     label=t('modules.interserver.config.options.allowed_mentions', locale=self.locale),
                     value="allowed_mentions",
                     description=t('modules.interserver.config.options.allowed_mentions_desc', locale=self.locale),
-                    emoji="📢",
+                    emoji=discord.PartialEmoji.from_str("<:notifications:1402261437493022775>"),
                     default=self.working_config.get('allowed_mentions', False)
                 )
             ],
@@ -183,7 +146,7 @@ class InterServerConfigView(ui.LayoutView):
 
         # Avertissement de sécurité
         container.add_item(ui.TextDisplay(
-            f"⚠️ **{t('modules.interserver.config.warning.title', locale=self.locale)}**\n"
+            f"<:warning:1446108410092195902> **{t('modules.interserver.config.warning.title', locale=self.locale)}**\n"
             f"-# {t('modules.interserver.config.warning.description', locale=self.locale)}"
         ))
 

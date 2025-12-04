@@ -64,18 +64,10 @@ class WelcomeConfigView(ui.LayoutView):
 
         # Titre et description
         container.add_item(ui.TextDisplay(
-            f"### {t('modules.welcome.config.title', locale=self.locale)}"
+            f"### <:waving_hand:1446127491004760184> {t('modules.welcome.config.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
             t('modules.welcome.config.description', locale=self.locale)
-        ))
-
-        # État du module (basé sur la présence de config valide)
-        is_configured = self.has_existing_config and self.working_config.get('channel_id') is not None
-        status_text = t('modules.config.status.enabled', locale=self.locale) if is_configured else t('modules.config.status.disabled', locale=self.locale)
-        status_emoji = "✅" if is_configured else "❌"
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.config.status.label', locale=self.locale)}** {status_emoji} {status_text}"
         ))
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
@@ -87,17 +79,6 @@ class WelcomeConfigView(ui.LayoutView):
         container.add_item(ui.TextDisplay(
             f"-# {t('modules.welcome.config.channel.section_description', locale=self.locale)}"
         ))
-
-        # Affichage du salon actuel
-        if self.working_config.get('channel_id'):
-            channel = self.bot.get_channel(self.working_config['channel_id'])
-            if channel:
-                channel_display = f"{channel.mention}"
-            else:
-                channel_display = f"{t('modules.config.errors.channel_not_found', locale=self.locale)} (ID: {self.working_config['channel_id']})"
-            container.add_item(ui.TextDisplay(
-                f"{t('modules.config.current_value', locale=self.locale)} {channel_display}"
-            ))
 
         # Sélecteur de salon
         channel_row = ui.ActionRow()
@@ -128,14 +109,6 @@ class WelcomeConfigView(ui.LayoutView):
             f"-# {t('modules.welcome.config.message.section_description', locale=self.locale)}"
         ))
 
-        # Affichage du message actuel
-        message_preview = self.working_config.get('message_template', t('modules.config.not_configured', locale=self.locale))
-        if len(message_preview) > 150:
-            message_preview = message_preview[:150] + "..."
-        container.add_item(ui.TextDisplay(
-            f"{t('modules.config.current_value', locale=self.locale)} ```{message_preview}```"
-        ))
-
         # TODO: Ajouter un bouton pour éditer le message via modal
         container.add_item(ui.TextDisplay(
             f"-# {t('modules.welcome.config.message.edit_todo', locale=self.locale)}"
@@ -149,12 +122,6 @@ class WelcomeConfigView(ui.LayoutView):
         ))
         container.add_item(ui.TextDisplay(
             f"-# {t('modules.welcome.config.embed.section_description', locale=self.locale)}"
-        ))
-
-        # Affichage du statut embed
-        embed_status = t('common.yes', locale=self.locale) if self.working_config.get('embed_enabled', False) else t('common.no', locale=self.locale)
-        container.add_item(ui.TextDisplay(
-            f"{t('modules.config.current_value', locale=self.locale)} {embed_status}"
         ))
 
         # TODO: Ajouter un toggle pour activer/désactiver l'embed

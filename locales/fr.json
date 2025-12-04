@@ -504,6 +504,8 @@
       "not_configured": "Non configuré"
     },
     "welcome": {
+      "name": "Welcome",
+      "description": "Envoie un message de bienvenue aux nouveaux membres",
       "config": {
         "title": "Configuration du module Welcome",
         "description": "Configurez les messages de bienvenue pour les nouveaux membres de votre serveur.",
@@ -527,6 +529,8 @@
       }
     },
     "interserver": {
+      "name": "Inter-Server",
+      "description": "Connecte plusieurs serveurs via des salons dédiés",
       "config": {
         "title": "Configuration du module Inter-Server",
         "description": "Connectez votre serveur avec d'autres serveurs Discord pour créer un portail de communication inter-serveurs.",
