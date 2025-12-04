@@ -64,7 +64,7 @@ class WelcomeConfigView(ui.LayoutView):
 
         # Titre et description
         container.add_item(ui.TextDisplay(
-            f"### <:user:1398729712204779571> {t('modules.welcome.config.title', locale=self.locale)}"
+            f"### <:waving_hand:1446127491004760184> {t('modules.welcome.config.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
             t('modules.welcome.config.description', locale=self.locale)

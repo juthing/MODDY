@@ -63,7 +63,7 @@ class InterServerConfigView(ui.LayoutView):
 
         # Titre et description
         container.add_item(ui.TextDisplay(
-            f"### <:web:1398729801061240883> {t('modules.interserver.config.title', locale=self.locale)}"
+            f"### <:groups:1446127489842806967> {t('modules.interserver.config.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
             t('modules.interserver.config.description', locale=self.locale)

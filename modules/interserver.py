@@ -29,7 +29,7 @@ class InterServerModule(ModuleBase):
     MODULE_ID = "interserver"
     MODULE_NAME = "Inter-Server"
     MODULE_DESCRIPTION = "Connecte plusieurs serveurs via des salons dédiés"
-    MODULE_EMOJI = "<:web:1398729801061240883>"
+    MODULE_EMOJI = "<:groups:1446127489842806967>"
 
     def __init__(self, bot, guild_id: int):
         super().__init__(bot, guild_id)
