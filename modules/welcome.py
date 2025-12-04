@@ -20,7 +20,7 @@ class WelcomeModule(ModuleBase):
     MODULE_ID = "welcome"
     MODULE_NAME = "Welcome"
     MODULE_DESCRIPTION = "Envoie un message de bienvenue aux nouveaux membres"
-    MODULE_EMOJI = "👋"
+    MODULE_EMOJI = "<:user:1398729712204779571>"
 
     def __init__(self, bot, guild_id: int):
         super().__init__(bot, guild_id)

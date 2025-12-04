@@ -50,7 +50,7 @@ class ConfigMainView(ui.LayoutView):
             f"### <:settings:1398729549323440208> {t('modules.config.main.title', locale=self.locale)}"
         ))
         container.add_item(ui.TextDisplay(
-            t('modules.config.main.description', locale=self.locale)
+            f"{t('modules.config.main.description', locale=self.locale)}\n"
         ))
 
         # Menu déroulant pour sélectionner un module
@@ -62,17 +62,21 @@ class ConfigMainView(ui.LayoutView):
         # Crée les options du menu
         options = []
         for module_info in available_modules:
+            # Utilise i18n pour la description du module
+            description_key = f"modules.{module_info['id']}.description"
+            description = t(description_key, locale=self.locale)
+
             options.append(discord.SelectOption(
                 label=module_info['name'],
                 value=module_info['id'],
-                description=module_info['description'][:100],  # Limite à 100 caractères
+                description=description[:100],  # Limite à 100 caractères
                 emoji=module_info['emoji']
             ))
 
         # Si aucun module disponible
         if not options:
             container.add_item(ui.TextDisplay(
-                f"⚠️ {t('modules.config.main.no_modules', locale=self.locale)}"
+                f"<:warning:1446108410092195902> {t('modules.config.main.no_modules', locale=self.locale)}"
             ))
             self.add_item(container)
             return
