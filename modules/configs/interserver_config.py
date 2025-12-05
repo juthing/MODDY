@@ -112,14 +112,14 @@ class InterServerConfigView(BaseView):
                     label=t('modules.interserver.config.type.english', locale=self.locale),
                     value="english",
                     description=t('modules.interserver.config.type.english_desc', locale=self.locale),
-                    emoji=discord.PartialEmoji.from_str("<:flag:1446197210198048778>"),
+                    emoji="🇬🇧",
                     default=self.working_config.get('interserver_type', 'english') == 'english'
                 ),
                 discord.SelectOption(
                     label=t('modules.interserver.config.type.french', locale=self.locale),
                     value="french",
                     description=t('modules.interserver.config.type.french_desc', locale=self.locale),
-                    emoji=discord.PartialEmoji.from_str("<:flag:1446197210198048778>"),
+                    emoji="🇫🇷",
                     default=self.working_config.get('interserver_type', 'english') == 'french'
                 )
             ],

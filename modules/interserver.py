@@ -58,6 +58,7 @@ class InterServerModule(ModuleBase):
             self.show_server_name = config_data.get('show_server_name', True)
             self.show_avatar = config_data.get('show_avatar', True)
             self.allowed_mentions = config_data.get('allowed_mentions', False)
+            self.sticky_message_id = config_data.get('sticky_message_id')
 
             # Le module est activé si un salon est configuré
             self.enabled = self.channel_id is not None
@@ -113,7 +114,8 @@ class InterServerModule(ModuleBase):
             'interserver_type': 'english',
             'show_server_name': True,
             'show_avatar': True,
-            'allowed_mentions': False
+            'allowed_mentions': False,
+            'sticky_message_id': None
         }
 
     def get_required_fields(self) -> List[str]:
@@ -427,6 +429,14 @@ class InterServerModule(ModuleBase):
             # Envoie le nouveau sticky message
             sticky_msg = await channel.send(view=view)
             self.sticky_message_id = sticky_msg.id
+
+            # Sauvegarde l'ID en DB pour persistence
+            self.config['sticky_message_id'] = sticky_msg.id
+            await self.bot.module_manager.save_module_config(
+                self.guild_id,
+                'interserver',
+                self.config
+            )
 
         except Exception as e:
             logger.error(f"Error managing sticky message: {e}", exc_info=True)
