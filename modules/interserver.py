@@ -34,6 +34,7 @@ class InterServerModule(ModuleBase):
     def __init__(self, bot, guild_id: int):
         super().__init__(bot, guild_id)
         self.channel_id: Optional[int] = None
+        self.interserver_type: str = "english"  # "english" or "french"
         self.show_server_name: bool = True
         self.show_avatar: bool = True
         self.allowed_mentions: bool = False
@@ -41,11 +42,15 @@ class InterServerModule(ModuleBase):
         # Cooldown tracking (user_id -> timestamp)
         self.cooldowns: Dict[int, datetime] = {}
 
+        # Sticky message tracking (channel_id -> message_id)
+        self.sticky_message_id: Optional[int] = None
+
     async def load_config(self, config_data: Dict[str, Any]) -> bool:
         """Charge la configuration depuis la DB"""
         try:
             self.config = config_data
             self.channel_id = config_data.get('channel_id')
+            self.interserver_type = config_data.get('interserver_type', 'english')
             self.show_server_name = config_data.get('show_server_name', True)
             self.show_avatar = config_data.get('show_avatar', True)
             self.allowed_mentions = config_data.get('allowed_mentions', False)
@@ -101,10 +106,15 @@ class InterServerModule(ModuleBase):
         """Retourne la configuration par défaut"""
         return {
             'channel_id': None,
+            'interserver_type': 'english',
             'show_server_name': True,
             'show_avatar': True,
             'allowed_mentions': False
         }
+
+    def get_required_fields(self) -> List[str]:
+        """Retourne la liste des champs obligatoires"""
+        return ['channel_id', 'interserver_type']
 
     async def _setup_slowmode(self):
         """Configure le slowmode de 3 secondes sur le salon inter-serveur"""
@@ -148,6 +158,271 @@ class InterServerModule(ModuleBase):
     def _contains_invite(self, text: str) -> bool:
         """Détecte si le texte contient un lien d'invitation Discord"""
         return bool(INVITE_REGEX.search(text))
+
+    async def _get_all_interserver_channels(self) -> List[discord.TextChannel]:
+        """
+        Récupère tous les salons inter-serveur actifs du même type
+        """
+        channels = []
+
+        # Parcourt tous les serveurs où le bot est présent
+        for guild in self.bot.guilds:
+            # Récupère le module inter-serveur pour ce serveur
+            module = await self.bot.module_manager.get_module_instance(
+                guild.id,
+                'interserver'
+            )
+
+            # Si le module est actif et configuré, et du même type
+            if module and module.enabled and module.channel_id:
+                # Vérifie que c'est le même type d'inter-serveur
+                if module.interserver_type == self.interserver_type:
+                    channel = guild.get_channel(module.channel_id)
+                    if channel and isinstance(channel, discord.TextChannel):
+                        # Vérifie les permissions
+                        perms = channel.permissions_for(guild.me)
+                        if perms.send_messages and perms.manage_webhooks:
+                            channels.append(channel)
+
+        return channels
+
+    async def _relay_message(self, message: discord.Message, target_channels: List[discord.TextChannel],
+                            moddy_id: str, content: str, is_moddy_team: bool) -> int:
+        """
+        Relaie un message vers les salons cibles en utilisant des webhooks
+        Returns: Nombre de messages envoyés avec succès
+        """
+        success_count = 0
+
+        # Prépare le contenu de base avec l'ID Moddy
+        base_content = content
+
+        # Prépare les fichiers (pièces jointes)
+        # On ne peut pas réutiliser les mêmes fichiers, on va stocker les URLs
+        attachment_links = []
+        if message.attachments:
+            for attachment in message.attachments[:10]:  # Limite à 10 fichiers
+                attachment_links.append(f"[{attachment.filename}]({attachment.url})")
+
+        # Ajoute les liens de fichiers au contenu si présents
+        if attachment_links:
+            final_content += "\n\n**Attachments:** " + " • ".join(attachment_links)
+
+        # Prépare les embeds
+        embeds = []
+        if message.embeds:
+            # Limite à 10 embeds (limite Discord)
+            embeds = message.embeds[:10]
+
+        # Envoie le message via webhook dans chaque salon cible
+        for channel in target_channels:
+            try:
+                # Récupère le module inter-serveur du serveur cible pour utiliser ses options d'affichage
+                target_module = await self.bot.module_manager.get_module_instance(
+                    channel.guild.id,
+                    'interserver'
+                )
+
+                if not target_module:
+                    logger.warning(f"No interserver module for guild {channel.guild.id}")
+                    continue
+
+                # Vérifie si l'auteur est banni ou timeout sur ce serveur (sauf pour Moddy Team)
+                if not is_moddy_team:
+                    try:
+                        # Vérifie si l'auteur est membre du serveur cible
+                        target_member = channel.guild.get_member(message.author.id)
+
+                        if target_member:
+                            # Vérifie si le membre est en timeout
+                            if target_member.timed_out_until and target_member.timed_out_until > discord.utils.utcnow():
+                                logger.info(f"Skipping message relay to {channel.guild.name} - Author {message.author.id} is timed out")
+                                continue
+
+                        # Vérifie si l'auteur est banni (coûteux, donc on fait une vérification rapide)
+                        try:
+                            await channel.guild.fetch_ban(discord.Object(id=message.author.id))
+                            # Si pas d'exception, l'utilisateur est banni
+                            logger.info(f"Skipping message relay to {channel.guild.name} - Author {message.author.id} is banned")
+                            continue
+                        except discord.NotFound:
+                            # L'utilisateur n'est pas banni, on continue
+                            pass
+
+                    except Exception as e:
+                        logger.debug(f"Error checking ban/timeout status: {e}")
+
+                # Prépare le nom d'affichage selon les préférences du serveur CIBLE
+                if is_moddy_team:
+                    username = "Moddy Team"
+                    avatar_url = self.bot.user.display_avatar.url
+                else:
+                    if target_module.show_server_name:
+                        username = f"{message.author.display_name} — {message.guild.name}"
+                    else:
+                        username = message.author.display_name
+
+                    # Limite la longueur du nom (max 80 caractères pour Discord)
+                    if len(username) > 80:
+                        username = username[:77] + "..."
+
+                    # Prépare l'avatar selon les préférences du serveur CIBLE
+                    avatar_url = message.author.display_avatar.url if target_module.show_avatar else None
+
+                # Prépare le contenu pour ce serveur spécifique
+                final_content = base_content
+
+                # Ajoute la réponse si c'est une réponse à un message
+                if message.reference and message.reference.message_id:
+                    try:
+                        # Cherche l'ID Moddy du message référencé
+                        replied_moddy_msg = await self.bot.db.get_interserver_message_by_original(message.reference.message_id)
+                        if replied_moddy_msg:
+                            # Cherche le message relayé dans le serveur cible
+                            target_relayed = None
+                            for relayed in replied_moddy_msg.get('relayed_messages', []):
+                                if relayed['guild_id'] == channel.guild.id:
+                                    target_relayed = relayed
+                                    break
+
+                            if target_relayed:
+                                # Lien vers le message dans le serveur cible
+                                reply_link = f"https://discord.com/channels/{target_relayed['guild_id']}/{target_relayed['channel_id']}/{target_relayed['message_id']}"
+                            else:
+                                # Fallback vers le message original si pas trouvé dans ce serveur
+                                reply_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.reference.message_id}"
+
+                            final_content = f"-# <:reply:1444821779444138146> [Reply to message]({reply_link})\n{final_content}"
+                    except Exception as e:
+                        logger.debug(f"Could not add reply link: {e}")
+
+                # Ajoute l'ID Moddy en bas
+                final_content += f"\n-# ID: `{moddy_id}`"
+
+                # Gère les mentions selon les préférences du serveur CIBLE
+                if not target_module.allowed_mentions:
+                    allowed_mentions = discord.AllowedMentions.none()
+                else:
+                    allowed_mentions = discord.AllowedMentions.all()
+
+                # Récupère ou crée un webhook pour ce salon
+                webhook = await self._get_or_create_webhook(channel)
+
+                if not webhook:
+                    logger.warning(f"Could not get webhook for channel {channel.id} in guild {channel.guild.id}")
+                    continue
+
+                # Prépare les kwargs pour le webhook
+                webhook_kwargs = {
+                    'username': username,
+                    'allowed_mentions': allowed_mentions,
+                    'wait': True  # On attend la réponse pour avoir l'ID du message
+                }
+
+                # Ajoute le contenu s'il existe
+                if final_content:
+                    webhook_kwargs['content'] = final_content
+
+                # Ajoute l'avatar s'il existe
+                if avatar_url:
+                    webhook_kwargs['avatar_url'] = avatar_url
+
+                # Ajoute les embeds s'il y en a
+                if embeds:
+                    webhook_kwargs['embeds'] = embeds
+
+                # Envoie le message via le webhook
+                sent_message = await webhook.send(**webhook_kwargs)
+
+                # Enregistre le message relayé en DB
+                await self.bot.db.add_relayed_message(moddy_id, channel.guild.id, channel.id, sent_message.id)
+
+                # Ajoute la réaction verified pour les messages Moddy Team
+                if is_moddy_team:
+                    await sent_message.add_reaction("<:verified:1398729677601902635>")
+
+                success_count += 1
+
+            except discord.Forbidden:
+                logger.warning(f"Missing permissions to send webhook in channel {channel.id}")
+            except discord.HTTPException as e:
+                logger.error(f"HTTP error sending webhook to channel {channel.id}: {e}")
+            except Exception as e:
+                logger.error(f"Error sending webhook to channel {channel.id}: {e}", exc_info=True)
+
+        return success_count
+
+    async def _get_or_create_webhook(self, channel: discord.TextChannel) -> Optional[discord.Webhook]:
+        """
+        Récupère ou crée un webhook pour le salon inter-serveur
+        """
+        try:
+            # Récupère les webhooks existants
+            webhooks = await channel.webhooks()
+
+            # Cherche un webhook créé par Moddy pour l'inter-serveur
+            moddy_webhook = None
+            for webhook in webhooks:
+                if webhook.user and webhook.user.id == self.bot.user.id:
+                    if webhook.name == "Moddy Inter-Server":
+                        moddy_webhook = webhook
+                        break
+
+            # Si aucun webhook trouvé, en créer un
+            if not moddy_webhook:
+                moddy_webhook = await channel.create_webhook(
+                    name="Moddy Inter-Server",
+                    reason="Webhook for inter-server communication"
+                )
+                logger.info(f"Created webhook for inter-server in channel {channel.id}")
+
+            return moddy_webhook
+
+        except discord.Forbidden:
+            logger.error(f"Missing permissions to manage webhooks in channel {channel.id}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting/creating webhook: {e}", exc_info=True)
+            return None
+
+    async def _manage_sticky_message(self, channel: discord.TextChannel):
+        """
+        Gère le sticky message en bas du salon inter-serveur
+        Supprime l'ancien et en crée un nouveau
+        """
+        try:
+            from utils.i18n import t
+
+            # Détermine la langue du sticky message selon le type d'inter-serveur
+            if self.interserver_type == "french":
+                sticky_text = t('modules.interserver.sticky_message.french', locale='fr')
+            else:
+                sticky_text = t('modules.interserver.sticky_message.english', locale='en-US')
+
+            # Crée le sticky message avec Components V2
+            from discord.ui import LayoutView, Container, TextDisplay
+
+            class StickyComponents(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=sticky_text),
+                )
+
+            view = StickyComponents()
+
+            # Supprime l'ancien sticky message s'il existe
+            if self.sticky_message_id:
+                try:
+                    old_sticky = await channel.fetch_message(self.sticky_message_id)
+                    await old_sticky.delete()
+                except (discord.NotFound, discord.Forbidden):
+                    pass
+
+            # Envoie le nouveau sticky message
+            sticky_msg = await channel.send(view=view)
+            self.sticky_message_id = sticky_msg.id
+
+        except Exception as e:
+            logger.error(f"Error managing sticky message: {e}", exc_info=True)
 
     async def on_message(self, message: discord.Message):
         """
@@ -235,6 +510,9 @@ class InterServerModule(ModuleBase):
                 # Retire la réaction loading et ajoute done quand même
                 await message.remove_reaction("<a:loading:1395047662092550194>", self.bot.user)
                 await message.add_reaction("<:done:1398729525277229066>")
+
+                # Gère le sticky message pour ce salon
+                await self._manage_sticky_message(message.channel)
                 return
 
             # Prépare et envoie le message
@@ -251,6 +529,21 @@ class InterServerModule(ModuleBase):
             else:
                 await message.add_reaction("<:undone:1398729502028333218>")
 
+            # Gère le sticky message pour ce salon et tous les salons cibles
+            await self._manage_sticky_message(message.channel)
+
+            # Gère le sticky message pour tous les salons qui ont reçu le message
+            for channel in target_channels:
+                try:
+                    target_module = await self.bot.module_manager.get_module_instance(
+                        channel.guild.id,
+                        'interserver'
+                    )
+                    if target_module:
+                        await target_module._manage_sticky_message(channel)
+                except Exception as e:
+                    logger.debug(f"Error managing sticky message for {channel.guild.name}: {e}")
+
             logger.info(f"✅ Relayed message {moddy_id} from {message.guild.name} to {success_count}/{len(target_channels)} servers")
 
         except Exception as e:
@@ -261,177 +554,3 @@ class InterServerModule(ModuleBase):
                 await message.add_reaction("<:undone:1398729502028333218>")
             except:
                 pass
-
-    async def _get_all_interserver_channels(self) -> List[discord.TextChannel]:
-        """
-        Récupère tous les salons inter-serveur actifs
-        """
-        channels = []
-
-        # Parcourt tous les serveurs où le bot est présent
-        for guild in self.bot.guilds:
-            # Récupère le module inter-serveur pour ce serveur
-            module = await self.bot.module_manager.get_module_instance(
-                guild.id,
-                'interserver'
-            )
-
-            # Si le module est actif et configuré
-            if module and module.enabled and module.channel_id:
-                channel = guild.get_channel(module.channel_id)
-                if channel and isinstance(channel, discord.TextChannel):
-                    # Vérifie les permissions
-                    perms = channel.permissions_for(guild.me)
-                    if perms.send_messages and perms.manage_webhooks:
-                        channels.append(channel)
-
-        return channels
-
-    async def _relay_message(self, message: discord.Message, target_channels: List[discord.TextChannel],
-                            moddy_id: str, content: str, is_moddy_team: bool) -> int:
-        """
-        Relaie un message vers les salons cibles en utilisant des webhooks
-        Returns: Nombre de messages envoyés avec succès
-        """
-        success_count = 0
-
-        # Prépare le nom d'affichage pour le webhook
-        if is_moddy_team:
-            username = "Moddy Team"
-            avatar_url = self.bot.user.display_avatar.url
-        else:
-            if self.show_server_name:
-                username = f"{message.author.display_name} — {message.guild.name}"
-            else:
-                username = message.author.display_name
-
-            # Limite la longueur du nom (max 80 caractères pour Discord)
-            if len(username) > 80:
-                username = username[:77] + "..."
-
-            # Prépare l'avatar
-            avatar_url = message.author.display_avatar.url if self.show_avatar else None
-
-        # Prépare le contenu avec l'ID Moddy
-        final_content = content
-
-        # Ajoute la réponse si c'est une réponse à un message
-        if message.reference and message.reference.message_id:
-            try:
-                replied_message = await message.channel.fetch_message(message.reference.message_id)
-                # Cherche l'ID Moddy du message référencé
-                replied_moddy_msg = await self.bot.db.get_interserver_message_by_original(replied_message.id)
-                if replied_moddy_msg:
-                    reply_link = f"https://discord.com/channels/{message.guild.id}/{message.channel.id}/{replied_message.id}"
-                    final_content = f"-# <:reply:1444821779444138146> [Reply to message]({reply_link})\n{final_content}"
-            except:
-                pass
-
-        # Ajoute l'ID Moddy en bas
-        final_content += f"\n-# ID: `{moddy_id}`"
-
-        # Gère les mentions si désactivées
-        if not self.allowed_mentions:
-            allowed_mentions = discord.AllowedMentions.none()
-        else:
-            allowed_mentions = discord.AllowedMentions.all()
-
-        # Prépare les fichiers (pièces jointes)
-        # On ne peut pas réutiliser les mêmes fichiers, on va stocker les URLs
-        attachment_links = []
-        if message.attachments:
-            for attachment in message.attachments[:10]:  # Limite à 10 fichiers
-                attachment_links.append(f"[{attachment.filename}]({attachment.url})")
-
-        # Ajoute les liens de fichiers au contenu si présents
-        if attachment_links:
-            final_content += "\n\n**Attachments:** " + " • ".join(attachment_links)
-
-        # Prépare les embeds
-        embeds = []
-        if message.embeds:
-            # Limite à 10 embeds (limite Discord)
-            embeds = message.embeds[:10]
-
-        # Envoie le message via webhook dans chaque salon cible
-        for channel in target_channels:
-            try:
-                # Récupère ou crée un webhook pour ce salon
-                webhook = await self._get_or_create_webhook(channel)
-
-                if not webhook:
-                    logger.warning(f"Could not get webhook for channel {channel.id} in guild {channel.guild.id}")
-                    continue
-
-                # Prépare les kwargs pour le webhook
-                webhook_kwargs = {
-                    'username': username,
-                    'allowed_mentions': allowed_mentions,
-                    'wait': True  # On attend la réponse pour avoir l'ID du message
-                }
-
-                # Ajoute le contenu s'il existe
-                if final_content:
-                    webhook_kwargs['content'] = final_content
-
-                # Ajoute l'avatar s'il existe
-                if avatar_url:
-                    webhook_kwargs['avatar_url'] = avatar_url
-
-                # Ajoute les embeds s'il y en a
-                if embeds:
-                    webhook_kwargs['embeds'] = embeds
-
-                # Envoie le message via le webhook
-                sent_message = await webhook.send(**webhook_kwargs)
-
-                # Enregistre le message relayé en DB
-                await self.bot.db.add_relayed_message(moddy_id, channel.guild.id, channel.id, sent_message.id)
-
-                # Ajoute la réaction verified pour les messages Moddy Team
-                if is_moddy_team:
-                    await sent_message.add_reaction("<:verified:1398729677601902635>")
-
-                success_count += 1
-
-            except discord.Forbidden:
-                logger.warning(f"Missing permissions to send webhook in channel {channel.id}")
-            except discord.HTTPException as e:
-                logger.error(f"HTTP error sending webhook to channel {channel.id}: {e}")
-            except Exception as e:
-                logger.error(f"Error sending webhook to channel {channel.id}: {e}", exc_info=True)
-
-        return success_count
-
-    async def _get_or_create_webhook(self, channel: discord.TextChannel) -> Optional[discord.Webhook]:
-        """
-        Récupère ou crée un webhook pour le salon inter-serveur
-        """
-        try:
-            # Récupère les webhooks existants
-            webhooks = await channel.webhooks()
-
-            # Cherche un webhook créé par Moddy pour l'inter-serveur
-            moddy_webhook = None
-            for webhook in webhooks:
-                if webhook.user and webhook.user.id == self.bot.user.id:
-                    if webhook.name == "Moddy Inter-Server":
-                        moddy_webhook = webhook
-                        break
-
-            # Si aucun webhook trouvé, en créer un
-            if not moddy_webhook:
-                moddy_webhook = await channel.create_webhook(
-                    name="Moddy Inter-Server",
-                    reason="Webhook for inter-server communication"
-                )
-                logger.info(f"Created webhook for inter-server in channel {channel.id}")
-
-            return moddy_webhook
-
-        except discord.Forbidden:
-            logger.error(f"Missing permissions to manage webhooks in channel {channel.id}")
-            return None
-        except Exception as e:
-            logger.error(f"Error getting/creating webhook: {e}", exc_info=True)
-            return None

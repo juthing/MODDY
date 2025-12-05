@@ -74,9 +74,7 @@ class InterServerConfigView(BaseView):
 
         # Section : Salon inter-serveur
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.channel.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
+            f"**{t('modules.interserver.config.channel.section_title', locale=self.locale)}**<:required_fields:1446549185385074769>\n"
             f"-# {t('modules.interserver.config.channel.section_description', locale=self.locale)}"
         ))
 
@@ -99,11 +97,42 @@ class InterServerConfigView(BaseView):
         channel_row.add_item(channel_select)
         container.add_item(channel_row)
 
+        # Section : Type d'inter-serveur
+        container.add_item(ui.TextDisplay(
+            f"**{t('modules.interserver.config.type.section_title', locale=self.locale)}**<:required_fields:1446549185385074769>\n"
+            f"-# {t('modules.interserver.config.type.section_description', locale=self.locale)}"
+        ))
+
+        # Sélecteur de type d'inter-serveur
+        type_row = ui.ActionRow()
+        type_select = ui.Select(
+            placeholder=t('modules.interserver.config.type.placeholder', locale=self.locale),
+            options=[
+                discord.SelectOption(
+                    label=t('modules.interserver.config.type.english', locale=self.locale),
+                    value="english",
+                    description=t('modules.interserver.config.type.english_desc', locale=self.locale),
+                    emoji=discord.PartialEmoji.from_str("<:flag:1446197210198048778>"),
+                    default=self.working_config.get('interserver_type', 'english') == 'english'
+                ),
+                discord.SelectOption(
+                    label=t('modules.interserver.config.type.french', locale=self.locale),
+                    value="french",
+                    description=t('modules.interserver.config.type.french_desc', locale=self.locale),
+                    emoji=discord.PartialEmoji.from_str("<:flag:1446197210198048778>"),
+                    default=self.working_config.get('interserver_type', 'english') == 'french'
+                )
+            ],
+            min_values=1,
+            max_values=1
+        )
+        type_select.callback = self.on_type_select
+        type_row.add_item(type_select)
+        container.add_item(type_row)
+
         # Section : Options d'affichage
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.options.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
+            f"**{t('modules.interserver.config.options.section_title', locale=self.locale)}**\n"
             f"-# {t('modules.interserver.config.options.section_description', locale=self.locale)}"
         ))
 
@@ -236,6 +265,24 @@ class InterServerConfigView(BaseView):
         self.working_config['show_server_name'] = 'show_server_name' in selected_options
         self.working_config['show_avatar'] = 'show_avatar' in selected_options
         self.working_config['allowed_mentions'] = 'allowed_mentions' in selected_options
+
+        # Marque comme modifié
+        self.has_changes = True
+
+        # Reconstruit la vue
+        self._build_view()
+
+        # Met à jour le message
+        await interaction.response.edit_message(view=self)
+
+    async def on_type_select(self, interaction: discord.Interaction):
+        """Callback quand un type d'inter-serveur est sélectionné"""
+        if not await self.check_user(interaction):
+            return
+
+        # Récupère le type sélectionné
+        selected_type = interaction.data['values'][0]
+        self.working_config['interserver_type'] = selected_type
 
         # Marque comme modifié
         self.has_changes = True
