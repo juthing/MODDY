@@ -75,6 +75,37 @@ class ModuleBase(ABC):
         """
         pass
 
+    def get_required_fields(self) -> List[str]:
+        """
+        Retourne la liste des champs obligatoires du module
+        Par défaut, aucun champ n'est obligatoire
+        Les sous-classes peuvent override cette méthode
+
+        Returns:
+            Liste des clés de configuration obligatoires
+        """
+        return []
+
+    def get_field_label(self, field_name: str, locale: str = 'en-US') -> str:
+        """
+        Retourne le label traduit d'un champ pour les messages d'erreur
+        Les sous-classes peuvent override cette méthode pour personnaliser les labels
+
+        Args:
+            field_name: Nom du champ
+            locale: Langue pour la traduction
+
+        Returns:
+            Label du champ traduit
+        """
+        from utils.i18n import t
+        # Par défaut, utilise les traductions du module si disponibles
+        try:
+            return t(f'modules.{self.MODULE_ID}.config.{field_name}.section_title', locale=locale)
+        except:
+            # Fallback sur le nom brut du champ
+            return field_name.replace('_', ' ').title()
+
     async def enable(self):
         """Active le module"""
         self.enabled = True
@@ -228,9 +259,36 @@ class ModuleManager:
             return False, f"Module {module_id} not found"
 
         try:
-            # Valide la configuration
+            # Crée une instance temporaire du module
             module_class = self.registered_modules[module_id]
             temp_instance = module_class(self.bot, guild_id)
+
+            # Vérifie que tous les champs obligatoires sont remplis
+            required_fields = temp_instance.get_required_fields()
+            missing_fields = []
+
+            for field in required_fields:
+                # Vérifie si le champ est présent et non vide
+                if field not in config_data or config_data[field] is None:
+                    missing_fields.append(field)
+
+            if missing_fields:
+                # Récupère la locale du serveur (par défaut en-US)
+                try:
+                    guild = self.bot.get_guild(guild_id)
+                    locale = str(guild.preferred_locale) if guild and guild.preferred_locale else 'en-US'
+                except:
+                    locale = 'en-US'
+
+                # Construit le message d'erreur avec les labels traduits
+                from utils.i18n import t
+                field_labels = [temp_instance.get_field_label(field, locale) for field in missing_fields]
+                fields_str = ", ".join(field_labels)
+
+                error_msg = t('modules.config.errors.required_fields', locale=locale, fields=fields_str)
+                return False, error_msg
+
+            # Valide la configuration (permissions, existence des ressources, etc.)
             is_valid, error_msg = await temp_instance.validate_config(config_data)
 
             if not is_valid:
