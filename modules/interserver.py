@@ -67,13 +67,6 @@ class InterServerModule(ModuleBase):
             if self.enabled:
                 await self._setup_slowmode()
 
-                # Recrée le sticky message au démarrage
-                guild = self.bot.get_guild(self.guild_id)
-                if guild:
-                    channel = guild.get_channel(self.channel_id)
-                    if channel and isinstance(channel, discord.TextChannel):
-                        await self._manage_sticky_message(channel)
-
             return True
         except Exception as e:
             logger.error(f"Error loading interserver config: {e}")
