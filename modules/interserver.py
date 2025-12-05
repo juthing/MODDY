@@ -67,6 +67,13 @@ class InterServerModule(ModuleBase):
             if self.enabled:
                 await self._setup_slowmode()
 
+                # Recrée le sticky message au démarrage
+                guild = self.bot.get_guild(self.guild_id)
+                if guild:
+                    channel = guild.get_channel(self.channel_id)
+                    if channel and isinstance(channel, discord.TextChannel):
+                        await self._manage_sticky_message(channel)
+
             return True
         except Exception as e:
             logger.error(f"Error loading interserver config: {e}")
@@ -411,10 +418,13 @@ class InterServerModule(ModuleBase):
             from discord.ui import LayoutView, Container, TextDisplay
 
             class StickyComponents(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=sticky_title),
-                    discord.ui.TextDisplay(content=sticky_body),
-                )
+                def __init__(self):
+                    super().__init__()
+                    container = discord.ui.Container(
+                        discord.ui.TextDisplay(content=sticky_title),
+                        discord.ui.TextDisplay(content=sticky_body),
+                    )
+                    self.add_item(container)
 
             view = StickyComponents()
 
@@ -461,8 +471,9 @@ class InterServerModule(ModuleBase):
 
             # Crée le message de log avec Components V2
             from discord import ui as discord_ui
+            from cogs.error_handler import BaseView
 
-            class StaffLogView(discord_ui.LayoutView):
+            class StaffLogView(BaseView):
                 def __init__(self, bot, moddy_id: str, message: discord.Message, author_info: str, server_info: str, content_preview: str, success_count: int, total_count: int, is_moddy_team: bool):
                     super().__init__()
                     self.bot = bot

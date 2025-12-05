@@ -44,16 +44,35 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         moddy_id: str
     ):
         """Signale un message inter-serveur à l'équipe de modération"""
-        # Normalise le moddy_id
-        moddy_id = moddy_id.strip().upper()
+        try:
+            # Normalise le moddy_id
+            moddy_id = moddy_id.strip().upper()
 
-        # Récupère les informations du message
-        msg_data = await self.bot.db.get_interserver_message(moddy_id)
+            # Valide le format du Moddy ID (XXXX-XXXX)
+            import re
+            if not re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$', moddy_id):
+                view = create_error_message(
+                    "Invalid Moddy ID",
+                    f"The Moddy ID `{moddy_id}` is invalid. Format should be `XXXX-XXXX` (e.g., `AB12-CD34`)."
+                )
+                await interaction.response.send_message(view=view, ephemeral=True)
+                return
 
-        if not msg_data:
+            # Récupère les informations du message
+            msg_data = await self.bot.db.get_interserver_message(moddy_id)
+
+            if not msg_data:
+                view = create_error_message(
+                    "Message Not Found",
+                    f"No inter-server message found with ID `{moddy_id}`.\n\nMake sure the ID is correct and the message hasn't been deleted."
+                )
+                await interaction.response.send_message(view=view, ephemeral=True)
+                return
+        except Exception as e:
+            logger.error(f"Error validating/fetching message {moddy_id}: {e}", exc_info=True)
             view = create_error_message(
-                "Message Not Found",
-                f"No inter-server message found with ID `{moddy_id}`."
+                "Error",
+                f"An error occurred while fetching the message. Please verify the ID and try again."
             )
             await interaction.response.send_message(view=view, ephemeral=True)
             return
@@ -246,16 +265,35 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         incognito: bool = False
     ):
         """Obtient des informations sur un message inter-serveur"""
-        # Normalise le moddy_id
-        moddy_id = moddy_id.strip().upper()
+        try:
+            # Normalise le moddy_id
+            moddy_id = moddy_id.strip().upper()
 
-        # Récupère les informations du message
-        msg_data = await self.bot.db.get_interserver_message(moddy_id)
+            # Valide le format du Moddy ID (XXXX-XXXX)
+            import re
+            if not re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$', moddy_id):
+                view = create_error_message(
+                    "Invalid Moddy ID",
+                    f"The Moddy ID `{moddy_id}` is invalid. Format should be `XXXX-XXXX` (e.g., `AB12-CD34`)."
+                )
+                await interaction.response.send_message(view=view, ephemeral=True)
+                return
 
-        if not msg_data:
+            # Récupère les informations du message
+            msg_data = await self.bot.db.get_interserver_message(moddy_id)
+
+            if not msg_data:
+                view = create_error_message(
+                    "Message Not Found",
+                    f"No inter-server message found with ID `{moddy_id}`.\n\nMake sure the ID is correct and the message hasn't been deleted."
+                )
+                await interaction.response.send_message(view=view, ephemeral=True)
+                return
+        except Exception as e:
+            logger.error(f"Error validating/fetching message {moddy_id}: {e}", exc_info=True)
             view = create_error_message(
-                "Message Not Found",
-                f"No inter-server message found with ID `{moddy_id}`."
+                "Error",
+                f"An error occurred while fetching the message. Please verify the ID and try again."
             )
             await interaction.response.send_message(view=view, ephemeral=True)
             return
@@ -279,11 +317,14 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         timestamp_str = f"<t:{int(timestamp.timestamp())}:R>" if timestamp else "Unknown"
 
         # Crée l'interface avec Components V2
-        class InfoView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content=f"### <:info:1401614681440784477> Inter-Server Message Info"),
-                discord.ui.TextDisplay(content=f"**Moddy ID:** `{moddy_id}`\n**Author:** {author_info}\n**Original Server:** {guild_info}\n**Sent:** {timestamp_str}\n**Relayed to:** {relayed_count} servers\n**Status:** {msg_data['status']}\n**Moddy Team Message:** {'✅ Yes' if msg_data.get('is_moddy_team') else '❌ No'}\n\n**Content:**\n{msg_data['content'][:500] if msg_data['content'] else '*No content*'}"),
-            )
+        class InfoView(BaseView):
+            def __init__(self):
+                super().__init__()
+                container = ui.Container(
+                    ui.TextDisplay(content=f"### <:info:1401614681440784477> Inter-Server Message Info"),
+                    ui.TextDisplay(content=f"**Moddy ID:** `{moddy_id}`\n**Author:** {author_info}\n**Original Server:** {guild_info}\n**Sent:** {timestamp_str}\n**Relayed to:** {relayed_count} servers\n**Status:** {msg_data['status']}\n**Moddy Team Message:** {'✅ Yes' if msg_data.get('is_moddy_team') else '❌ No'}\n\n**Content:**\n{msg_data['content'][:500] if msg_data['content'] else '*No content*'}"),
+                )
+                self.add_item(container)
 
         view = InfoView()
 
