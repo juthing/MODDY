@@ -494,7 +494,7 @@
         "bot_not_in_guild": "<:error:1444049460924776478> Moddy must be present on this server to use this command.",
         "wrong_user": "<:error:1444049460924776478> Only the user who started the configuration can use this interface.",
         "no_user_perms": "<:error:1444049460924776478> You must have the **Manage Server** permission to use this command.",
-        "required_fields": "<:error:1444049460924776478> The following fields are required: {fields}",
+        "required_fields": "<:undone:1398729502028333218> **Invalid configuration** - The following fields must be filled:\n• {fields}",
         "channel_not_found": "Channel not found",
         "no_admin_perms": {
           "title": "Insufficient Permissions",
@@ -600,6 +600,9 @@
           "section_description": "Select the channel that will be connected to other servers",
           "placeholder": "Select a channel"
         },
+        "channel_id": {
+          "section_title": "Inter-server channel"
+        },
         "type": {
           "section_title": "Inter-server type",
           "section_description": "Choose which inter-server you want to join",
@@ -608,6 +611,9 @@
           "english_desc": "Join the international English inter-server",
           "french": "French inter-server",
           "french_desc": "Join the French-speaking inter-server"
+        },
+        "interserver_type": {
+          "section_title": "Inter-server type"
         },
         "options": {
           "section_title": "Display options",
@@ -626,8 +632,10 @@
         }
       },
       "sticky_message": {
-        "english": "**Inter-Server Channel**\n\n<:flag:1446197210198048778> This is an international inter-server channel connecting multiple Discord servers.\n\n<:warning:1446108410092195902> Please follow the [Inter-Server Guidelines](https://moddy.app/interserver-guidelines) and Discord's Terms of Service.\n\n<:verified:1398729677601902635> This channel is moderated by Moddy's moderation team.",
-        "french": "**Salon Inter-Serveur**\n\n<:flag:1446197210198048778> Ceci est un salon inter-serveur francophone connectant plusieurs serveurs Discord.\n\n<:warning:1446108410092195902> Veuillez respecter les [Règles Inter-Serveur](https://moddy.app/interserver-guidelines) et les Conditions d'Utilisation de Discord.\n\n<:verified:1398729677601902635> Ce salon est modéré par l'équipe de modération de Moddy."
+        "english_title": "### <:groups:1446127489842806967> Inter-Server Channel",
+        "english_body": "<:web:1398729801061240883> This is an international inter-server channel connecting multiple Discord servers.\n<:book:1446557736350388364> Please follow the [Inter-Server Guidelines](https://moddy.app/interserver-guidelines) and Discord's Terms of Service.\n<:verified:1398729677601902635> This channel is moderated by Moddy's moderation team.\n<:flag:1446197210198048778> To report a message to our team, join our [support server](https://moddy.app/support/) or use /interserver report.",
+        "french_title": "### <:groups:1446127489842806967> Salon Inter-Serveur",
+        "french_body": "<:web:1398729801061240883> Ceci est un salon inter-serveur francophone connectant plusieurs serveurs Discord.\n<:book:1446557736350388364> Veuillez respecter les [Règles Inter-Serveur](https://moddy.app/interserver-guidelines) et les Conditions d'Utilisation de Discord.\n<:verified:1398729677601902635> Ce salon est modéré par l'équipe de modération de Moddy.\n<:flag:1446197210198048778> Pour signaler un message à notre équipe, rejoignez notre [serveur de support](https://moddy.app/support/) ou utilisez /interserver report."
       }
     },
     "starboard": {
