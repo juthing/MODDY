@@ -283,7 +283,7 @@ class ModuleManager:
                 # Construit le message d'erreur avec les labels traduits
                 from utils.i18n import t
                 field_labels = [temp_instance.get_field_label(field, locale) for field in missing_fields]
-                fields_str = ", ".join(field_labels)
+                fields_str = "\n• ".join(field_labels)
 
                 error_msg = t('modules.config.errors.required_fields', locale=locale, fields=fields_str)
                 return False, error_msg
