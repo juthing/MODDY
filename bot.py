@@ -190,14 +190,31 @@ class ModdyBot(commands.Bot):
         try:
             # Identifier et sauvegarder les commandes guild-only
             self._guild_only_commands = []
+            guild_only_groups = set()  # Pour éviter les doublons de GroupCogs
+
             for command in list(self.tree.walk_commands()):
                 if hasattr(command, 'guild_only') and command.guild_only:
-                    self._guild_only_commands.append(command)
+                    # Si c'est une sous-commande d'un groupe, on doit ajouter le groupe parent
+                    if hasattr(command, 'parent') and command.parent:
+                        guild_only_groups.add(command.parent.name)
+                    else:
+                        # C'est une commande top-level
+                        self._guild_only_commands.append(command)
 
-            # Retirer les commandes guild-only de l'arbre global ET NE JAMAIS LES REMETTRE
-            # Sinon copy_global_to() les copiera partout !
+            # Retirer les groupes guild-only de l'arbre global
+            for group_name in guild_only_groups:
+                group = self.tree.get_command(group_name)
+                if group:
+                    self._guild_only_commands.append(group)
+                    self.tree.remove_command(group_name)
+
+            # Retirer les commandes guild-only top-level de l'arbre global
             for command in self._guild_only_commands:
-                self.tree.remove_command(command.name)
+                if not hasattr(command, 'parent') or not command.parent:
+                    try:
+                        self.tree.remove_command(command.name)
+                    except:
+                        pass  # Déjà retiré (cas des groupes)
 
             # Synchroniser les commandes globales uniquement (accessibles partout)
             await self.tree.sync()

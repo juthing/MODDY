@@ -86,21 +86,72 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                 author_mention = f"Unknown User (`{msg_data['author_id']}`)"
 
             # Crée le rapport avec Components V2
-            class ReportView(discord.ui.LayoutView):
-                def __init__(self, bot, moddy_id: str, reporter_id: int):
+            class ReportView(BaseView):
+                def __init__(self, bot, moddy_id: str, reporter_id: int, author_mention: str, guild_name: str, guild_id: int, reporter_mention: str, content: str):
                     super().__init__()
                     self.bot = bot
                     self.moddy_id = moddy_id
                     self.reporter_id = reporter_id
                     self.claimed_by = None
+                    self.author_mention = author_mention
+                    self.guild_name = guild_name
+                    self.guild_id = guild_id
+                    self.reporter_mention = reporter_mention
+                    self.content = content
 
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"### <:warning:1398729560895422505> Inter-Server Report"),
-                    discord.ui.TextDisplay(content=f"**Moddy ID:** `{moddy_id}`\n**Author:** {author_mention}\n**Server:** {interaction.guild.name} (`{interaction.guild.id}`)\n**Reported by:** {interaction.user.mention} (`{interaction.user.id}`)\n**Content:**\n{msg_data['content'][:1000] if msg_data['content'] else '*No content*'}"),
-                )
+                    self._build_view()
 
-                @discord.ui.button(label="Claim", style=discord.ButtonStyle.primary, emoji="👋")
-                async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                def _build_view(self):
+                    """Construit la vue avec containers et boutons"""
+                    # Clear items
+                    self.clear_items()
+
+                    # Container avec les informations
+                    container = ui.Container(
+                        ui.TextDisplay(content=f"### <:warning:1398729560895422505> Inter-Server Report"),
+                        ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {self.author_mention}\n**Server:** {self.guild_name} (`{self.guild_id}`)\n**Reported by:** {self.reporter_mention}\n{f'**Claimed by:** {self.claimed_by.mention}' if self.claimed_by else ''}\n**Content:**\n{self.content[:1000] if self.content else '*No content*'}"),
+                    )
+                    self.add_item(container)
+
+                    # ActionRow avec les boutons
+                    button_row = ui.ActionRow()
+
+                    # Claim button
+                    claim_btn = ui.Button(
+                        label="Claim",
+                        style=discord.ButtonStyle.primary,
+                        emoji="👋",
+                        custom_id="claim_btn",
+                        disabled=self.claimed_by is not None
+                    )
+                    claim_btn.callback = self.on_claim
+                    button_row.add_item(claim_btn)
+
+                    # Processed button
+                    processed_btn = ui.Button(
+                        label="Processed",
+                        style=discord.ButtonStyle.success,
+                        emoji="✅",
+                        custom_id="processed_btn",
+                        disabled=self.claimed_by is None
+                    )
+                    processed_btn.callback = self.on_processed
+                    button_row.add_item(processed_btn)
+
+                    # Skip button
+                    skip_btn = ui.Button(
+                        label="Skip",
+                        style=discord.ButtonStyle.secondary,
+                        emoji="⏭️",
+                        custom_id="skip_btn",
+                        disabled=self.claimed_by is not None
+                    )
+                    skip_btn.callback = self.on_skip
+                    button_row.add_item(skip_btn)
+
+                    self.add_item(button_row)
+
+                async def on_claim(self, interaction: discord.Interaction):
                     """Permet à un modérateur de claim le rapport"""
                     # Vérifie les permissions
                     from utils.staff_permissions import staff_permissions, StaffRole
@@ -116,36 +167,16 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                         return
 
                     self.claimed_by = interaction.user
-
-                    # Met à jour le message
-                    self.container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=f"### <:warning:1398729560895422505> Inter-Server Report"),
-                        discord.ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {author_mention}\n**Server:** {interaction.guild.name} (`{interaction.guild.id}`)\n**Reported by:** <@{self.reporter_id}> (`{self.reporter_id}`)\n**Claimed by:** {interaction.user.mention}\n**Content:**\n{msg_data['content'][:1000] if msg_data['content'] else '*No content*'}"),
-                    )
-
-                    # Désactive le bouton claim et active le bouton processed
-                    button.disabled = True
-                    self.skip_button.disabled = True
-
+                    self._build_view()
                     await interaction.response.edit_message(view=self)
 
-                @discord.ui.button(label="Processed", style=discord.ButtonStyle.success, emoji="✅", disabled=True)
-                async def processed_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def on_processed(self, interaction: discord.Interaction):
                     """Marque le rapport comme traité avec un formulaire pour les actions prises"""
-                    # Vérifie si le rapport a été claim
-                    if not self.claimed_by:
-                        await interaction.response.send_message(
-                            "Please claim the report first before marking it as processed.",
-                            ephemeral=True
-                        )
-                        return
-
                     # Ouvre un modal pour les actions prises
                     modal = ProcessedModal(self.moddy_id)
                     await interaction.response.send_modal(modal)
 
-                @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary, emoji="⏭️")
-                async def skip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def on_skip(self, interaction: discord.Interaction):
                     """Skip le rapport sans raison"""
                     # Vérifie les permissions
                     from utils.staff_permissions import staff_permissions, StaffRole
@@ -159,21 +190,27 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                         )
                         return
 
-                    # Met à jour le message
-                    self.container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=f"### <:warning:1398729560895422505> Inter-Server Report - Skipped"),
-                        discord.ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Skipped by:** {interaction.user.mention}\n**Reason:** No action required"),
+                    # Clear and rebuild view with skipped message
+                    self.clear_items()
+                    container = ui.Container(
+                        ui.TextDisplay(content=f"### <:warning:1398729560895422505> Inter-Server Report - Skipped"),
+                        ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Skipped by:** {interaction.user.mention}\n**Reason:** No action required"),
                     )
-
-                    # Désactive tous les boutons
-                    for item in self.children:
-                        if isinstance(item, discord.ui.Button):
-                            item.disabled = True
+                    self.add_item(container)
 
                     await interaction.response.edit_message(view=self)
 
             # Envoie le rapport
-            report_view = ReportView(self.bot, moddy_id, interaction.user.id)
+            report_view = ReportView(
+                self.bot,
+                moddy_id,
+                interaction.user.id,
+                author_mention,
+                interaction.guild.name,
+                interaction.guild.id,
+                interaction.user.mention,
+                msg_data['content']
+            )
             await report_channel.send(view=report_view)
 
             # Confirme à l'utilisateur
