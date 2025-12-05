@@ -454,29 +454,89 @@ class InterServerModule(ModuleBase):
                 logger.warning(f"Could not find log channel {log_channel_id}")
                 return
 
-            # Prépare les informations
-            author_info = f"{message.author.mention} (`{message.author.id}`)"
+            # Prépare les informations (SANS mentions pour éviter les pings)
+            author_info = f"{message.author.name} (`{message.author.id}`)"
             server_info = f"{message.guild.name} (`{message.guild.id}`)"
             content_preview = message.content[:500] if message.content else "*No content*"
 
             # Crée le message de log avec Components V2
-            from discord.ui import LayoutView, Container, TextDisplay
+            from discord import ui as discord_ui
 
-            class StaffLogView(discord.ui.LayoutView):
-                def __init__(self, bot, moddy_id: str, message: discord.Message):
+            class StaffLogView(discord_ui.LayoutView):
+                def __init__(self, bot, moddy_id: str, message: discord.Message, author_info: str, server_info: str, content_preview: str, success_count: int, total_count: int, is_moddy_team: bool):
                     super().__init__()
                     self.bot = bot
                     self.moddy_id = moddy_id
                     self.message = message
                     self.claimed_by = None
+                    self.author_info = author_info
+                    self.server_info = server_info
+                    self.content_preview = content_preview
+                    self.success_count = success_count
+                    self.total_count = total_count
+                    self.is_moddy_team = is_moddy_team
 
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"### <:groups:1446127489842806967> New Inter-Server Message"),
-                    discord.ui.TextDisplay(content=f"**Moddy ID:** `{moddy_id}`\n**Author:** {author_info}\n**Server:** {server_info}\n**Relayed:** {success_count}/{total_count} servers\n**Moddy Team:** {'✅ Yes' if is_moddy_team else '❌ No'}\n**Time:** <t:{int(datetime.now(timezone.utc).timestamp())}:R>\n\n**Content:**\n{content_preview}"),
-                )
+                    self._build_view()
 
-                @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger, emoji="🗑️")
-                async def delete_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                def _build_view(self):
+                    """Construit la vue avec containers et boutons"""
+                    self.clear_items()
+
+                    # Container avec les informations
+                    container = discord_ui.Container(
+                        discord_ui.TextDisplay(content=f"### <:groups:1446127489842806967> New Inter-Server Message"),
+                        discord_ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {self.author_info}\n**Server:** {self.server_info}\n**Relayed:** {self.success_count}/{self.total_count} servers\n**Moddy Team:** {'✅ Yes' if self.is_moddy_team else '❌ No'}\n**Time:** <t:{int(datetime.now(timezone.utc).timestamp())}:R>\n{f'**Claimed by:** {self.claimed_by.name}' if self.claimed_by else ''}\n\n**Content:**\n{self.content_preview}"),
+                    )
+                    self.add_item(container)
+
+                    # ActionRow avec les boutons
+                    button_row = discord_ui.ActionRow()
+
+                    # Delete button
+                    delete_btn = discord_ui.Button(
+                        label="Delete",
+                        style=discord.ButtonStyle.danger,
+                        emoji="🗑️",
+                        custom_id="delete_btn"
+                    )
+                    delete_btn.callback = self.on_delete
+                    button_row.add_item(delete_btn)
+
+                    # Invite Link button
+                    invite_btn = discord_ui.Button(
+                        label="Invite Link",
+                        style=discord.ButtonStyle.secondary,
+                        emoji="🔗",
+                        custom_id="invite_btn"
+                    )
+                    invite_btn.callback = self.on_invite
+                    button_row.add_item(invite_btn)
+
+                    # Claim button
+                    claim_btn = discord_ui.Button(
+                        label="Claim",
+                        style=discord.ButtonStyle.primary,
+                        emoji="👋",
+                        custom_id="claim_btn",
+                        disabled=self.claimed_by is not None
+                    )
+                    claim_btn.callback = self.on_claim
+                    button_row.add_item(claim_btn)
+
+                    # Processed button
+                    processed_btn = discord_ui.Button(
+                        label="Processed",
+                        style=discord.ButtonStyle.success,
+                        emoji="✅",
+                        custom_id="processed_btn",
+                        disabled=self.claimed_by is None
+                    )
+                    processed_btn.callback = self.on_processed
+                    button_row.add_item(processed_btn)
+
+                    self.add_item(button_row)
+
+                async def on_delete(self, interaction: discord.Interaction):
                     """Supprime le message inter-serveur"""
                     # Vérifie les permissions
                     from utils.staff_permissions import staff_permissions, StaffRole
@@ -517,20 +577,16 @@ class InterServerModule(ModuleBase):
                     await self.bot.db.delete_interserver_message(self.moddy_id)
 
                     # Met à jour le log
-                    self.container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=f"### <:delete:1401600770431909939> Message Deleted"),
-                        discord.ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Deleted by:** {interaction.user.mention}\n**Messages deleted:** {deleted_count}"),
+                    self.clear_items()
+                    container = discord_ui.Container(
+                        discord_ui.TextDisplay(content=f"### <:delete:1401600770431909939> Message Deleted"),
+                        discord_ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Deleted by:** {interaction.user.name}\n**Messages deleted:** {deleted_count}"),
                     )
-
-                    # Désactive tous les boutons
-                    for item in self.children:
-                        if isinstance(item, discord.ui.Button):
-                            item.disabled = True
+                    self.add_item(container)
 
                     await interaction.response.edit_message(view=self)
 
-                @discord.ui.button(label="Invite Link", style=discord.ButtonStyle.secondary, emoji="🔗")
-                async def invite_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def on_invite(self, interaction: discord.Interaction):
                     """Crée un lien d'invitation vers le serveur"""
                     # Vérifie les permissions
                     from utils.staff_permissions import staff_permissions, StaffRole
@@ -572,8 +628,7 @@ class InterServerModule(ModuleBase):
                             ephemeral=True
                         )
 
-                @discord.ui.button(label="Claim", style=discord.ButtonStyle.primary, emoji="👋")
-                async def claim_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def on_claim(self, interaction: discord.Interaction):
                     """Claim le message pour investigation"""
                     # Vérifie les permissions
                     from utils.staff_permissions import staff_permissions, StaffRole
@@ -588,36 +643,19 @@ class InterServerModule(ModuleBase):
                         return
 
                     self.claimed_by = interaction.user
-
-                    # Met à jour le log
-                    self.container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=f"### <:groups:1446127489842806967> New Inter-Server Message - Claimed"),
-                        discord.ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {author_info}\n**Server:** {server_info}\n**Claimed by:** {interaction.user.mention}\n**Relayed:** {success_count}/{total_count} servers\n**Time:** <t:{int(datetime.now(timezone.utc).timestamp())}:R>\n\n**Content:**\n{content_preview}"),
-                    )
-
-                    # Désactive le bouton claim
-                    button.disabled = True
-
+                    self._build_view()
                     await interaction.response.edit_message(view=self)
 
-                @discord.ui.button(label="Processed", style=discord.ButtonStyle.success, emoji="✅", disabled=True)
-                async def processed_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                async def on_processed(self, interaction: discord.Interaction):
                     """Marque comme traité avec un formulaire"""
-                    if not self.claimed_by:
-                        await interaction.response.send_message(
-                            "Please claim the message first before marking it as processed.",
-                            ephemeral=True
-                        )
-                        return
-
                     # Ouvre un modal pour les actions prises
                     from cogs.interserver_commands import ProcessedModal
                     modal = ProcessedModal(self.moddy_id)
                     await interaction.response.send_modal(modal)
 
             # Envoie le log
-            log_view = StaffLogView(self.bot, moddy_id, message)
-            await log_channel.send(view=log_view)
+            log_view = StaffLogView(self.bot, moddy_id, message, author_info, server_info, content_preview, success_count, total_count, is_moddy_team)
+            await log_channel.send(view=log_view, allowed_mentions=discord.AllowedMentions.none())
 
         except Exception as e:
             logger.error(f"Error sending staff log: {e}", exc_info=True)
