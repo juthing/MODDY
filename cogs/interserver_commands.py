@@ -34,7 +34,6 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         name="report",
         description="Report an inter-server message to the moderation team"
     )
-    @app_commands.guild_only()
     @app_commands.describe(
         moddy_id="The Moddy ID of the message to report (format: XXXX-XXXX)"
     )
@@ -197,7 +196,6 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         name="info",
         description="Get information about an inter-server message"
     )
-    @app_commands.guild_only()
     @app_commands.describe(
         moddy_id="The Moddy ID of the message to get info about",
         incognito="Hide your identity in the request (default: False)"
