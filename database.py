@@ -1258,7 +1258,7 @@ class ModdyDatabase:
         created_by: int,
         evidence: Optional[str] = None,
         duration: Optional[int] = None
-    ) -> int:
+    ) -> str:
         """
         Create a new moderation case
 
@@ -1273,23 +1273,37 @@ class ModdyDatabase:
             duration: Duration in seconds for timeout (optional)
 
         Returns:
-            case_id: ID of the created case
+            case_id: ID of the created case (hex format)
         """
+        import secrets
+
         async with self.pool.acquire() as conn:
-            row = await conn.fetchrow("""
+            # Generate a unique hex ID
+            while True:
+                case_id = secrets.token_hex(4).upper()  # 8 characters
+
+                # Check if ID already exists
+                exists = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM moderation_cases WHERE case_id = $1)",
+                    case_id
+                )
+
+                if not exists:
+                    break
+
+            await conn.execute("""
                 INSERT INTO moderation_cases (
-                    case_type, sanction_type, entity_type, entity_id,
+                    case_id, case_type, sanction_type, entity_type, entity_id,
                     reason, evidence, duration, created_by, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-                RETURNING case_id
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
             """,
-                case_type, sanction_type, entity_type, entity_id,
+                case_id, case_type, sanction_type, entity_type, entity_id,
                 reason, evidence, duration, created_by
             )
-            return row['case_id']
+            return case_id
 
-    async def get_moderation_case(self, case_id: int) -> Optional[Dict[str, Any]]:
+    async def get_moderation_case(self, case_id: str) -> Optional[Dict[str, Any]]:
         """Get a moderation case by ID"""
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -1410,7 +1424,7 @@ class ModdyDatabase:
 
     async def update_moderation_case(
         self,
-        case_id: int,
+        case_id: str,
         updated_by: int,
         reason: Optional[str] = None,
         evidence: Optional[str] = None,
@@ -1462,7 +1476,7 @@ class ModdyDatabase:
 
     async def close_moderation_case(
         self,
-        case_id: int,
+        case_id: str,
         closed_by: int,
         close_reason: Optional[str] = None
     ) -> bool:
@@ -1487,7 +1501,7 @@ class ModdyDatabase:
 
     async def add_case_note(
         self,
-        case_id: int,
+        case_id: str,
         staff_id: int,
         note: str
     ) -> bool:
