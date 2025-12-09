@@ -292,7 +292,7 @@ class ModdyDatabase:
             # Table des cases de modération
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS moderation_cases (
-                    case_id SERIAL PRIMARY KEY,
+                    case_id VARCHAR(8) PRIMARY KEY,
                     case_type VARCHAR(20) NOT NULL,
                     sanction_type VARCHAR(50) NOT NULL,
                     entity_type VARCHAR(10) NOT NULL CHECK (entity_type IN ('user', 'guild')),
@@ -310,6 +310,32 @@ class ModdyDatabase:
                     closed_at TIMESTAMPTZ,
                     close_reason TEXT
                 )
+            """)
+
+            # Migration: Convert case_id from SERIAL to VARCHAR(8)
+            await conn.execute("""
+                DO $$
+                BEGIN
+                    -- Check if case_id is still an integer type
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'moderation_cases'
+                        AND column_name = 'case_id'
+                        AND data_type IN ('integer', 'bigint')
+                    ) THEN
+                        -- Drop all existing cases (they use old system)
+                        TRUNCATE TABLE moderation_cases;
+
+                        -- Drop the sequence if it exists
+                        DROP SEQUENCE IF EXISTS moderation_cases_case_id_seq CASCADE;
+
+                        -- Alter the column type
+                        ALTER TABLE moderation_cases
+                        ALTER COLUMN case_id TYPE VARCHAR(8);
+
+                        RAISE NOTICE 'Migrated case_id from SERIAL to VARCHAR(8)';
+                    END IF;
+                END $$;
             """)
 
             await conn.execute("""
