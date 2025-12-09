@@ -295,99 +295,27 @@ class TeamCommands(StaffCommandsCog):
 
     async def handle_help_command(self, message: discord.Message, args: str):
         """
-        Handle t.help command - Show available team commands
+        Handle t.help command - Show interactive help menu
         Usage: <@1373916203814490194> t.help
         """
         # Log the command
         if staff_logger:
             await staff_logger.log_command("t", "help", message.author)
 
-        # Get user roles to show relevant commands
-        user_roles = await staff_permissions.get_user_roles(message.author.id)
+        # Import the help view
+        from utils.staff_help_view import create_help_view
 
-        fields = []
+        # Create help view for user
+        view = await create_help_view(self.bot, message.author.id)
 
-        # Team commands (available to all staff)
-        team_commands = [
-            ("t.help", "Show this help message"),
-            ("t.invite [server_id]", "Get an invite link to a server"),
-            ("t.serverinfo [server_id]", "Get detailed information about a server"),
-            ("t.mutualserver [user_id]", "View mutual servers with a user and their permissions"),
-            ("t.user [user_id]", "Get detailed information about a user"),
-            ("t.server [server_id]", "Get detailed information about a server"),
-            ("t.flex", "Prove you are a member of the Moddy team")
-        ]
-
-        fields.append({
-            'name': f"{EMOJIS['commands']} Team Commands (All Staff)",
-            'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in team_commands])
-        })
-
-        # Management commands
-        if await staff_permissions.can_use_command_type(message.author.id, CommandType.MANAGEMENT):
-            mgmt_commands = [
-                ("m.rank @user", "Add a user to the staff team"),
-                ("m.setstaff @user", "Manage staff member permissions"),
-                ("m.stafflist", "List all staff members"),
-                ("m.staffinfo [@user]", "Show staff member information")
-            ]
-
-            fields.append({
-                'name': "👑 Management Commands",
-                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mgmt_commands])
-            })
-
-        # Developer commands
-        if await staff_permissions.can_use_command_type(message.author.id, CommandType.DEV):
-            dev_commands = [
-                ("d.reload [extension]", "Reload bot extensions"),
-                ("d.shutdown", "Shutdown the bot"),
-                ("d.stats", "Show bot statistics"),
-                ("d.sql [query]", "Execute SQL query"),
-                ("d.jsk [code]", "Execute Python code"),
-                ("d.error [error_code]", "Get detailed error information")
-            ]
-
-            fields.append({
-                'name': f"{EMOJIS['dev']} Developer Commands",
-                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in dev_commands])
-            })
-
-        # Moderator commands
-        if await staff_permissions.can_use_command_type(message.author.id, CommandType.MODERATOR):
-            mod_commands = [
-                ("mod.blacklist @user [reason]", "Blacklist a user"),
-                ("mod.unblacklist @user [reason]", "Remove user from blacklist"),
-                ("mod.interserver_info [moddy_id]", "Get inter-server message info"),
-                ("mod.interserver_delete [moddy_id]", "Delete inter-server message"),
-                ("mod.interserver_blacklist @user [reason]", "Blacklist user from inter-server"),
-                ("mod.interserver_unblacklist @user [reason]", "Remove inter-server blacklist")
-            ]
-
-            fields.append({
-                'name': "🛡️ Moderator Commands",
-                'value': "\n".join([f"`<@1373916203814490194> {cmd}` - {desc}" for cmd, desc in mod_commands])
-            })
-
-        # Support commands
-        if await staff_permissions.can_use_command_type(message.author.id, CommandType.SUPPORT):
-            fields.append({
-                'name': "🎧 Support Commands",
-                'value': "Support commands are in development."
-            })
-
-        # Communication commands
-        if await staff_permissions.can_use_command_type(message.author.id, CommandType.COMMUNICATION):
-            fields.append({
-                'name': "💬 Communication Commands",
-                'value': "Communication commands are in development."
-            })
-
-        view = create_info_message(
-            "MODDY Staff Commands",
-            "Available staff commands based on your permissions.",
-            fields=fields
-        )
+        if not view:
+            # User is not a staff member
+            error_view = create_error_message(
+                "Not a Staff Member",
+                "You don't have access to staff commands."
+            )
+            await message.reply(view=error_view, mention_author=False)
+            return
 
         await self.reply_with_tracking(message, view)
 
