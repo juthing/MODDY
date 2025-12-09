@@ -3,7 +3,7 @@ Staff Help View - Interactive help system with category selection
 """
 
 import discord
-from discord import ui
+from discord.ui import Container, TextDisplay, ActionRow, Select
 from typing import List, Dict, Optional
 import logging
 
@@ -113,16 +113,16 @@ class StaffHelpView(BaseView):
         """Build the view with category selector and command list"""
         self.clear_items()
 
-        container = ui.Container()
+        container = Container()
 
         # Title
-        container.add_item(ui.TextDisplay(
+        container.add_item(TextDisplay(
             f"### {EMOJIS['book']} MODDY Staff Help\n"
             f"-# Select a command category below"
         ))
 
         # Category selector
-        select_row = ui.ActionRow()
+        select_row = ActionRow()
 
         # Build options - only show categories the user has access to
         options = []
@@ -141,13 +141,13 @@ class StaffHelpView(BaseView):
 
         if not options:
             # User has no staff roles - shouldn't happen but handle it
-            container.add_item(ui.TextDisplay(
+            container.add_item(TextDisplay(
                 f"{EMOJIS['error']} You don't have access to any staff commands."
             ))
             self.add_item(container)
             return
 
-        category_select = ui.Select(
+        category_select = Select(
             placeholder="Select a command category...",
             options=options,
             max_values=1
@@ -161,7 +161,7 @@ class StaffHelpView(BaseView):
             category_data = COMMAND_CATEGORIES[self.selected_category]
 
             # Category title and description
-            container.add_item(ui.TextDisplay(
+            container.add_item(TextDisplay(
                 f"\n**{category_data['emoji']} {category_data['name']}**\n"
                 f"{category_data['description']}"
             ))
@@ -175,7 +175,7 @@ class StaffHelpView(BaseView):
                 else:
                     commands_text.append(f"*{cmd}*: {desc}")
 
-            container.add_item(ui.TextDisplay("\n\n".join(commands_text)))
+            container.add_item(TextDisplay("\n\n".join(commands_text)))
 
         self.add_item(container)
 
