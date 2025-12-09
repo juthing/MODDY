@@ -685,8 +685,14 @@ class InterServerModule(ModuleBase):
             return
 
         try:
-            # Vérifie si l'utilisateur est blacklisté de l'inter-serveur
-            if await self.bot.db.has_attribute('user', message.author.id, 'INTERSERVER_BLACKLISTED'):
+            # Vérifie si l'utilisateur est blacklisté de l'inter-serveur via le système de cases
+            from utils.moderation_cases import SanctionType
+            is_blacklisted = await self.bot.db.has_active_sanction(
+                'user',
+                message.author.id,
+                SanctionType.INTERSERVER_BLACKLIST.value
+            )
+            if is_blacklisted:
                 await message.add_reaction("<:undone:1398729502028333218>")
                 await message.channel.send(
                     f"{message.author.mention} You are blacklisted from using the inter-server system.",
