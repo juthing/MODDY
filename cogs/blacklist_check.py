@@ -96,10 +96,16 @@ class BlacklistCheck(commands.Cog):
         if user_id in self.blacklist_cache:
             return self.blacklist_cache[user_id]
 
-        # Sinon vérifie la DB
+        # Sinon vérifie la DB - check for active GLOBAL_BLACKLIST case
         if self.bot.db:
             try:
-                is_bl = await self.bot.db.has_attribute('user', user_id, 'BLACKLISTED')
+                # Check if user has an active global blacklist case
+                from utils.moderation_cases import SanctionType
+                is_bl = await self.bot.db.has_active_sanction(
+                    'user',
+                    user_id,
+                    SanctionType.GLOBAL_BLACKLIST.value
+                )
                 self.blacklist_cache[user_id] = is_bl
                 return is_bl
             except:
