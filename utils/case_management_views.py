@@ -362,32 +362,36 @@ class CaseSelectionView(BaseView):
 
         # Title
         entity_icon = EMOJIS['user'] if self.entity_type == EntityType.USER else "🏰"
-        container.add_item(ui.TextDisplay(f"### {EMOJIS['settings']} Create Moderation Case"))
         container.add_item(ui.TextDisplay(
+            f"### {EMOJIS['settings']} Create Moderation Case\n"
             f"**Target:** {entity_icon} {self.entity_name}\n"
             f"-# Select case type and sanction below"
         ))
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Case type selection
         case_type_row = ui.ActionRow()
+
+        # Build options with default value if selected
+        case_type_options = [
+            discord.SelectOption(
+                label="Inter-Server",
+                value="interserver",
+                description="Inter-server chat sanctions",
+                emoji="🌐",
+                default=(self.selected_case_type == CaseType.INTERSERVER if self.selected_case_type else False)
+            ),
+            discord.SelectOption(
+                label="Global Bot",
+                value="global",
+                description="Global bot usage sanctions",
+                emoji="🤖",
+                default=(self.selected_case_type == CaseType.GLOBAL if self.selected_case_type else False)
+            )
+        ]
+
         case_type_select = ui.Select(
             placeholder="Select case type...",
-            options=[
-                discord.SelectOption(
-                    label="Inter-Server",
-                    value="interserver",
-                    description="Inter-server chat sanctions",
-                    emoji="🌐"
-                ),
-                discord.SelectOption(
-                    label="Global Bot",
-                    value="global",
-                    description="Global bot usage sanctions",
-                    emoji="🤖"
-                )
-            ],
+            options=case_type_options,
             max_values=1
         )
         case_type_select.callback = self.on_case_type_select
@@ -396,21 +400,22 @@ class CaseSelectionView(BaseView):
 
         # Show sanction selection if case type is selected
         if self.selected_case_type:
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
             sanction_row = ui.ActionRow()
             available_sanctions = get_available_sanctions(self.selected_case_type)
 
+            sanction_options = [
+                discord.SelectOption(
+                    label=get_sanction_name(sanction),
+                    value=sanction.value,
+                    emoji=get_sanction_emoji(sanction),
+                    default=(self.selected_sanction_type == sanction if self.selected_sanction_type else False)
+                )
+                for sanction in available_sanctions
+            ]
+
             sanction_select = ui.Select(
                 placeholder="Select sanction type...",
-                options=[
-                    discord.SelectOption(
-                        label=get_sanction_name(sanction),
-                        value=sanction.value,
-                        emoji=get_sanction_emoji(sanction)
-                    )
-                    for sanction in available_sanctions
-                ],
+                options=sanction_options,
                 max_values=1
             )
             sanction_select.callback = self.on_sanction_select
@@ -419,8 +424,6 @@ class CaseSelectionView(BaseView):
 
         # Create button (enabled only when both selections are made)
         if self.selected_case_type and self.selected_sanction_type:
-            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
             button_row = ui.ActionRow()
             create_button = ui.Button(
                 label="Create Case",
@@ -481,7 +484,7 @@ class CaseSelectionView(BaseView):
             ephemeral=True
         )
 
-    async def on_case_created(self, interaction: discord.Interaction, case_id: int):
+    async def on_case_created(self, interaction: discord.Interaction, case_id: str):
         """Callback after case is created"""
         # Get the created case
         case = await db.get_moderation_case(case_id)

@@ -121,7 +121,7 @@ class ModerationCase:
 
     def __init__(
         self,
-        case_id: int,
+        case_id: str,
         case_type: CaseType,
         sanction_type: SanctionType,
         entity_type: EntityType,

@@ -69,20 +69,28 @@ class CaseCommands(StaffCommandsCog):
             return
 
         # Route to appropriate subcommand
-        subcommand = command_name.replace("case", "").strip("_")
+        # Extract subcommand from args if it's in the format "mod.case <subcommand> <args>"
+        parts = args.split(maxsplit=1)
+        if parts and parts[0] in ["create", "view", "list", "edit", "close", "note"]:
+            subcommand = parts[0]
+            remaining_args = parts[1] if len(parts) > 1 else ""
+        else:
+            # No subcommand, treat as create
+            subcommand = "create"
+            remaining_args = args
 
-        if not subcommand or subcommand == "create":
-            await self.handle_case_create(message, args)
+        if subcommand == "create":
+            await self.handle_case_create(message, remaining_args)
         elif subcommand == "view":
-            await self.handle_case_view(message, args)
+            await self.handle_case_view(message, remaining_args)
         elif subcommand == "list":
-            await self.handle_case_list(message, args)
+            await self.handle_case_list(message, remaining_args)
         elif subcommand == "edit":
-            await self.handle_case_edit(message, args)
+            await self.handle_case_edit(message, remaining_args)
         elif subcommand == "close":
-            await self.handle_case_close(message, args)
+            await self.handle_case_close(message, remaining_args)
         elif subcommand == "note":
-            await self.handle_case_note(message, args)
+            await self.handle_case_note(message, remaining_args)
         else:
             view = create_error_message(
                 "Unknown Subcommand",
@@ -206,10 +214,10 @@ class CaseCommands(StaffCommandsCog):
             await message.reply(view=view, mention_author=False)
             return
 
-        try:
-            case_id = int(args.strip())
-        except ValueError:
-            view = create_error_message("Invalid Case ID", "Case ID must be a number.")
+        case_id = args.strip().upper()
+
+        if not case_id or len(case_id) != 8:
+            view = create_error_message("Invalid Case ID", "Case ID must be an 8-character hex code (e.g., DAEABDF6).")
             await message.reply(view=view, mention_author=False)
             return
 
@@ -410,10 +418,10 @@ class CaseCommands(StaffCommandsCog):
             await message.reply(view=view, mention_author=False)
             return
 
-        try:
-            case_id = int(args.strip())
-        except ValueError:
-            view = create_error_message("Invalid Case ID", "Case ID must be a number.")
+        case_id = args.strip().upper()
+
+        if not case_id or len(case_id) != 8:
+            view = create_error_message("Invalid Case ID", "Case ID must be an 8-character hex code (e.g., DAEABDF6).")
             await message.reply(view=view, mention_author=False)
             return
 
@@ -478,10 +486,10 @@ class CaseCommands(StaffCommandsCog):
             await message.reply(view=view, mention_author=False)
             return
 
-        try:
-            case_id = int(args.strip())
-        except ValueError:
-            view = create_error_message("Invalid Case ID", "Case ID must be a number.")
+        case_id = args.strip().upper()
+
+        if not case_id or len(case_id) != 8:
+            view = create_error_message("Invalid Case ID", "Case ID must be an 8-character hex code (e.g., DAEABDF6).")
             await message.reply(view=view, mention_author=False)
             return
 
@@ -529,10 +537,10 @@ class CaseCommands(StaffCommandsCog):
             await message.reply(view=view, mention_author=False)
             return
 
-        try:
-            case_id = int(args.strip())
-        except ValueError:
-            view = create_error_message("Invalid Case ID", "Case ID must be a number.")
+        case_id = args.strip().upper()
+
+        if not case_id or len(case_id) != 8:
+            view = create_error_message("Invalid Case ID", "Case ID must be an 8-character hex code (e.g., DAEABDF6).")
             await message.reply(view=view, mention_author=False)
             return
 
