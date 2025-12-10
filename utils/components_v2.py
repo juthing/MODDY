@@ -12,6 +12,7 @@ from typing import List, Optional, Dict
 EMOJIS = {
     'done': '<:done:1398729525277229066>',
     'undone': '<:undone:1398729502028333218>',
+    'error': '<:undone:1398729502028333218>',  # Alias for error
     'info': '<:info:1401614681440784477>',
     'sync': '<:sync:1398729150885269546>',
     'user': '<:user:1398729712204779571>',
@@ -26,10 +27,13 @@ EMOJIS = {
     'history': '<:history:1401600464587456512>',
     'delete': '<:delete:1401600770431909939>',
     'commands': '<:commands:1401610449136648283>',
+    'book': '<:commands:1401610449136648283>',  # Alias for book/help
     'code': '<:code:1401610523803652196>',
     'bug': '<:bug:1401614189482475551>',
     'logout': '<:logout:1401603690858676224>',
     'verified': '<:verified:1398729677601902635>',
+    'next': '▶️',  # Standard emoji
+    'back': '◀️',  # Standard emoji
     # Staff badges
     'supportagent_badge': '<:supportagent_badge:1437514361861177350>',
     'moderator_badge': '<:moderator_badge:1437514357230796891>',
