@@ -98,11 +98,9 @@ class StarboardConfigView(BaseView):
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Channel selector
+        # Channel selector (Required field)
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.starboard.config.channel.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
+            f"**{t('modules.starboard.config.channel.section_title', locale=self.locale)}**<:required_fields:1446549185385074769>\n"
             f"-# {t('modules.starboard.config.channel.section_description', locale=self.locale)}"
         ))
 
@@ -124,16 +122,10 @@ class StarboardConfigView(BaseView):
         channel_row.add_item(channel_select)
         container.add_item(channel_row)
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Reaction count configuration
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.starboard.config.reaction_count.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
-            f"-# {t('modules.starboard.config.reaction_count.section_description', locale=self.locale)}"
-        ))
-        container.add_item(ui.TextDisplay(
+            f"**{t('modules.starboard.config.reaction_count.section_title', locale=self.locale)}**\n"
+            f"-# {t('modules.starboard.config.reaction_count.section_description', locale=self.locale)}\n"
             f"-# {t('modules.config.current_value', locale=self.locale)} **{self.working_config['reaction_count']}** {self.working_config['emoji']}"
         ))
 
