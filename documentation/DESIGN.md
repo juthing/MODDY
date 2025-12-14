@@ -121,24 +121,52 @@ Title <:emoji:id> (emoji after title)
 
 ---
 
-### **Section Headers**
+### **Configuration Panel Structure**
 
-For subsections within containers, use **bold text** with emoji:
+All configuration panels must follow this exact structure:
 
-**Format:**
-```
-**Section Title**<:emoji:id>
-```
-
-**Example:**
 ```python
+# 1. Title with emoji
 container.add_item(ui.TextDisplay(
-    f"**Channel Settings**<:required_fields:1446549185385074769>\n"
-    f"-# Select the channel for inter-server communication"
+    f"### <:emoji:id> This is a configuration"
 ))
+
+# 2. Module description
+container.add_item(ui.TextDisplay(
+    "Description of what this module does"
+))
+
+# 3. Separator
+container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+# 4. Field 1
+container.add_item(ui.TextDisplay(
+    f"**Field Number 1**<:required_fields:1446549185385074769>\n"  # Add emoji if required
+    f"-# Description of field number 1"
+))
+# Add select/button/input for field 1
+channel_row = ui.ActionRow()
+# ... add interactive element ...
+container.add_item(channel_row)
+
+# 5. Field 2
+container.add_item(ui.TextDisplay(
+    f"**Field Number 2**\n"  # No emoji if optional
+    f"-# Description of field number 2"
+))
+# Add select/button/input for field 2
+option_row = ui.ActionRow()
+# ... add interactive element ...
+container.add_item(option_row)
+
+# Continue for all fields...
 ```
 
-**Note:** Required fields are marked with `<:required_fields:1446549185385074769>` emoji.
+**Important Notes:**
+- Required fields: Add `<:required_fields:1446549185385074769>` emoji after the field title
+- Optional fields: No emoji needed
+- Each field has: **Bold title** + emoji (if required) + newline + `-#` description
+- Interactive element (select/button) goes right after the description
 
 ---
 
