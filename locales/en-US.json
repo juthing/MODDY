@@ -172,7 +172,7 @@
         "generic": "<:undone:1398729502028333218> **Error**\n\nAn error occurred: `{error}`"
       }
     },
-"reminder": {
+    "reminder": {
       "description": "Add a new reminder",
       "manage_description": "Manage your reminders",
       "params": {
@@ -512,7 +512,9 @@
         "title": "Welcome Channel Configuration",
         "description": "Configure the welcome message sent in a public channel when a new member joins the server.",
         "channel": {
-          "placeholder": "Select a channel"
+          "placeholder": "Select a channel",
+          "section_title": "Welcome channel",
+          "section_description": "Select the channel where welcome messages will be sent"
         },
         "message": {
           "section_title": "Welcome message",
