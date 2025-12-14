@@ -172,7 +172,7 @@
         "generic": "<:undone:1398729502028333218> **Erreur**\n\nUne erreur est survenue : `{error}`"
       }
     },
-"reminder": {
+    "reminder": {
       "description": "Ajouter un nouveau rappel",
       "manage_description": "Gérer vos rappels",
       "params": {
@@ -511,7 +511,9 @@
         "title": "Configuration du Welcome Channel",
         "description": "Configurez le message de bienvenue envoyé dans un salon public quand un nouveau membre rejoint le serveur.",
         "channel": {
-          "placeholder": "Sélectionnez un salon"
+          "placeholder": "Sélectionnez un salon",
+          "section_title": "Salon de bienvenue",
+          "section_description": "Sélectionnez le salon où seront envoyés les messages de bienvenue"
         },
         "message": {
           "section_title": "Message de bienvenue",
