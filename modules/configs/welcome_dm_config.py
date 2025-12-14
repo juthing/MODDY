@@ -164,14 +164,10 @@ class WelcomeDmConfigView(BaseView):
 
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-        # Message configuration
+        # Message configuration (Required field)
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.welcome_dm.config.message.section_title', locale=self.locale)}**"
-        ))
-        container.add_item(ui.TextDisplay(
-            f"-# {t('modules.welcome_dm.config.message.section_description', locale=self.locale)}"
-        ))
-        container.add_item(ui.TextDisplay(
+            f"**{t('modules.welcome_dm.config.message.section_title', locale=self.locale)}**<:required_fields:1446549185385074769>\n"
+            f"-# {t('modules.welcome_dm.config.message.section_description', locale=self.locale)}\n"
             f"-# {t('modules.config.current_value', locale=self.locale)} `{self.working_config['message_template'][:100]}{'...' if len(self.working_config['message_template']) > 100 else ''}`"
         ))
 
@@ -189,11 +185,10 @@ class WelcomeDmConfigView(BaseView):
 
         container.add_item(message_row)
 
-        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
         # Embed toggle
         container.add_item(ui.TextDisplay(
-            f"**{t('modules.welcome_dm.config.embed.section_title', locale=self.locale)}**"
+            f"**{t('modules.welcome_dm.config.embed.section_title', locale=self.locale)}**\n"
+            f"-# {t('modules.welcome_dm.config.embed.section_description', locale=self.locale) if self.working_config['embed_enabled'] else t('modules.welcome_dm.config.embed.section_description', locale=self.locale)}"
         ))
 
         embed_toggle_row = ui.ActionRow()
@@ -209,10 +204,6 @@ class WelcomeDmConfigView(BaseView):
 
         # Embed options (only if embed enabled)
         if self.working_config['embed_enabled']:
-            container.add_item(ui.TextDisplay(
-                f"-# {t('modules.welcome_dm.config.embed.section_description', locale=self.locale)}"
-            ))
-
             # Buttons for title and color
             embed_row1 = ui.ActionRow()
 
