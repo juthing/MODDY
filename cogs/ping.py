@@ -51,10 +51,10 @@ class PublicPing(commands.Cog):
         api_latency = round(self.bot.latency * 1000)
 
         # Déterminer la qualité de la connexion et l'emoji de statut
-        if api_latency < 100:
+        if api_latency <= 150:
             status_emoji = "<:green_status:1450929035428495505>"
             status_key = "excellent"
-        elif api_latency < 200:
+        elif api_latency < 300:
             status_emoji = "<:yellow_status:1450929037542166669>"
             status_key = "good"
         else:
@@ -128,31 +128,26 @@ class PublicPing(commands.Cog):
         )
         container.add_item(TextDisplay(system_details))
 
-        # Separator avant les liens
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
+        view.add_item(container)
 
-        # Liens utiles
+        # Liens utiles (en dehors du container)
         links_row = ActionRow()
 
         support_btn = Button(
             label=t("commands.ping.buttons.support", interaction),
             style=discord.ButtonStyle.link,
-            url="https://moddy.app/support",
-            emoji=discord.PartialEmoji.from_str("<:support:1398734366670065726>")
+            url="https://moddy.app/support"
         )
         links_row.add_item(support_btn)
 
         status_btn = Button(
             label=t("commands.ping.buttons.status", interaction),
             style=discord.ButtonStyle.link,
-            url="https://moddy.app/status",
-            emoji=discord.PartialEmoji.from_str("<:web:1398729801061240883>")
+            url="https://moddy.app/status"
         )
         links_row.add_item(status_btn)
 
-        container.add_item(links_row)
-
-        view.add_item(container)
+        view.add_item(links_row)
 
         # Envoyer le message initial
         await interaction.response.send_message(view=view, ephemeral=ephemeral)
@@ -183,30 +178,26 @@ class PublicPing(commands.Cog):
         # Détails système
         container_updated.add_item(TextDisplay(system_details))
 
-        # Separator
-        container_updated.add_item(Separator(spacing=SeparatorSpacing.small))
+        view_updated.add_item(container_updated)
 
-        # Liens (recréer les boutons)
+        # Liens (recréer les boutons en dehors du container)
         links_row_updated = ActionRow()
 
         support_btn_updated = Button(
             label=t("commands.ping.buttons.support", interaction),
             style=discord.ButtonStyle.link,
-            url="https://moddy.app/support",
-            emoji=discord.PartialEmoji.from_str("<:support:1398734366670065726>")
+            url="https://moddy.app/support"
         )
         links_row_updated.add_item(support_btn_updated)
 
         status_btn_updated = Button(
             label=t("commands.ping.buttons.status", interaction),
             style=discord.ButtonStyle.link,
-            url="https://moddy.app/status",
-            emoji=discord.PartialEmoji.from_str("<:web:1398729801061240883>")
+            url="https://moddy.app/status"
         )
         links_row_updated.add_item(status_btn_updated)
 
-        container_updated.add_item(links_row_updated)
-        view_updated.add_item(container_updated)
+        view_updated.add_item(links_row_updated)
 
         # Modifier le message avec la latence réelle
         await interaction.edit_original_response(view=view_updated)
