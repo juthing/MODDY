@@ -19,8 +19,9 @@ from utils.i18n import i18n
 class EmojiView(BaseView):
     """View to display emoji information using Components V2"""
 
-    def __init__(self, emoji_data: dict, locale: str):
+    def __init__(self, emoji_data: dict, locale: str, bot=None):
         super().__init__(timeout=180)
+        self.bot = bot
         self.emoji_data = emoji_data
         self.locale = locale
 
@@ -82,11 +83,154 @@ class EmojiView(BaseView):
         self.add_item(container)
 
 
+class EmojiNavigationView(BaseView):
+    """View to display multiple emojis with navigation using Components V2"""
+
+    def __init__(self, emoji_list: list, locale: str, bot, author: discord.User):
+        super().__init__(timeout=180)
+        self.bot = bot
+        self.emoji_list = emoji_list
+        self.locale = locale
+        self.author = author
+        self.current_index = 0
+
+        # Build the view
+        self.build_view()
+
+    def build_view(self):
+        """Builds the Components V2 view with navigation"""
+        # Clear existing items
+        self.clear_items()
+
+        # Get current emoji data
+        emoji_data = self.emoji_list[self.current_index]
+
+        # Create main container
+        container = ui.Container()
+
+        # Get emoji info
+        emoji_id = emoji_data.get("id")
+        emoji_name = emoji_data.get("name", "Unknown")
+        is_animated = emoji_data.get("animated", False)
+        created_at = emoji_data.get("created_at")
+
+        # Build emoji URL with proper extension
+        extension = "gif" if is_animated else "png"
+        emoji_url = f"https://cdn.discordapp.com/emojis/{emoji_id}.{extension}"
+        emoji_url_display = f"{emoji_url}?size=256"
+
+        # Add title with emoji icon
+        title_text = i18n.get('commands.emoji.view.title', locale=self.locale, name=emoji_name)
+        if len(self.emoji_list) > 1:
+            # Add navigation info to title
+            title_text = f"### <:emoji:1398729407065100359> {title_text}\n-# {i18n.get('commands.emoji.context_menu.navigation', locale=self.locale, current=self.current_index + 1, total=len(self.emoji_list))}"
+        else:
+            title_text = f"### <:emoji:1398729407065100359> {title_text}"
+
+        container.add_item(ui.TextDisplay(title_text))
+
+        # Add MediaGallery with emoji image (256px)
+        container.add_item(
+            ui.MediaGallery(
+                discord.MediaGalleryItem(media=emoji_url_display)
+            )
+        )
+
+        # Add emoji information
+        name_label = i18n.get("commands.emoji.view.name", locale=self.locale)
+        id_label = i18n.get("commands.emoji.view.id", locale=self.locale)
+        created_label = i18n.get("commands.emoji.view.created", locale=self.locale)
+        animated_label = i18n.get("commands.emoji.view.animated", locale=self.locale)
+
+        # Format animated status with emojis
+        animated_status = "<:done:1398729525277229066>" if is_animated else "<:undone:1398729502028333218>"
+
+        # Build info text
+        info_text = f"**{name_label}:** `{emoji_name}`\n"
+        info_text += f"**{id_label}:** `{emoji_id}`\n"
+        info_text += f"**{created_label}:** <t:{created_at}:R>\n"
+        info_text += f"**{animated_label}:** {animated_status}"
+
+        container.add_item(ui.TextDisplay(info_text))
+
+        # Add download links with different sizes
+        container.add_item(
+            ui.TextDisplay(f"**Download:** [128]({emoji_url}?size=128) • [256]({emoji_url}?size=256) • [512]({emoji_url}?size=512) • [1024]({emoji_url}?size=1024)")
+        )
+
+        # Add navigation buttons if there are multiple emojis
+        if len(self.emoji_list) > 1:
+            nav_row = ui.ActionRow()
+
+            # Previous button
+            prev_btn = ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:back:1401600847733067806>"),
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.current_index == 0),
+                custom_id="prev_emoji_btn"
+            )
+            prev_btn.callback = self.prev_callback
+            nav_row.add_item(prev_btn)
+
+            # Page indicator button (disabled, just for display)
+            page_btn = ui.Button(
+                label=f"{self.current_index + 1}/{len(self.emoji_list)}",
+                style=discord.ButtonStyle.secondary,
+                disabled=True,
+                custom_id="page_info"
+            )
+            nav_row.add_item(page_btn)
+
+            # Next button
+            next_btn = ui.Button(
+                emoji=discord.PartialEmoji.from_str("<:next:1443745574972031067>"),
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.current_index == len(self.emoji_list) - 1),
+                custom_id="next_emoji_btn"
+            )
+            next_btn.callback = self.next_callback
+            nav_row.add_item(next_btn)
+
+            container.add_item(nav_row)
+
+        # Add container to view
+        self.add_item(container)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Ensures only the author can use the navigation"""
+        if interaction.user != self.author:
+            error_msg = i18n.get("commands.emoji.context_menu.author_only", locale=self.locale)
+            await interaction.response.send_message(error_msg, ephemeral=True)
+            return False
+        return True
+
+    async def prev_callback(self, interaction: discord.Interaction):
+        """Navigate to previous emoji"""
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.build_view()
+            await interaction.response.edit_message(view=self)
+
+    async def next_callback(self, interaction: discord.Interaction):
+        """Navigate to next emoji"""
+        if self.current_index < len(self.emoji_list) - 1:
+            self.current_index += 1
+            self.build_view()
+            await interaction.response.edit_message(view=self)
+
+
 class Emoji(commands.Cog):
     """Emoji command system"""
 
     def __init__(self, bot):
         self.bot = bot
+
+        # Create and add context menu command
+        self.emoji_context_menu = app_commands.ContextMenu(
+            name="Get Emojis",
+            callback=self.emoji_context_menu_callback
+        )
+        self.bot.tree.add_command(self.emoji_context_menu)
 
     @staticmethod
     def extract_emoji_info(emoji_str: str) -> Optional[tuple[str, str, bool]]:
@@ -107,6 +251,27 @@ class Emoji(commands.Cog):
             return emoji_id, emoji_name, is_animated_format
 
         return None
+
+    @staticmethod
+    def extract_all_emojis(text: str) -> list[tuple[str, str, bool]]:
+        """
+        Extracts all custom Discord emojis from a text string
+
+        Returns:
+            list of tuples (emoji_id, emoji_name, is_animated_format)
+        """
+        # Match all custom Discord emoji formats: <:name:id> or <a:name:id>
+        pattern = r'<(a)?:([^:]+):(\d+)>'
+        matches = re.finditer(pattern, text)
+
+        emojis = []
+        for match in matches:
+            is_animated_format = bool(match.group(1))  # 'a' prefix for animated
+            emoji_name = match.group(2)
+            emoji_id = match.group(3)
+            emojis.append((emoji_id, emoji_name, is_animated_format))
+
+        return emojis
 
     @staticmethod
     def snowflake_to_timestamp(snowflake_id: str) -> int:
@@ -151,6 +316,51 @@ class Emoji(commands.Cog):
                     pass
 
                 return False
+
+    async def emoji_context_menu_callback(self, interaction: discord.Interaction, message: discord.Message):
+        """Context menu command callback to extract and display emojis from a message"""
+        # Get the user's locale
+        locale = i18n.get_user_locale(interaction)
+
+        # Extract all emojis from the message
+        emoji_list = self.extract_all_emojis(message.content)
+
+        # Check if any emojis were found
+        if not emoji_list:
+            error_msg = i18n.get("commands.emoji.context_menu.no_emojis", locale=locale)
+            await interaction.response.send_message(error_msg, ephemeral=True)
+            return
+
+        # Send loading message
+        loading_msg = i18n.get("commands.emoji.context_menu.loading", locale=locale, count=len(emoji_list))
+        await interaction.response.send_message(loading_msg, ephemeral=True)
+
+        # Process all emojis
+        emoji_data_list = []
+        for emoji_id, emoji_name, is_animated_format in emoji_list:
+            # Check if emoji is actually animated by trying to fetch the GIF
+            is_animated = await self.check_if_animated(emoji_id)
+
+            # Get creation timestamp from snowflake
+            created_timestamp = self.snowflake_to_timestamp(emoji_id)
+
+            # Build emoji data
+            emoji_data = {
+                "id": emoji_id,
+                "name": emoji_name,
+                "animated": is_animated,
+                "created_at": created_timestamp
+            }
+            emoji_data_list.append(emoji_data)
+
+        # Create the navigation view with all emojis
+        view = EmojiNavigationView(emoji_data_list, locale, self.bot, interaction.user)
+
+        # Send response with Components V2
+        await interaction.edit_original_response(
+            content=None,
+            view=view
+        )
 
     @app_commands.command(
         name="emoji",
@@ -207,13 +417,17 @@ class Emoji(commands.Cog):
         }
 
         # Create the view with emoji data
-        view = EmojiView(emoji_data, locale)
+        view = EmojiView(emoji_data, locale, self.bot)
 
         # Send response with Components V2
         await interaction.edit_original_response(
             content=None,
             view=view
         )
+
+    async def cog_unload(self):
+        """Remove context menu when cog is unloaded"""
+        self.bot.tree.remove_command(self.emoji_context_menu.name, type=self.emoji_context_menu.type)
 
 
 async def setup(bot):
