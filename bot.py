@@ -77,6 +77,7 @@ class ModdyBot(commands.Bot):
         self._dev_team_ids: Set[int] = set()
         self.maintenance_mode = False
         self.health_server = None
+        self.version = None  # Bot version from GitHub releases
 
         # Cache for server prefixes
         self.prefix_cache = {}
@@ -129,9 +130,31 @@ class ModdyBot(commands.Bot):
         except Exception as e:
             logger.error(f"Could not log fatal error: {e}")
 
+    async def fetch_version(self):
+        """Fetch the bot version from GitHub releases"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://api.github.com/repos/juthing/MODDY/releases/latest",
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        self.version = data.get("tag_name", "Unknown")
+                        logger.info(f"✅ Bot version: {self.version}")
+                    else:
+                        logger.warning(f"⚠️ Failed to fetch version: HTTP {response.status}")
+                        self.version = "Unknown"
+        except Exception as e:
+            logger.error(f"❌ Error fetching version: {e}")
+            self.version = "Unknown"
+
     async def setup_hook(self):
         """Called once on bot startup"""
         logger.info("🔧 Initial setup...")
+
+        # Fetch bot version from GitHub
+        await self.fetch_version()
 
         # Configure error handler for slash commands
         self.tree.on_error = self.on_app_command_error
