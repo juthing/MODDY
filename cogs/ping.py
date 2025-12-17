@@ -9,7 +9,7 @@ from typing import Optional
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import LayoutView, Container, TextDisplay, Separator
+from discord.ui import LayoutView, Container, TextDisplay, Separator, ActionRow, Button
 from discord import SeparatorSpacing
 
 from config import COLORS, EMOJIS
@@ -24,7 +24,7 @@ class PublicPing(commands.Cog):
 
     @app_commands.command(
         name="ping",
-        description="Check the bot's latency"
+        description="Check the bot's latency and status"
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -47,25 +47,50 @@ class PublicPing(commands.Cog):
         # Mesure du temps de début
         start = time.perf_counter()
 
-        # Latence API
+        # Latence API Discord
         api_latency = round(self.bot.latency * 1000)
 
-        # Déterminer la qualité de la connexion et l'emoji
-        if api_latency < 50:
+        # Déterminer la qualité de la connexion et l'emoji de statut
+        if api_latency < 100:
+            status_emoji = "<:green_status:1450929035428495505>"
             status_key = "excellent"
-            emoji = EMOJIS["done"]
-        elif api_latency < 100:
-            status_key = "good"
-            emoji = EMOJIS["info"]
         elif api_latency < 200:
-            status_key = "average"
-            emoji = "⚠️"
+            status_emoji = "<:yellow_status:1450929037542166669>"
+            status_key = "good"
         else:
+            status_emoji = "<:red_status:1450929038758772940>"
             status_key = "poor"
-            emoji = EMOJIS["undone"]
 
         # Récupérer le texte du statut traduit
-        status = t(f"commands.ping.status.{status_key}", interaction)
+        status_text = t(f"commands.ping.status.{status_key}", interaction)
+
+        # Calculer l'uptime
+        uptime_delta = datetime.now(datetime.now().astimezone().tzinfo) - self.bot.launch_time.astimezone()
+        days = uptime_delta.days
+        hours, remainder = divmod(uptime_delta.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        # Format de l'uptime
+        uptime_parts = []
+        if days > 0:
+            uptime_parts.append(f"{days}d")
+        if hours > 0:
+            uptime_parts.append(f"{hours}h")
+        if minutes > 0:
+            uptime_parts.append(f"{minutes}m")
+        if seconds > 0 or not uptime_parts:
+            uptime_parts.append(f"{seconds}s")
+        uptime_str = " ".join(uptime_parts)
+
+        # Uptime timestamp
+        uptime_timestamp = f"<t:{int(self.bot.launch_time.timestamp())}:R>"
+
+        # Shard info
+        shard_id = interaction.guild.shard_id if interaction.guild else 0
+        total_shards = self.bot.shard_count if self.bot.shard_count else 1
+
+        # Version
+        version = self.bot.version or "Unknown"
 
         # Créer le message initial avec Components V2
         view = LayoutView()
@@ -73,31 +98,59 @@ class PublicPing(commands.Cog):
 
         # Header avec titre
         title = t("commands.ping.response.title", interaction)
-        header = f"{emoji} **{title}**"
-        container.add_item(TextDisplay(header))
+        container.add_item(TextDisplay(f"### {title}"))
 
         # Separator
         container.add_item(Separator(spacing=SeparatorSpacing.small))
 
-        # Description avec statut
-        description = t(
-            "commands.ping.response.description",
+        # Info principale
+        main_info = t(
+            "commands.ping.response.main_info",
             interaction,
-            emoji=emoji,
-            status=status,
+            status_emoji=status_emoji,
+            status=status_text,
             api_latency=api_latency,
             message_latency=t("common.loading", interaction)
         )
-        container.add_item(TextDisplay(description))
+        container.add_item(TextDisplay(main_info))
 
-        # Footer
-        container.add_item(Separator(spacing=SeparatorSpacing.small))
-        footer = t(
-            "commands.ping.response.footer",
+        # Détails système
+        system_details = t(
+            "commands.ping.response.system_details",
             interaction,
-            guild_count=len(self.bot.guilds)
+            shard_id=shard_id,
+            total_shards=total_shards,
+            uptime=uptime_str,
+            uptime_timestamp=uptime_timestamp,
+            version=version,
+            guild_count=len(self.bot.guilds),
+            user_count=len(self.bot.users)
         )
-        container.add_item(TextDisplay(f"*{footer}*"))
+        container.add_item(TextDisplay(system_details))
+
+        # Separator avant les liens
+        container.add_item(Separator(spacing=SeparatorSpacing.small))
+
+        # Liens utiles
+        links_row = ActionRow()
+
+        support_btn = Button(
+            label=t("commands.ping.buttons.support", interaction),
+            style=discord.ButtonStyle.link,
+            url="https://moddy.app/support",
+            emoji=discord.PartialEmoji.from_str("<:support:1398734366670065726>")
+        )
+        links_row.add_item(support_btn)
+
+        status_btn = Button(
+            label=t("commands.ping.buttons.status", interaction),
+            style=discord.ButtonStyle.link,
+            url="https://moddy.app/status",
+            emoji=discord.PartialEmoji.from_str("<:web:1398729801061240883>")
+        )
+        links_row.add_item(status_btn)
+
+        container.add_item(links_row)
 
         view.add_item(container)
 
@@ -113,24 +166,46 @@ class PublicPing(commands.Cog):
         container_updated = Container()
 
         # Header
-        container_updated.add_item(TextDisplay(header))
+        container_updated.add_item(TextDisplay(f"### {title}"))
         container_updated.add_item(Separator(spacing=SeparatorSpacing.small))
 
-        # Description avec latence mise à jour
-        description_updated = t(
-            "commands.ping.response.description",
+        # Info principale avec latence mise à jour
+        main_info_updated = t(
+            "commands.ping.response.main_info",
             interaction,
-            emoji=emoji,
-            status=status,
+            status_emoji=status_emoji,
+            status=status_text,
             api_latency=api_latency,
             message_latency=f"`{message_latency}ms`"
         )
-        container_updated.add_item(TextDisplay(description_updated))
+        container_updated.add_item(TextDisplay(main_info_updated))
 
-        # Footer
+        # Détails système
+        container_updated.add_item(TextDisplay(system_details))
+
+        # Separator
         container_updated.add_item(Separator(spacing=SeparatorSpacing.small))
-        container_updated.add_item(TextDisplay(f"*{footer}*"))
 
+        # Liens (recréer les boutons)
+        links_row_updated = ActionRow()
+
+        support_btn_updated = Button(
+            label=t("commands.ping.buttons.support", interaction),
+            style=discord.ButtonStyle.link,
+            url="https://moddy.app/support",
+            emoji=discord.PartialEmoji.from_str("<:support:1398734366670065726>")
+        )
+        links_row_updated.add_item(support_btn_updated)
+
+        status_btn_updated = Button(
+            label=t("commands.ping.buttons.status", interaction),
+            style=discord.ButtonStyle.link,
+            url="https://moddy.app/status",
+            emoji=discord.PartialEmoji.from_str("<:web:1398729801061240883>")
+        )
+        links_row_updated.add_item(status_btn_updated)
+
+        container_updated.add_item(links_row_updated)
         view_updated.add_item(container_updated)
 
         # Modifier le message avec la latence réelle

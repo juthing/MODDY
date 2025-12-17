@@ -1,17 +1,20 @@
 {
   "commands": {
     "ping": {
-      "description": "Check the bot's latency",
+      "description": "Check the bot's latency and status",
       "response": {
-        "title": "<:support:1398734366670065726> Pong!",
-        "description": "{emoji} **Connection {status}**\n\n**Discord API Latency:** `{api_latency}ms`\n**Response Time:** `{message_latency}`",
-        "footer": "Moddy • {guild_count} servers"
+        "title": "<:network_ping:1439055098096521359> Bot Status",
+        "main_info": "{status_emoji} **{status}**\n\n<:network_ping:1439055098096521359> **Discord API:** `{api_latency}ms`\n<:network_ping:1439055098096521359> **Response Time:** {message_latency}",
+        "system_details": "**Shard:** `{shard_id}/{total_shards}`\n**Uptime:** `{uptime}` {uptime_timestamp}\n**Version:** `{version}`\n**Servers:** `{guild_count}`\n**Users:** `{user_count}`"
       },
       "status": {
-        "excellent": "Excellent",
-        "good": "Good",
-        "average": "Average",
-        "poor": "Poor"
+        "excellent": "Excellent Connection",
+        "good": "Good Connection",
+        "poor": "Poor Connection"
+      },
+      "buttons": {
+        "support": "Support Server",
+        "status": "Status Page"
       }
     },
     "translate": {
