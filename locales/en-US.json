@@ -89,6 +89,12 @@
       "errors": {
         "invalid_emoji": "<:undone:1398729502028333218> **Invalid Emoji**\n\nPlease provide a valid custom Discord emoji.\n\n**Valid formats:**\n• `<:emoji_name:emoji_id>`\n• `<a:emoji_name:emoji_id>` (animated)",
         "default_emoji": "<:undone:1398729502028333218> **Default Emoji**\n\nThis command only works with custom Discord emojis.\nDefault Unicode emojis like {emoji} cannot be analyzed."
+      },
+      "context_menu": {
+        "loading": "<a:loading:1395047662092550194> **Extracting {count} emoji(s) from message...**",
+        "no_emojis": "<:undone:1398729502028333218> **No Custom Emojis**\n\nThis message doesn't contain any custom Discord emojis.",
+        "navigation": "Emoji {current} of {total}",
+        "author_only": "Only the command author can use these navigation buttons."
       }
     },
     "roll": {
