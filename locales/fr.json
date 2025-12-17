@@ -3,7 +3,7 @@
     "ping": {
       "description": "Vérifie la latence et le statut du bot",
       "response": {
-        "title": "<:network_ping:1439055098096521359> Pong !",
+        "title": "<:network_ping:1439055098096521359> Statut du bot",
         "main_info": "{status_emoji} **{status}**\n\n<:network_ping:1439055098096521359> **API Discord :** `{api_latency}ms`\n<:network_ping:1439055098096521359> **Temps de réponse :** {message_latency}",
         "system_details": "**Shard :** `{shard_id}/{total_shards}`\n**Uptime :** `{uptime}` {uptime_timestamp}\n**Version :** `{version}`\n**Serveurs :** `{guild_count}`\n**Utilisateurs :** `{user_count}`"
       },
