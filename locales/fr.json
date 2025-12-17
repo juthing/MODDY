@@ -499,6 +499,11 @@
           "title": "Permissions insuffisantes",
           "description": "Moddy a besoin des **permissions administrateur** pour gérer les modules du serveur.\n\nVeuillez réinviter le bot avec les bonnes permissions.",
           "button": "Réinviter Moddy"
+        },
+        "dev_only": {
+          "title": "Fonctionnalité en développement",
+          "description": "Les modules de serveur sont actuellement en cours de développement et ne sont accessibles qu'aux membres de l'équipe Moddy et aux testeurs bêta.\n\nRejoignez notre serveur support pour en savoir plus et participer aux tests !",
+          "button": "Rejoindre le serveur support"
         }
       },
       "current_value": "Valeur actuelle :",
