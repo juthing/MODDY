@@ -227,6 +227,43 @@ class Config(commands.Cog):
             )
             return
 
+        # Vérifie que l'utilisateur a l'attribut TEAM ou BETA
+        # Les modules de serveur sont en développement et réservés aux testeurs
+        has_team = await self.bot.db.has_attribute('user', interaction.user.id, 'TEAM')
+        has_beta = await self.bot.db.has_attribute('user', interaction.user.id, 'BETA')
+
+        if not (has_team or has_beta):
+            # Message d'erreur avec Components V2
+            error_view = ui.LayoutView(timeout=None)
+            error_container = ui.Container()
+
+            error_container.add_item(ui.TextDisplay(
+                f"### {EMOJIS['warning']} {t('modules.config.errors.dev_only.title', interaction)}"
+            ))
+            error_container.add_item(ui.TextDisplay(
+                t('modules.config.errors.dev_only.description', interaction)
+            ))
+
+            error_container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+            # Bouton pour rejoindre le serveur support
+            button_row = ui.ActionRow()
+            support_btn = ui.Button(
+                label=t('modules.config.errors.dev_only.button', interaction),
+                style=discord.ButtonStyle.link,
+                url="https://moddy.app/support"
+            )
+            button_row.add_item(support_btn)
+            error_container.add_item(button_row)
+
+            error_view.add_item(error_container)
+
+            await interaction.response.send_message(
+                view=error_view,
+                ephemeral=True
+            )
+            return
+
         # Vérifie que Moddy a les permissions administrateur
         bot_member = interaction.guild.me
         if not bot_member.guild_permissions.administrator:

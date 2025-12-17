@@ -500,6 +500,11 @@
           "title": "Insufficient Permissions",
           "description": "Moddy needs **administrator permissions** to manage server modules.\n\nPlease re-invite the bot with the correct permissions.",
           "button": "Re-invite Moddy"
+        },
+        "dev_only": {
+          "title": "Feature in Development",
+          "description": "Server modules are currently under development and are only accessible to Moddy team members and beta testers.\n\nJoin our support server to learn more and participate in testing!",
+          "button": "Join Support Server"
         }
       },
       "current_value": "Current value:",
