@@ -18,7 +18,7 @@ class AttributionView(BaseView):
     """View to display attributions"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
@@ -97,7 +97,7 @@ class WeSupportView(BaseView):
     """View to display projects we support"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
@@ -157,7 +157,7 @@ class ModdyMainView(BaseView):
     """Main view for the /moddy command"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
