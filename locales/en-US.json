@@ -112,6 +112,57 @@
         "range": "-# {max}-sided die (1-{max})"
       }
     },
+    "invite": {
+      "description": "Lookup information about a Discord invite",
+      "params": {
+        "invite_code": "The Discord invite code (e.g., 'discord' or 'https://discord.gg/discord')",
+        "incognito": "Make response visible only to you"
+      },
+      "loading": "<a:loading:1395047662092550194> **Fetching invite information...**",
+      "view": {
+        "guild": {
+          "title": "Server Invite Information",
+          "name": "Server Name",
+          "id": "Server ID",
+          "description": "Description",
+          "members": "Members",
+          "online": "Online",
+          "channel": "Channel",
+          "channel_type": "Channel Type",
+          "inviter": "Inviter",
+          "inviter_id": "Inviter ID",
+          "expires": "Expires",
+          "features": "Server Features",
+          "verification": "Verification Level",
+          "nsfw": "NSFW Server",
+          "invite_code": "Invite Code"
+        },
+        "group_dm": {
+          "title": "Group DM Invite",
+          "name": "Group Name",
+          "id": "Group ID",
+          "members": "Members",
+          "inviter": "Inviter",
+          "inviter_id": "Inviter ID",
+          "invite_code": "Invite Code"
+        },
+        "friend": {
+          "title": "Friend Invite",
+          "display_name": "Display Name",
+          "username": "Username",
+          "id": "User ID",
+          "invite_code": "Invite Code"
+        }
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **Invite Not Found**\n\nThe invite code `{code}` is invalid, expired, or doesn't exist.",
+        "rate_limit": "<:undone:1398729502028333218> **Rate Limit**\n\nToo many requests. Please try again later.",
+        "api_error": "<:undone:1398729502028333218> **API Error**\n\nFailed to fetch invite information. Status: `{status}`",
+        "network_error": "<:undone:1398729502028333218> **Network Error**\n\nCouldn't connect to Discord API. Please try again.",
+        "generic": "<:undone:1398729502028333218> **Error**\n\nAn error occurred: `{error}`",
+        "unknown_type": "<:undone:1398729502028333218> **Unknown Invite Type**\n\nThis invite type (`{type}`) is not recognized."
+      }
+    },
     "user": {
       "description": "Display detailed information about a Discord user",
       "params": {

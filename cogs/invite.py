@@ -1,0 +1,382 @@
+"""
+Invite lookup command for Moddy
+Displays information about Discord invites (Server, Group DM, Friend)
+"""
+
+import discord
+from discord import app_commands, ui
+from cogs.error_handler import BaseView
+from discord.ext import commands
+from typing import Optional, Dict, Any
+import aiohttp
+from datetime import datetime
+
+from utils.i18n import i18n, t
+from config import EMOJIS
+
+
+class InviteView(BaseView):
+    """View to display invite information using Components V2"""
+
+    def __init__(self, invite_data: Dict[str, Any], locale: str):
+        super().__init__(timeout=180)
+        self.invite_data = invite_data
+        self.locale = locale
+
+        # Build the view
+        self.build_view()
+
+    def build_view(self):
+        """Builds the Components V2 view for invite information"""
+        self.clear_items()
+
+        container = ui.Container()
+
+        # Get invite type
+        invite_type = self.invite_data.get('type', 0)
+
+        # Type 0: Guild (Server)
+        if invite_type == 0:
+            self._build_guild_invite(container)
+        # Type 1: Group DM
+        elif invite_type == 1:
+            self._build_group_dm_invite(container)
+        # Type 2: Friend
+        elif invite_type == 2:
+            self._build_friend_invite(container)
+        else:
+            # Unknown type
+            container.add_item(ui.TextDisplay(
+                t("commands.invite.errors.unknown_type", locale=self.locale, type=invite_type)
+            ))
+
+        self.add_item(container)
+
+    def _build_guild_invite(self, container: ui.Container):
+        """Build view for guild (server) invite"""
+        guild = self.invite_data.get('guild', {})
+        inviter = self.invite_data.get('inviter')
+        channel = self.invite_data.get('channel', {})
+
+        # Title
+        container.add_item(ui.TextDisplay(
+            f"### <:search:1443752796460552232> {t('commands.invite.view.guild.title', locale=self.locale)}"
+        ))
+
+        # Guild name and ID
+        guild_name = guild.get('name', 'Unknown')
+        guild_id = guild.get('id', 'Unknown')
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.guild.name', locale=self.locale)}:** {guild_name}\n"
+            f"**{t('commands.invite.view.guild.id', locale=self.locale)}:** `{guild_id}`"
+        ))
+
+        # Guild description if available
+        description = guild.get('description')
+        if description:
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.guild.description', locale=self.locale)}:**\n{description}"
+            ))
+
+        # Member counts
+        approximate_member_count = self.invite_data.get('approximate_member_count')
+        approximate_presence_count = self.invite_data.get('approximate_presence_count')
+
+        if approximate_member_count is not None:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.guild.members', locale=self.locale)}:** `{approximate_member_count:,}`\n"
+                f"**{t('commands.invite.view.guild.online', locale=self.locale)}:** `{approximate_presence_count:,}`"
+            ))
+
+        # Channel info
+        channel_name = channel.get('name', 'Unknown')
+        channel_type = channel.get('type', 0)
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.guild.channel', locale=self.locale)}:** #{channel_name}\n"
+            f"**{t('commands.invite.view.guild.channel_type', locale=self.locale)}:** `{self._get_channel_type_name(channel_type)}`"
+        ))
+
+        # Inviter info
+        if inviter:
+            inviter_username = inviter.get('username', 'Unknown')
+            inviter_id = inviter.get('id', 'Unknown')
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.guild.inviter', locale=self.locale)}:** {inviter_username}\n"
+                f"**{t('commands.invite.view.guild.inviter_id', locale=self.locale)}:** `{inviter_id}`"
+            ))
+
+        # Expiration info
+        expires_at = self.invite_data.get('expires_at')
+        if expires_at:
+            try:
+                expires_dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                expires_ts = int(expires_dt.timestamp())
+                container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+                container.add_item(ui.TextDisplay(
+                    f"**{t('commands.invite.view.guild.expires', locale=self.locale)}:** <t:{expires_ts}:R>"
+                ))
+            except:
+                pass
+
+        # Guild features
+        features = guild.get('features', [])
+        if features and len(features) > 0:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            features_display = ', '.join(f"`{f}`" for f in features[:5])
+            if len(features) > 5:
+                features_display += f" +{len(features) - 5} more"
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.guild.features', locale=self.locale)}:**\n{features_display}"
+            ))
+
+        # Verification level
+        verification_level = guild.get('verification_level')
+        if verification_level is not None:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.guild.verification', locale=self.locale)}:** `{self._get_verification_level(verification_level)}`"
+            ))
+
+        # NSFW level
+        nsfw_level = guild.get('nsfw_level')
+        if nsfw_level is not None and nsfw_level > 0:
+            container.add_item(ui.TextDisplay(
+                f"<:warning:1446108410092195902> **{t('commands.invite.view.guild.nsfw', locale=self.locale)}**"
+            ))
+
+        # Invite code
+        code = self.invite_data.get('code', 'Unknown')
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.guild.invite_code', locale=self.locale)}:** `{code}`\n"
+            f"-# discord.gg/{code}"
+        ))
+
+    def _build_group_dm_invite(self, container: ui.Container):
+        """Build view for group DM invite"""
+        channel = self.invite_data.get('channel', {})
+        inviter = self.invite_data.get('inviter')
+
+        # Title
+        container.add_item(ui.TextDisplay(
+            f"### <:message:1443749710073696286> {t('commands.invite.view.group_dm.title', locale=self.locale)}"
+        ))
+
+        # Channel name
+        channel_name = channel.get('name', 'Unnamed Group')
+        channel_id = channel.get('id', 'Unknown')
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.group_dm.name', locale=self.locale)}:** {channel_name}\n"
+            f"**{t('commands.invite.view.group_dm.id', locale=self.locale)}:** `{channel_id}`"
+        ))
+
+        # Recipients count
+        recipients = channel.get('recipients', [])
+        if recipients:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.group_dm.members', locale=self.locale)}:** `{len(recipients)}`"
+            ))
+
+        # Inviter info
+        if inviter:
+            inviter_username = inviter.get('username', 'Unknown')
+            inviter_id = inviter.get('id', 'Unknown')
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay(
+                f"**{t('commands.invite.view.group_dm.inviter', locale=self.locale)}:** {inviter_username}\n"
+                f"**{t('commands.invite.view.group_dm.inviter_id', locale=self.locale)}:** `{inviter_id}`"
+            ))
+
+        # Invite code
+        code = self.invite_data.get('code', 'Unknown')
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.group_dm.invite_code', locale=self.locale)}:** `{code}`"
+        ))
+
+    def _build_friend_invite(self, container: ui.Container):
+        """Build view for friend invite"""
+        inviter = self.invite_data.get('inviter')
+
+        # Title
+        container.add_item(ui.TextDisplay(
+            f"### <:user:1398729712204779571> {t('commands.invite.view.friend.title', locale=self.locale)}"
+        ))
+
+        # Inviter info
+        if inviter:
+            inviter_username = inviter.get('username', 'Unknown')
+            inviter_discriminator = inviter.get('discriminator', '0')
+            inviter_id = inviter.get('id', 'Unknown')
+            inviter_global_name = inviter.get('global_name')
+
+            if inviter_global_name:
+                container.add_item(ui.TextDisplay(
+                    f"**{t('commands.invite.view.friend.display_name', locale=self.locale)}:** {inviter_global_name}\n"
+                    f"**{t('commands.invite.view.friend.username', locale=self.locale)}:** {inviter_username}\n"
+                    f"**{t('commands.invite.view.friend.id', locale=self.locale)}:** `{inviter_id}`"
+                ))
+            else:
+                if inviter_discriminator != '0':
+                    username_display = f"{inviter_username}#{inviter_discriminator}"
+                else:
+                    username_display = inviter_username
+
+                container.add_item(ui.TextDisplay(
+                    f"**{t('commands.invite.view.friend.username', locale=self.locale)}:** {username_display}\n"
+                    f"**{t('commands.invite.view.friend.id', locale=self.locale)}:** `{inviter_id}`"
+                ))
+
+        # Invite code
+        code = self.invite_data.get('code', 'Unknown')
+        container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(
+            f"**{t('commands.invite.view.friend.invite_code', locale=self.locale)}:** `{code}`"
+        ))
+
+    def _get_channel_type_name(self, channel_type: int) -> str:
+        """Get human-readable channel type name"""
+        channel_types = {
+            0: "Text",
+            1: "DM",
+            2: "Voice",
+            3: "Group DM",
+            4: "Category",
+            5: "Announcement",
+            10: "News Thread",
+            11: "Public Thread",
+            12: "Private Thread",
+            13: "Stage Voice",
+            14: "Directory",
+            15: "Forum",
+            16: "Media"
+        }
+        return channel_types.get(channel_type, f"Unknown ({channel_type})")
+
+    def _get_verification_level(self, level: int) -> str:
+        """Get verification level name"""
+        levels = {
+            0: "None",
+            1: "Low",
+            2: "Medium",
+            3: "High",
+            4: "Very High"
+        }
+        return levels.get(level, f"Unknown ({level})")
+
+
+class Invite(commands.Cog):
+    """Invite lookup command system"""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(
+        name="invite",
+        description="Lookup information about a Discord invite"
+    )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.describe(
+        invite_code="The Discord invite code (e.g., 'discord' or 'https://discord.gg/discord')",
+        incognito="Make response visible only to you"
+    )
+    async def invite_command(
+        self,
+        interaction: discord.Interaction,
+        invite_code: str,
+        incognito: Optional[bool] = None
+    ):
+        """Lookup a Discord invite"""
+        # Get the ephemeral mode
+        if incognito is None and self.bot.db:
+            try:
+                user_pref = await self.bot.db.get_attribute('user', interaction.user.id, 'DEFAULT_INCOGNITO')
+                ephemeral = True if user_pref is None else user_pref
+            except:
+                ephemeral = True
+        else:
+            ephemeral = incognito if incognito is not None else True
+
+        # Get the user's locale
+        locale = i18n.get_user_locale(interaction)
+
+        # Extract invite code from URL if needed
+        code = self._extract_invite_code(invite_code)
+
+        # Send loading message
+        loading_msg = t("commands.invite.loading", locale=locale)
+        await interaction.response.send_message(loading_msg, ephemeral=ephemeral)
+
+        # Fetch invite data from Discord API
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    "User-Agent": "DiscordBot (Moddy, 1.0)"
+                }
+
+                # Get invite data with counts and expiration
+                url = f"https://discord.com/api/v10/invites/{code}?with_counts=true&with_expiration=true"
+
+                async with session.get(url, headers=headers) as resp:
+                    if resp.status == 404:
+                        error_msg = t("commands.invite.errors.not_found", locale=locale, code=code)
+                        await interaction.edit_original_response(content=error_msg)
+                        return
+                    elif resp.status == 429:
+                        error_msg = t("commands.invite.errors.rate_limit", locale=locale)
+                        await interaction.edit_original_response(content=error_msg)
+                        return
+                    elif resp.status != 200:
+                        error_msg = t("commands.invite.errors.api_error", locale=locale, status=resp.status)
+                        await interaction.edit_original_response(content=error_msg)
+                        return
+
+                    invite_data = await resp.json()
+
+        except aiohttp.ClientError as e:
+            error_msg = t("commands.invite.errors.network_error", locale=locale)
+            await interaction.edit_original_response(content=error_msg)
+            return
+        except Exception as e:
+            error_msg = t("commands.invite.errors.generic", locale=locale, error=str(e))
+            await interaction.edit_original_response(content=error_msg)
+            return
+
+        # Create the view with invite data
+        view = InviteView(invite_data, locale)
+
+        # Send response with Components V2
+        await interaction.edit_original_response(
+            content=None,
+            view=view
+        )
+
+    def _extract_invite_code(self, invite_input: str) -> str:
+        """Extract invite code from various formats"""
+        # Remove whitespace
+        invite_input = invite_input.strip()
+
+        # If it's a full URL, extract the code
+        if 'discord.gg/' in invite_input:
+            code = invite_input.split('discord.gg/')[-1]
+        elif 'discordapp.com/invite/' in invite_input:
+            code = invite_input.split('discordapp.com/invite/')[-1]
+        elif 'discord.com/invite/' in invite_input:
+            code = invite_input.split('discord.com/invite/')[-1]
+        else:
+            # Assume it's just the code
+            code = invite_input
+
+        # Remove query parameters and fragments
+        code = code.split('?')[0].split('#')[0]
+
+        return code
+
+
+async def setup(bot):
+    await bot.add_cog(Invite(bot))
