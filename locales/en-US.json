@@ -163,6 +163,44 @@
         "unknown_type": "<:undone:1398729502028333218> **Unknown Invite Type**\n\nThis invite type (`{type}`) is not recognized."
       }
     },
+    "moddy": {
+      "description": "Learn more about Moddy",
+      "title": "About Moddy",
+      "bio": "Moddy is a powerful Discord bot designed to enhance your server with advanced moderation, utility, and entertainment features. Built with reliability and ease of use in mind, Moddy helps server administrators create better communities.",
+      "bot_info": {
+        "title": "Bot Information",
+        "version": "Version",
+        "servers": "Servers",
+        "users": "Users"
+      },
+      "links": {
+        "title": "Links"
+      },
+      "footer": {
+        "rights": "All rights reserved. Developed by @juthing",
+        "disclaimer": "Moddy is not affiliated with Discord Inc."
+      },
+      "buttons": {
+        "attribution": "Attribution",
+        "we_support": "We support",
+        "back": "Back"
+      },
+      "attribution": {
+        "title": "Attributions",
+        "description": "This page lists all the projects, tools, and resources we used or that inspired the development of Moddy. Big thanks to their creators for their work!",
+        "google_fonts": "All the icons/emojis you see in the bot come from Google Fonts.",
+        "discordpy": "Our entire bot is developed with discord.py.",
+        "userdoccers": "This documentation provides us with undocumented endpoints to improve the experience on Moddy."
+      },
+      "we_support": {
+        "title": "We support",
+        "description": "Here you'll find projects we like and want to highlight. This isn't a partnership, just initiatives we find interesting and worth supporting.",
+        "empty": "No projects to display yet. Check back later!"
+      },
+      "errors": {
+        "wrong_user": "Only the command author can use these buttons."
+      }
+    },
     "user": {
       "description": "Display detailed information about a Discord user",
       "params": {

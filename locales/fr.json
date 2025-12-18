@@ -163,6 +163,44 @@
         "unknown_type": "<:undone:1398729502028333218> **Type d'invitation inconnu**\n\nCe type d'invitation (`{type}`) n'est pas reconnu."
       }
     },
+    "moddy": {
+      "description": "En savoir plus sur Moddy",
+      "title": "À propos de Moddy",
+      "bio": "Moddy est un bot Discord puissant conçu pour améliorer votre serveur avec des fonctionnalités avancées de modération, d'utilité et de divertissement. Conçu avec la fiabilité et la facilité d'utilisation à l'esprit, Moddy aide les administrateurs de serveur à créer de meilleures communautés.",
+      "bot_info": {
+        "title": "Informations du bot",
+        "version": "Version",
+        "servers": "Serveurs",
+        "users": "Utilisateurs"
+      },
+      "links": {
+        "title": "Liens"
+      },
+      "footer": {
+        "rights": "Tous droits réservés. Développé par @juthing",
+        "disclaimer": "Moddy n'est pas affilié à Discord Inc."
+      },
+      "buttons": {
+        "attribution": "Attribution",
+        "we_support": "Nos recommandations",
+        "back": "Retour"
+      },
+      "attribution": {
+        "title": "Attributions",
+        "description": "Cette page liste tous les projets, outils et ressources que nous avons utilisés ou qui ont inspiré le développement de Moddy. Merci à leurs créateurs pour leur travail !",
+        "google_fonts": "Toutes les icônes/emojis que vous voyez dans le bot proviennent de Google Fonts.",
+        "discordpy": "Notre bot entier est développé avec discord.py.",
+        "userdoccers": "Cette documentation nous fournit des endpoints non documentés pour améliorer l'expérience sur Moddy."
+      },
+      "we_support": {
+        "title": "Nos recommandations",
+        "description": "Vous trouverez ici les projets que nous aimons et souhaitons mettre en avant. Il ne s'agit pas d'un partenariat, juste d'initiatives que nous trouvons intéressantes et qui méritent d'être soutenues.",
+        "empty": "Aucun projet à afficher pour le moment. Revenez plus tard !"
+      },
+      "errors": {
+        "wrong_user": "Seul l'auteur de la commande peut utiliser ces boutons."
+      }
+    },
     "user": {
       "description": "Affiche des informations détaillées sur un utilisateur Discord",
       "params": {
