@@ -112,6 +112,57 @@
         "range": "-# Dé à {max} faces (1-{max})"
       }
     },
+    "invite": {
+      "description": "Recherche des informations sur une invitation Discord",
+      "params": {
+        "invite_code": "Le code d'invitation Discord (ex: 'discord' ou 'https://discord.gg/discord')",
+        "incognito": "Rendre la réponse visible uniquement pour vous"
+      },
+      "loading": "<a:loading:1395047662092550194> **Récupération des informations de l'invitation...**",
+      "view": {
+        "guild": {
+          "title": "Informations sur l'invitation du serveur",
+          "name": "Nom du serveur",
+          "id": "ID du serveur",
+          "description": "Description",
+          "members": "Membres",
+          "online": "En ligne",
+          "channel": "Salon",
+          "channel_type": "Type de salon",
+          "inviter": "Inviteur",
+          "inviter_id": "ID de l'inviteur",
+          "expires": "Expire",
+          "features": "Fonctionnalités du serveur",
+          "verification": "Niveau de vérification",
+          "nsfw": "Serveur NSFW",
+          "invite_code": "Code d'invitation"
+        },
+        "group_dm": {
+          "title": "Invitation de groupe MP",
+          "name": "Nom du groupe",
+          "id": "ID du groupe",
+          "members": "Membres",
+          "inviter": "Inviteur",
+          "inviter_id": "ID de l'inviteur",
+          "invite_code": "Code d'invitation"
+        },
+        "friend": {
+          "title": "Invitation d'ami",
+          "display_name": "Nom d'affichage",
+          "username": "Nom d'utilisateur",
+          "id": "ID de l'utilisateur",
+          "invite_code": "Code d'invitation"
+        }
+      },
+      "errors": {
+        "not_found": "<:undone:1398729502028333218> **Invitation introuvable**\n\nLe code d'invitation `{code}` est invalide, expiré ou n'existe pas.",
+        "rate_limit": "<:undone:1398729502028333218> **Limite atteinte**\n\nTrop de requêtes. Veuillez réessayer plus tard.",
+        "api_error": "<:undone:1398729502028333218> **Erreur API**\n\nImpossible de récupérer les informations de l'invitation. Statut : `{status}`",
+        "network_error": "<:undone:1398729502028333218> **Erreur réseau**\n\nImpossible de se connecter à l'API Discord. Veuillez réessayer.",
+        "generic": "<:undone:1398729502028333218> **Erreur**\n\nUne erreur est survenue : `{error}`",
+        "unknown_type": "<:undone:1398729502028333218> **Type d'invitation inconnu**\n\nCe type d'invitation (`{type}`) n'est pas reconnu."
+      }
+    },
     "user": {
       "description": "Affiche des informations détaillées sur un utilisateur Discord",
       "params": {
