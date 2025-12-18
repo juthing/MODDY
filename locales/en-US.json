@@ -177,7 +177,7 @@
         "title": "Links"
       },
       "footer": {
-        "rights": "All rights reserved. Developed by @[**juthing**](https://github.com/juthing/)",
+        "rights": "All rights reserved. Developed by [@**juthing**](https://github.com/juthing/)",
         "disclaimer": "Moddy is not affiliated with Discord Inc."
       },
       "buttons": {
@@ -190,7 +190,8 @@
         "description": "This page lists all the projects, tools, and resources we used or that inspired the development of Moddy. Big thanks to their creators for their work!",
         "google_fonts": "All the icons/emojis you see in the bot come from Google Fonts.",
         "discordpy": "Our entire bot is developed with discord.py.",
-        "userdoccers": "This documentation provides us with undocumented endpoints to improve the experience on Moddy."
+        "userdoccers": "This documentation provides us with undocumented endpoints to improve the experience on Moddy.",
+        "railway": "We host Moddy on Railway's infrastructure."
       },
       "we_support": {
         "title": "We support",
