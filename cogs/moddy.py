@@ -18,7 +18,7 @@ class AttributionView(BaseView):
     """View to display attributions"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
@@ -62,7 +62,7 @@ class AttributionView(BaseView):
 
         # Railway
         container.add_item(ui.TextDisplay(
-            f"<:railway:1451330050833125416> [@**Railway** | Host](https://railway.app)\n"
+            f"<:railway:1451333311199838218> [@**Railway** | Host](https://railway.app)\n"
             f"-# {t('commands.moddy.attribution.railway', locale=self.locale)}"
         ))
 
@@ -97,7 +97,7 @@ class WeSupportView(BaseView):
     """View to display projects we support"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
@@ -157,7 +157,7 @@ class ModdyMainView(BaseView):
     """Main view for the /moddy command"""
 
     def __init__(self, bot, locale: str, user_id: int):
-        super().__init__(timeout=180)
+        super().__init__(timeout=600)
         self.bot = bot
         self.locale = locale
         self.user_id = user_id
