@@ -44,19 +44,19 @@ class AttributionView(BaseView):
 
         # Google Fonts Icons
         container.add_item(ui.TextDisplay(
-            f"<:googlefonts:1451300521548972163> **@Google Fonts | Icons**\n"
+            f"<:googlefonts:1451300521548972163> [@**Google Fonts** | Icons](https://fonts.google.com/icons)\n"
             f"-# {t('commands.moddy.attribution.google_fonts', locale=self.locale)}"
         ))
 
         # Discord.py
         container.add_item(ui.TextDisplay(
-            f"<:python:1451298515199332372> **@Rapptz | Discord.py**\n"
+            f"<:python:1451298515199332372> [@**Rapptz** | Discord.py](https://github.com/Rapptz/discord.py)\n"
             f"-# {t('commands.moddy.attribution.discordpy', locale=self.locale)}"
         ))
 
         # Discord Userdoccers
         container.add_item(ui.TextDisplay(
-            f"<:discorduserdoccers:1451303689602994196> **@Discord Userdoccers | Documentation**\n"
+            f"<:discorduserdoccers:1451303689602994196> [@**Discord Userdoccers** | Documentation](https://docs.discord.food/intro)\n"
             f"-# {t('commands.moddy.attribution.userdoccers', locale=self.locale)}"
         ))
 
