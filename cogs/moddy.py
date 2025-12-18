@@ -60,6 +60,12 @@ class AttributionView(BaseView):
             f"-# {t('commands.moddy.attribution.userdoccers', locale=self.locale)}"
         ))
 
+        # Railway
+        container.add_item(ui.TextDisplay(
+            f"<:railway:1451330050833125416> [@**Railway** | Host](https://railway.app)\n"
+            f"-# {t('commands.moddy.attribution.railway', locale=self.locale)}"
+        ))
+
         self.add_item(container)
 
         # Back button
