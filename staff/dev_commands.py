@@ -17,6 +17,7 @@ from config import COLORS
 from utils.components_v2 import create_error_message, create_success_message, create_info_message, create_warning_message, EMOJIS
 from utils.staff_logger import staff_logger
 from staff.base import StaffCommandsCog
+from utils.announcement_setup import setup_announcement_channel
 
 logger = logging.getLogger('moddy.dev_commands')
 
@@ -84,6 +85,8 @@ class DeveloperCommands(StaffCommandsCog):
             await self.handle_error_command(message, args)
         elif command_name == "sync":
             await self.handle_sync_command(message, args)
+        elif command_name == "setup-announcements":
+            await self.handle_setup_announcements_command(message, args)
         else:
             view = create_error_message("Unknown Command", f"Developer command `{command_name}` not found.")
             await self.reply_with_tracking(message, view)
@@ -665,6 +668,77 @@ class DeveloperCommands(StaffCommandsCog):
             view = create_error_message(
                 "Sync Failed",
                 "Failed to sync commands with Discord.",
+                fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
+            )
+            await msg.edit(view=view)
+
+    async def handle_setup_announcements_command(self, message: discord.Message, args: str):
+        """
+        Handle d.setup-announcements command - Setup announcement channel following for a guild
+        Usage: <@1373916203814490194> d.setup-announcements <guild_id>
+        """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "setup-announcements", message.author, args=args or "no args")
+
+        # Check if guild_id is provided
+        if not args or not args.strip():
+            view = create_error_message(
+                "Missing Guild ID",
+                "Please provide a guild ID.\n\n**Usage:** `<@1373916203814490194> d.setup-announcements <guild_id>`"
+            )
+            await self.reply_with_tracking(message, view)
+            return
+
+        try:
+            # Parse guild ID
+            guild_id = int(args.strip())
+        except ValueError:
+            view = create_error_message(
+                "Invalid Guild ID",
+                "Please provide a valid guild ID (numeric).\n\n**Usage:** `<@1373916203814490194> d.setup-announcements <guild_id>`"
+            )
+            await self.reply_with_tracking(message, view)
+            return
+
+        # Get guild
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            view = create_error_message(
+                "Guild Not Found",
+                f"Could not find guild with ID `{guild_id}`.\n\n-# Make sure the bot is in this server."
+            )
+            await self.reply_with_tracking(message, view)
+            return
+
+        # Send processing message
+        view = create_info_message("Setting Up Announcements", f"Setting up announcement channel for **{guild.name}**...")
+        msg = await message.reply(view=view, mention_author=False)
+
+        try:
+            # Setup announcement channel
+            success, result_message = await setup_announcement_channel(guild)
+
+            if success:
+                view = create_success_message(
+                    "Announcements Setup Complete",
+                    f"Successfully setup announcements for **{guild.name}** (`{guild.id}`).\n\n-# {result_message}",
+                    footer=f"Executed by {message.author}"
+                )
+            else:
+                view = create_error_message(
+                    "Setup Failed",
+                    f"Failed to setup announcements for **{guild.name}** (`{guild.id}`).",
+                    fields=[{'name': 'Error', 'value': f"```{result_message}```"}]
+                )
+
+            await msg.edit(view=view)
+
+        except Exception as e:
+            logger.error(f"Error setting up announcements for guild {guild_id}: {e}", exc_info=True)
+            view = create_error_message(
+                "Unexpected Error",
+                f"An unexpected error occurred while setting up announcements for **{guild.name}**.",
                 fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
             )
             await msg.edit(view=view)
