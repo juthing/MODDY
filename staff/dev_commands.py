@@ -5,6 +5,7 @@ Commands exclusively for developers from Discord Dev Portal
 
 import discord
 from discord.ext import commands
+from discord import ui
 from typing import Optional
 import logging
 from datetime import datetime, timezone
@@ -18,8 +19,111 @@ from utils.components_v2 import create_error_message, create_success_message, cr
 from utils.staff_logger import staff_logger
 from staff.base import StaffCommandsCog
 from utils.announcement_setup import setup_announcement_channel
+from cogs.error_handler import BaseView
 
 logger = logging.getLogger('moddy.dev_commands')
+
+
+class ServerListView(BaseView):
+    """
+    Pagination view for server list display
+    """
+
+    def __init__(self, bot, guilds: list, page: int = 0, per_page: int = 10):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guilds = guilds
+        self.page = page
+        self.per_page = per_page
+        self.total_pages = (len(guilds) - 1) // per_page + 1 if guilds else 1
+
+        self._build_view()
+
+    def _build_view(self):
+        """Build the view with current page data"""
+        self.clear_items()
+
+        container = ui.Container()
+
+        # Calculate pagination
+        start_idx = self.page * self.per_page
+        end_idx = min(start_idx + self.per_page, len(self.guilds))
+        page_guilds = self.guilds[start_idx:end_idx]
+
+        # Header with total count and page info (using ### format as per DESIGN.md)
+        header = f"### {EMOJIS['web']} Server List\n**Total Servers:** `{len(self.guilds):,}`\n-# Page {self.page + 1}/{self.total_pages}"
+        container.add_item(ui.TextDisplay(header))
+
+        if not page_guilds:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+            container.add_item(ui.TextDisplay("*No servers found.*"))
+        else:
+            container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+            # Display each server
+            for guild in page_guilds:
+                # Get guild features
+                features = []
+                if "COMMUNITY" in guild.features:
+                    features.append("Community")
+                if "VERIFIED" in guild.features:
+                    features.append("Verified")
+                if "PARTNERED" in guild.features:
+                    features.append("Partner")
+
+                # Build server info
+                server_info = f"**{guild.name}**\n"
+                server_info += f"-# ID: `{guild.id}` • Members: `{guild.member_count:,}`"
+                if features:
+                    server_info += f" • {', '.join(features)}"
+
+                container.add_item(ui.TextDisplay(server_info))
+
+        self.add_item(container)
+
+        # Add navigation buttons if there are multiple pages
+        if self.total_pages > 1:
+            button_row = ui.ActionRow()
+
+            # Previous button
+            prev_button = ui.Button(
+                label="Previous",
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.page == 0),
+                emoji=discord.PartialEmoji.from_str(EMOJIS['back'])
+            )
+            prev_button.callback = self.on_previous
+            button_row.add_item(prev_button)
+
+            # Next button
+            next_button = ui.Button(
+                label="Next",
+                style=discord.ButtonStyle.secondary,
+                disabled=(self.page >= self.total_pages - 1),
+                emoji=discord.PartialEmoji.from_str(EMOJIS['next'])
+            )
+            next_button.callback = self.on_next
+            button_row.add_item(next_button)
+
+            self.add_item(button_row)
+
+    async def on_previous(self, interaction: discord.Interaction):
+        """Handle previous page button"""
+        if self.page > 0:
+            self.page -= 1
+            self._build_view()
+            await interaction.response.edit_message(view=self)
+        else:
+            await interaction.response.defer()
+
+    async def on_next(self, interaction: discord.Interaction):
+        """Handle next page button"""
+        if self.page < self.total_pages - 1:
+            self.page += 1
+            self._build_view()
+            await interaction.response.edit_message(view=self)
+        else:
+            await interaction.response.defer()
 
 
 class DeveloperCommands(StaffCommandsCog):
@@ -87,6 +191,8 @@ class DeveloperCommands(StaffCommandsCog):
             await self.handle_sync_command(message, args)
         elif command_name == "setup-announcements":
             await self.handle_setup_announcements_command(message, args)
+        elif command_name == "serverlist":
+            await self.handle_serverlist_command(message, args)
         else:
             view = create_error_message("Unknown Command", f"Developer command `{command_name}` not found.")
             await self.reply_with_tracking(message, view)
@@ -748,6 +854,24 @@ class DeveloperCommands(StaffCommandsCog):
                 fields=[{'name': 'Error', 'value': f"```{str(e)[:500]}```"}]
             )
             await msg.edit(view=view)
+
+    async def handle_serverlist_command(self, message: discord.Message, args: str):
+        """
+        Handle d.serverlist command - Display list of servers where the bot is present with pagination
+        Usage: <@1373916203814490194> d.serverlist
+        """
+        # Log the command
+        if staff_logger:
+            await staff_logger.log_command("d", "serverlist", message.author)
+
+        # Get all guilds and sort by member count (descending)
+        guilds = sorted(self.bot.guilds, key=lambda g: g.member_count, reverse=True)
+
+        # Create pagination view
+        view = ServerListView(self.bot, guilds, page=0, per_page=10)
+
+        # Send the view
+        await self.reply_with_tracking(message, view)
 
 
 async def setup(bot):
