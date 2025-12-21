@@ -33,6 +33,8 @@ from utils.staff_permissions import setup_staff_permissions
 from utils.staff_logger import init_staff_logger
 # Import du gestionnaire de modules
 from modules.module_manager import ModuleManager
+# Import du système de configuration des annonces
+from utils.announcement_setup import setup_announcement_channel
 
 logger = logging.getLogger('moddy')
 
@@ -679,6 +681,16 @@ class ModdyBot(commands.Bot):
             logger.info(f"✅ Commands synchronized for new guild {guild.name} ({guild.id})")
         except Exception as e:
             logger.error(f"❌ Error syncing commands for new guild {guild.id}: {e}")
+
+        # Setup announcement channel following
+        try:
+            success, message = await setup_announcement_channel(guild)
+            if success:
+                logger.info(f"✅ Announcement channel setup for {guild.name}: {message}")
+            else:
+                logger.warning(f"⚠️ Failed to setup announcement channel for {guild.name}: {message}")
+        except Exception as e:
+            logger.error(f"❌ Error setting up announcement channel for {guild.id}: {e}")
 
     async def on_guild_remove(self, guild: discord.Guild):
         """When the bot leaves a server"""
