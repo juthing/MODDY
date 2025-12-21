@@ -726,11 +726,17 @@ class DeveloperCommands(StaffCommandsCog):
                     footer=f"Executed by {message.author}"
                 )
             else:
-                view = create_error_message(
-                    "Setup Failed",
-                    f"Failed to setup announcements for **{guild.name}** (`{guild.id}`).",
-                    fields=[{'name': 'Error', 'value': f"```{result_message}```"}]
-                )
+                # Check if it's a permission error
+                if "permission" in result_message.lower():
+                    view = create_error_message(
+                        "Missing Permissions",
+                        f"Cannot setup announcements for **{guild.name}** (`{guild.id}`).\n\n**Reason:** {result_message}\n\n-# The bot needs **Manage Webhooks** and **Manage Channels** permissions in this server."
+                    )
+                else:
+                    view = create_error_message(
+                        "Setup Failed",
+                        f"Failed to setup announcements for **{guild.name}** (`{guild.id}`).\n\n**Reason:** {result_message}"
+                    )
 
             await msg.edit(view=view)
 

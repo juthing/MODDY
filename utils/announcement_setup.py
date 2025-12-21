@@ -81,11 +81,33 @@ async def setup_announcement_channel(guild: discord.Guild) -> tuple[bool, str]:
                 if resp.status == 200:
                     logger.info(f"✅ Successfully followed announcement channel to {channel_type} in {guild.name}")
                     return True, f"Successfully setup announcements in {channel_type}"
+                elif resp.status == 403:
+                    # Permission denied
+                    logger.warning(f"Permission denied to follow channel in {guild.name}")
+                    return False, "Missing permissions to manage webhooks in the target channel"
+                elif resp.status == 400:
+                    # Bad request - might be invalid channel or already following
+                    error_text = await resp.text()
+                    logger.warning(f"Bad request when following channel in {guild.name}: {error_text}")
+
+                    # Parse error to see if it's a permission issue or other
+                    if "permissions" in error_text.lower():
+                        return False, "Missing permissions to manage webhooks"
+                    elif "already" in error_text.lower():
+                        return False, "Announcement channel is already being followed"
+                    else:
+                        return False, f"Invalid request: {error_text[:100]}"
                 else:
                     error_text = await resp.text()
                     logger.error(f"Failed to follow channel in {guild.name}: Status {resp.status}, Response: {error_text}")
-                    return False, f"Discord API error: {resp.status}"
+                    return False, f"Discord API error {resp.status}: {error_text[:100]}"
 
+    except discord.Forbidden as e:
+        logger.warning(f"Permission denied in {guild.name}: {e}")
+        return False, "Missing permissions (Manage Webhooks or Manage Channels required)"
+    except discord.HTTPException as e:
+        logger.error(f"Discord HTTP error in {guild.name}: {e}")
+        return False, f"Discord error: {str(e)}"
     except Exception as e:
         logger.error(f"Error setting up announcement channel for {guild.name}: {e}", exc_info=True)
         return False, f"Unexpected error: {str(e)}"
