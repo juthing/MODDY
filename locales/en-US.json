@@ -767,6 +767,77 @@
           }
         }
       }
+    },
+    "auto_restore_roles": {
+      "name": "Auto Restore Roles",
+      "description": "Automatically restores roles for returning users",
+      "config": {
+        "title": "Auto Restore Roles Configuration",
+        "description": "Configure automatic role restoration when a user who left the server returns.",
+        "mode": {
+          "section_title": "Save mode",
+          "section_description": "Choose which roles should be saved",
+          "placeholder": "Select a mode",
+          "all": {
+            "label": "All roles",
+            "description": "Save all user roles"
+          },
+          "except": {
+            "label": "All except certain roles",
+            "description": "Save all roles except selected ones"
+          },
+          "only": {
+            "label": "Only certain roles",
+            "description": "Save only selected roles"
+          }
+        },
+        "excluded_roles": {
+          "section_title": "Roles to exclude",
+          "section_description": "Select roles that will NOT be saved",
+          "placeholder": "Select roles to exclude"
+        },
+        "included_roles": {
+          "section_title": "Roles to include",
+          "section_description": "Select roles that will be saved",
+          "placeholder": "Select roles to include"
+        },
+        "log_channel": {
+          "section_title": "Log channel",
+          "section_description": "Channel where save and restore logs will be sent (optional)",
+          "placeholder": "Select a log channel"
+        },
+        "saved_info": {
+          "title": "Saved roles",
+          "description": "{count} user(s) have saved roles pending restoration"
+        }
+      },
+      "commands": {
+        "error": {
+          "no_manager": "<:error:1444049460924776478> The module manager is not available.",
+          "not_configured": "<:error:1444049460924776478> The Auto Restore Roles module is not configured on this server.",
+          "not_enabled": "<:error:1444049460924776478> The Auto Restore Roles module is not enabled on this server.",
+          "internal": "<:error:1444049460924776478> An internal error occurred."
+        },
+        "clear": {
+          "no_roles": "<:info:1401614681440784477> User {user} has no saved roles.",
+          "confirm_title": "Deletion confirmation",
+          "confirm_description": "Are you sure you want to delete the saved roles for {user}?",
+          "user_field": "User",
+          "roles_field": "Saved roles ({count})",
+          "saved_at_field": "Saved",
+          "no_roles_found": "No roles found",
+          "success_title": "Roles deleted",
+          "success_description": "Saved roles for {user} have been successfully deleted.",
+          "error": "<:error:1444049460924776478> Unable to delete saved roles."
+        },
+        "view": {
+          "no_saved_roles": "<:info:1401614681440784477> No users have saved roles on this server.",
+          "title": "Users with saved roles",
+          "description": "{count} user(s) have roles pending restoration",
+          "user_info": "{role_count} saved role(s)",
+          "saved_at": "Saved"
+        }
+      }
     }
   },
   "languages": {

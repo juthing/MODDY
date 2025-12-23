@@ -22,7 +22,7 @@ class ModuleEvents(commands.Cog):
     async def on_member_join(self, member: discord.Member):
         """
         Événement déclenché quand un membre rejoint un serveur
-        Transmet l'événement aux modules concernés (Welcome, etc.)
+        Transmet l'événement aux modules concernés (Welcome, Auto Restore Roles, etc.)
         """
         if not self.bot.module_manager:
             return
@@ -41,14 +41,42 @@ class ModuleEvents(commands.Cog):
         except Exception as e:
             logger.error(f"Error in on_member_join for guild {member.guild.id}: {e}", exc_info=True)
 
+        try:
+            # Récupère l'instance du module Auto Restore Roles pour ce serveur
+            auto_restore_module = await self.bot.module_manager.get_module_instance(
+                member.guild.id,
+                'auto_restore_roles'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if auto_restore_module and auto_restore_module.enabled:
+                await auto_restore_module.on_member_join(member)
+
+        except Exception as e:
+            logger.error(f"Error in on_member_join (auto_restore_roles) for guild {member.guild.id}: {e}", exc_info=True)
+
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         """
         Événement déclenché quand un membre quitte un serveur
-        Peut être utilisé pour les modules de leave messages, etc.
+        Transmet l'événement aux modules concernés (Auto Restore Roles, etc.)
         """
-        # À implémenter si besoin pour d'autres modules
-        pass
+        if not self.bot.module_manager:
+            return
+
+        try:
+            # Récupère l'instance du module Auto Restore Roles pour ce serveur
+            auto_restore_module = await self.bot.module_manager.get_module_instance(
+                member.guild.id,
+                'auto_restore_roles'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if auto_restore_module and auto_restore_module.enabled:
+                await auto_restore_module.on_member_remove(member)
+
+        except Exception as e:
+            logger.error(f"Error in on_member_remove (auto_restore_roles) for guild {member.guild.id}: {e}", exc_info=True)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
