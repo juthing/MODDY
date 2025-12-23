@@ -766,6 +766,77 @@
           }
         }
       }
+    },
+    "auto_restore_roles": {
+      "name": "Auto Restore Roles",
+      "description": "Restaure automatiquement les rôles des utilisateurs qui reviennent",
+      "config": {
+        "title": "Configuration de l'Auto Restore Roles",
+        "description": "Configurez la restauration automatique des rôles quand un utilisateur qui a quitté le serveur revient.",
+        "mode": {
+          "section_title": "Mode de sauvegarde",
+          "section_description": "Choisissez quels rôles doivent être sauvegardés",
+          "placeholder": "Sélectionnez un mode",
+          "all": {
+            "label": "Tous les rôles",
+            "description": "Sauvegarde tous les rôles de l'utilisateur"
+          },
+          "except": {
+            "label": "Tous sauf certains rôles",
+            "description": "Sauvegarde tous les rôles sauf ceux sélectionnés"
+          },
+          "only": {
+            "label": "Uniquement certains rôles",
+            "description": "Sauvegarde uniquement les rôles sélectionnés"
+          }
+        },
+        "excluded_roles": {
+          "section_title": "Rôles à exclure",
+          "section_description": "Sélectionnez les rôles qui ne seront PAS sauvegardés",
+          "placeholder": "Sélectionnez les rôles à exclure"
+        },
+        "included_roles": {
+          "section_title": "Rôles à inclure",
+          "section_description": "Sélectionnez les rôles qui seront sauvegardés",
+          "placeholder": "Sélectionnez les rôles à inclure"
+        },
+        "log_channel": {
+          "section_title": "Salon de logs",
+          "section_description": "Salon où seront envoyés les logs de sauvegarde et restauration (optionnel)",
+          "placeholder": "Sélectionnez un salon de logs"
+        },
+        "saved_info": {
+          "title": "Rôles sauvegardés",
+          "description": "{count} utilisateur(s) ont des rôles sauvegardés en attente de restauration"
+        }
+      },
+      "commands": {
+        "error": {
+          "no_manager": "<:error:1444049460924776478> Le gestionnaire de modules n'est pas disponible.",
+          "not_configured": "<:error:1444049460924776478> Le module Auto Restore Roles n'est pas configuré sur ce serveur.",
+          "not_enabled": "<:error:1444049460924776478> Le module Auto Restore Roles n'est pas activé sur ce serveur.",
+          "internal": "<:error:1444049460924776478> Une erreur interne s'est produite."
+        },
+        "clear": {
+          "no_roles": "<:info:1401614681440784477> L'utilisateur {user} n'a aucun rôle sauvegardé.",
+          "confirm_title": "Confirmation de suppression",
+          "confirm_description": "Voulez-vous vraiment supprimer les rôles sauvegardés de {user} ?",
+          "user_field": "Utilisateur",
+          "roles_field": "Rôles sauvegardés ({count})",
+          "saved_at_field": "Sauvegardés",
+          "no_roles_found": "Aucun rôle trouvé",
+          "success_title": "Rôles supprimés",
+          "success_description": "Les rôles sauvegardés de {user} ont été supprimés avec succès.",
+          "error": "<:error:1444049460924776478> Impossible de supprimer les rôles sauvegardés."
+        },
+        "view": {
+          "no_saved_roles": "<:info:1401614681440784477> Aucun utilisateur n'a de rôles sauvegardés sur ce serveur.",
+          "title": "Utilisateurs avec rôles sauvegardés",
+          "description": "{count} utilisateur(s) ont des rôles en attente de restauration",
+          "user_info": "{role_count} rôle(s) sauvegardé(s)",
+          "saved_at": "Sauvegardés"
+        }
+      }
     }
   },
   "languages": {
