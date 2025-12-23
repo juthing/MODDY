@@ -17,6 +17,7 @@ class AutoRestoreRolesModule(ModuleBase):
     """
     Module de restauration automatique des rôles
     Sauvegarde les rôles quand un utilisateur quitte et les restaure quand il revient
+    Les rôles sont stockés dans la table saved_roles de PostgreSQL
     """
 
     MODULE_ID = "auto_restore_roles"
@@ -38,10 +39,6 @@ class AutoRestoreRolesModule(ModuleBase):
         self.included_roles: List[int] = []  # Pour mode ONLY
         self.log_channel_id: Optional[int] = None
 
-        # Stockage des rôles sauvegardés
-        # Format: {user_id: {'roles': [role_ids], 'saved_at': timestamp}}
-        self.saved_roles: Dict[int, Dict[str, Any]] = {}
-
     async def load_config(self, config_data: Dict[str, Any]) -> bool:
         """Charge la configuration depuis la DB"""
         try:
@@ -52,9 +49,6 @@ class AutoRestoreRolesModule(ModuleBase):
             self.excluded_roles = config_data.get('excluded_roles', [])
             self.included_roles = config_data.get('included_roles', [])
             self.log_channel_id = config_data.get('log_channel_id')
-
-            # Charger les rôles sauvegardés
-            self.saved_roles = config_data.get('saved_roles', {})
 
             # Module is enabled if mode is configured
             self.enabled = True
@@ -115,8 +109,7 @@ class AutoRestoreRolesModule(ModuleBase):
             'mode': self.MODE_ALL,
             'excluded_roles': [],
             'included_roles': [],
-            'log_channel_id': None,
-            'saved_roles': {}
+            'log_channel_id': None
         }
 
     async def on_member_remove(self, member: discord.Member):
@@ -127,6 +120,10 @@ class AutoRestoreRolesModule(ModuleBase):
         if not self.enabled:
             return
 
+        if not self.bot.db:
+            logger.error("Database not available, cannot save roles")
+            return
+
         try:
             # Récupère les rôles à sauvegarder
             roles_to_save = self._get_roles_to_save(member)
@@ -135,21 +132,21 @@ class AutoRestoreRolesModule(ModuleBase):
                 logger.info(f"No roles to save for {member.name} (guild {self.guild_id})")
                 return
 
-            # Sauvegarde les rôles
-            self.saved_roles[str(member.id)] = {
-                'roles': [role.id for role in roles_to_save],
-                'saved_at': datetime.utcnow().isoformat(),
-                'username': str(member)
-            }
+            # Sauvegarde les rôles dans la DB
+            role_ids = [role.id for role in roles_to_save]
+            success = await self.bot.db.save_user_roles(
+                self.guild_id,
+                member.id,
+                role_ids,
+                str(member)
+            )
 
-            # Sauvegarde en DB
-            await self._save_to_db()
+            if success:
+                logger.info(f"✅ Saved {len(roles_to_save)} roles for {member.name} (guild {self.guild_id})")
 
-            logger.info(f"✅ Saved {len(roles_to_save)} roles for {member.name} (guild {self.guild_id})")
-
-            # Envoie un log si configuré
-            if self.log_channel_id:
-                await self._send_log_saved(member, roles_to_save)
+                # Envoie un log si configuré
+                if self.log_channel_id:
+                    await self._send_log_saved(member, roles_to_save)
 
         except Exception as e:
             logger.error(f"Error saving roles for {member.name}: {e}", exc_info=True)
@@ -162,12 +159,17 @@ class AutoRestoreRolesModule(ModuleBase):
         if not self.enabled:
             return
 
-        user_id_str = str(member.id)
-        if user_id_str not in self.saved_roles:
+        if not self.bot.db:
+            logger.error("Database not available, cannot restore roles")
             return
 
         try:
-            saved_data = self.saved_roles[user_id_str]
+            # Récupère les rôles sauvegardés depuis la DB
+            saved_data = await self.bot.db.get_saved_roles(self.guild_id, member.id)
+
+            if not saved_data:
+                return
+
             role_ids = saved_data['roles']
 
             # Récupère les rôles qui existent encore
@@ -184,8 +186,7 @@ class AutoRestoreRolesModule(ModuleBase):
             if not roles_to_restore:
                 logger.info(f"No roles to restore for {member.name} (guild {self.guild_id})")
                 # Supprime les données sauvegardées
-                del self.saved_roles[user_id_str]
-                await self._save_to_db()
+                await self.bot.db.delete_saved_roles(self.guild_id, member.id)
                 return
 
             # Restaure les rôles
@@ -194,8 +195,7 @@ class AutoRestoreRolesModule(ModuleBase):
             logger.info(f"✅ Restored {len(roles_to_restore)} roles for {member.name} (guild {self.guild_id})")
 
             # Supprime les données sauvegardées
-            del self.saved_roles[user_id_str]
-            await self._save_to_db()
+            await self.bot.db.delete_saved_roles(self.guild_id, member.id)
 
             # Envoie un log si configuré
             if self.log_channel_id:
@@ -225,19 +225,6 @@ class AutoRestoreRolesModule(ModuleBase):
             return [role for role in roles if role.id in self.included_roles]
 
         return []
-
-    async def _save_to_db(self):
-        """Sauvegarde les rôles en base de données"""
-        try:
-            config_data = self.config.copy()
-            config_data['saved_roles'] = self.saved_roles
-            await self.bot.db.update_guild_data(
-                self.guild_id,
-                f"modules.{self.MODULE_ID}",
-                config_data
-            )
-        except Exception as e:
-            logger.error(f"Error saving roles to DB: {e}", exc_info=True)
 
     async def _send_log_saved(self, member: discord.Member, roles: List[discord.Role]):
         """Envoie un log quand des rôles sont sauvegardés"""
@@ -318,20 +305,32 @@ class AutoRestoreRolesModule(ModuleBase):
         Returns:
             True si supprimé, False si non trouvé
         """
-        user_id_str = str(user_id)
-        if user_id_str not in self.saved_roles:
+        if not self.bot.db:
+            logger.error("Database not available")
             return False
 
-        del self.saved_roles[user_id_str]
-        await self._save_to_db()
+        success = await self.bot.db.delete_saved_roles(self.guild_id, user_id)
+        if success:
+            logger.info(f"Cleared saved roles for user {user_id} (guild {self.guild_id})")
+        return success
 
-        logger.info(f"Cleared saved roles for user {user_id} (guild {self.guild_id})")
-        return True
-
-    def get_saved_roles_count(self) -> int:
+    async def get_saved_roles_count(self) -> int:
         """Retourne le nombre d'utilisateurs avec des rôles sauvegardés"""
-        return len(self.saved_roles)
+        if not self.bot.db:
+            return 0
 
-    def get_saved_roles_info(self, user_id: int) -> Optional[Dict[str, Any]]:
+        return await self.bot.db.get_saved_roles_count(self.guild_id)
+
+    async def get_saved_roles_info(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Retourne les informations sur les rôles sauvegardés d'un utilisateur"""
-        return self.saved_roles.get(str(user_id))
+        if not self.bot.db:
+            return None
+
+        return await self.bot.db.get_saved_roles(self.guild_id, user_id)
+
+    async def get_all_saved_roles(self) -> List[Dict[str, Any]]:
+        """Retourne tous les utilisateurs avec des rôles sauvegardés"""
+        if not self.bot.db:
+            return []
+
+        return await self.bot.db.get_all_saved_roles_for_guild(self.guild_id)

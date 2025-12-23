@@ -222,16 +222,6 @@ class AutoRestoreRolesConfigView(BaseView):
         log_channel_row.add_item(log_channel_select)
         container.add_item(log_channel_row)
 
-        # Info about saved roles
-        if self.has_existing_config:
-            saved_count = len(self.working_config.get('saved_roles', {}))
-            if saved_count > 0:
-                container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-                container.add_item(ui.TextDisplay(
-                    f"<:info:1401614681440784477> **{t('modules.auto_restore_roles.config.saved_info.title', locale=self.locale)}**\n"
-                    f"-# {t('modules.auto_restore_roles.config.saved_info.description', locale=self.locale, count=saved_count)}"
-                ))
-
         self.add_item(container)
         self._add_action_buttons()
 
@@ -349,10 +339,6 @@ class AutoRestoreRolesConfigView(BaseView):
             return
 
         await interaction.response.defer()
-
-        # Preserve saved_roles from current config
-        if 'saved_roles' not in self.working_config and 'saved_roles' in self.current_config:
-            self.working_config['saved_roles'] = self.current_config['saved_roles']
 
         module_manager = self.bot.module_manager
         success, error_msg = await module_manager.save_module_config(

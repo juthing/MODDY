@@ -71,7 +71,7 @@ class AutoRestoreRolesCommands(commands.Cog):
                 return
 
             # Vérifie si l'utilisateur a des rôles sauvegardés
-            saved_info = auto_restore_module.get_saved_roles_info(user.id)
+            saved_info = await auto_restore_module.get_saved_roles_info(user.id)
             if not saved_info:
                 await interaction.response.send_message(
                     t('modules.auto_restore_roles.commands.clear.no_roles', locale=locale, user=user.mention),
@@ -180,9 +180,9 @@ class AutoRestoreRolesCommands(commands.Cog):
                 return
 
             # Récupère les rôles sauvegardés
-            saved_count = auto_restore_module.get_saved_roles_count()
+            all_saved_roles = await auto_restore_module.get_all_saved_roles()
 
-            if saved_count == 0:
+            if not all_saved_roles:
                 await interaction.response.send_message(
                     t('modules.auto_restore_roles.commands.view.no_saved_roles', locale=locale),
                     ephemeral=True
@@ -190,6 +190,7 @@ class AutoRestoreRolesCommands(commands.Cog):
                 return
 
             # Crée un embed avec la liste
+            saved_count = len(all_saved_roles)
             embed = discord.Embed(
                 title=f"<:history:1401600464587456512> {t('modules.auto_restore_roles.commands.view.title', locale=locale)}",
                 description=t('modules.auto_restore_roles.commands.view.description', locale=locale, count=saved_count),
@@ -198,9 +199,9 @@ class AutoRestoreRolesCommands(commands.Cog):
 
             # Ajoute chaque utilisateur
             guild = interaction.guild
-            for user_id_str, saved_info in auto_restore_module.saved_roles.items():
-                user_id = int(user_id_str)
-                username = saved_info.get('username', f'Unknown User')
+            for saved_info in all_saved_roles:
+                user_id = saved_info['user_id']
+                username = saved_info.get('username', 'Unknown User')
                 role_count = len(saved_info['roles'])
                 saved_at = saved_info.get('saved_at')
 
