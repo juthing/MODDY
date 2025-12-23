@@ -855,6 +855,58 @@
           "saved_at": "Sauvegardés"
         }
       }
+    },
+    "youtube_notifications": {
+      "name": "YouTube Notifications",
+      "description": "Notifications en temps réel pour les vidéos YouTube",
+      "config": {
+        "title": "Configuration des notifications YouTube",
+        "description": "Configurez les notifications en temps réel pour les vidéos YouTube via WebSub. Recevez des alertes instantanées quand une chaîne publie une nouvelle vidéo.",
+        "subscriptions": {
+          "title": "Chaînes YouTube suivies",
+          "count": "{count} chaîne(s) suivie(s)",
+          "empty": "Aucune chaîne YouTube n'est actuellement suivie. Ajoutez-en une avec le bouton ci-dessous !"
+        },
+        "buttons": {
+          "add": "Ajouter une chaîne",
+          "confirm": "Confirmer"
+        },
+        "add": {
+          "channel_label": "Chaîne YouTube",
+          "channel_placeholder": "@username ou ID de chaîne",
+          "message_label": "Message de notification",
+          "message_placeholder": "Une nouvelle vidéo : [video_link]",
+          "message_default": "Une nouvelle vidéo a été publiée : [video_link]",
+          "select_title": "Configurer la notification",
+          "youtube_channel": "Chaîne YouTube",
+          "discord_channel": "Salon Discord",
+          "discord_channel_description": "Sélectionnez le salon où seront postées les notifications",
+          "channel_placeholder": "Sélectionnez un salon",
+          "roles": "Rôles à mentionner",
+          "roles_description": "Sélectionnez les rôles à mentionner dans les notifications (optionnel)",
+          "roles_placeholder": "Sélectionnez des rôles (optionnel)",
+          "success": "<:done:1398729525277229066> Chaîne YouTube ajoutée avec succès !",
+          "error": {
+            "invalid_channel": "<:error:1444049460924776478> ID ou nom d'utilisateur de chaîne YouTube invalide."
+          }
+        },
+        "edit": {
+          "title": "Modifier l'abonnement YouTube",
+          "channel": "Chaîne YouTube",
+          "current_message": "Message actuel",
+          "edit_message": "Modifier le message",
+          "discord_channel": "Salon Discord",
+          "discord_channel_description": "Sélectionnez le salon où seront postées les notifications",
+          "channel_placeholder": "Sélectionnez un salon",
+          "roles": "Rôles à mentionner",
+          "roles_description": "Sélectionnez les rôles à mentionner dans les notifications",
+          "roles_placeholder": "Sélectionnez des rôles (optionnel)",
+          "message_label": "Message de notification",
+          "message_placeholder": "Une nouvelle vidéo : [video_link]",
+          "saved": "<:done:1398729525277229066> Modifications enregistrées !",
+          "deleted": "<:delete:1401600770431909939> Abonnement supprimé !"
+        }
+      }
     }
   },
   "languages": {
