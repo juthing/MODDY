@@ -158,6 +158,15 @@ class ConfigMainView(BaseView):
                 self.locale,
                 module_config
             )
+        elif module_id == 'auto_role':
+            from modules.configs.auto_role_config import AutoRoleConfigView
+            config_view = AutoRoleConfigView(
+                self.bot,
+                self.guild_id,
+                self.user_id,
+                self.locale,
+                module_config
+            )
         # Ajouter d'autres modules ici au fur et à mesure
         # elif module_id == 'ticket':
         #     from modules.configs.ticket_config import TicketConfigView

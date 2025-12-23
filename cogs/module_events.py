@@ -55,6 +55,20 @@ class ModuleEvents(commands.Cog):
         except Exception as e:
             logger.error(f"Error in on_member_join (auto_restore_roles) for guild {member.guild.id}: {e}", exc_info=True)
 
+        try:
+            # Récupère l'instance du module Auto Role pour ce serveur
+            auto_role_module = await self.bot.module_manager.get_module_instance(
+                member.guild.id,
+                'auto_role'
+            )
+
+            # Si le module est actif, appelle sa méthode
+            if auto_role_module and auto_role_module.enabled:
+                await auto_role_module.on_member_join(member)
+
+        except Exception as e:
+            logger.error(f"Error in on_member_join (auto_role) for guild {member.guild.id}: {e}", exc_info=True)
+
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):
         """

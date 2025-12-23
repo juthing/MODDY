@@ -767,6 +767,24 @@
         }
       }
     },
+    "auto_role": {
+      "name": "Auto Role",
+      "description": "Attribue automatiquement des rôles aux nouveaux membres",
+      "config": {
+        "title": "Configuration de l'Auto Role",
+        "description": "Configurez l'attribution automatique de rôles pour les nouveaux membres et les bots qui rejoignent votre serveur.",
+        "member_roles": {
+          "section_title": "Rôles pour les utilisateurs",
+          "section_description": "Rôles qui seront attribués automatiquement aux utilisateurs qui rejoignent le serveur",
+          "placeholder": "Sélectionnez des rôles pour les utilisateurs"
+        },
+        "bot_roles": {
+          "section_title": "Rôles pour les bots",
+          "section_description": "Rôles qui seront attribués automatiquement aux bots qui rejoignent le serveur",
+          "placeholder": "Sélectionnez des rôles pour les bots"
+        }
+      }
+    },
     "auto_restore_roles": {
       "name": "Auto Restore Roles",
       "description": "Restaure automatiquement les rôles des utilisateurs qui reviennent",
