@@ -61,41 +61,78 @@ class AutoRoleModule(ModuleBase):
         if not guild:
             return False, "Serveur introuvable"
 
+        # Listes pour collecter tous les problèmes
+        roles_too_high = []  # Rôles au-dessus de la hiérarchie du bot
+        everyone_roles = []  # Rôles @everyone
+        managed_roles = []   # Rôles gérés automatiquement
+        missing_roles = []   # Rôles introuvables
+
         # Vérifie les rôles membres
         for role_id in member_roles:
             role = guild.get_role(role_id)
             if not role:
-                return False, f"Rôle membre <@&{role_id}> introuvable"
-
-            # Vérifie que le bot peut attribuer ce rôle
-            if role >= guild.me.top_role:
-                return False, f"Je ne peux pas attribuer le rôle {role.mention} car il est au-dessus de mon rôle le plus élevé"
+                missing_roles.append(f"<@&{role_id}>")
+                continue
 
             # Vérifie que le rôle n'est pas @everyone
             if role.id == guild.id:
-                return False, "Vous ne pouvez pas utiliser @everyone comme rôle automatique"
+                everyone_roles.append(role.mention)
+                continue
 
             # Vérifie que le rôle n'est pas managé (bot, intégration, etc.)
             if role.managed:
-                return False, f"Le rôle {role.mention} est géré automatiquement et ne peut pas être attribué manuellement"
+                managed_roles.append(role.mention)
+                continue
+
+            # Vérifie que le bot peut attribuer ce rôle
+            if role >= guild.me.top_role:
+                roles_too_high.append(role.mention)
 
         # Vérifie les rôles bots
         for role_id in bot_roles:
             role = guild.get_role(role_id)
             if not role:
-                return False, f"Rôle bot <@&{role_id}> introuvable"
-
-            # Vérifie que le bot peut attribuer ce rôle
-            if role >= guild.me.top_role:
-                return False, f"Je ne peux pas attribuer le rôle {role.mention} car il est au-dessus de mon rôle le plus élevé"
+                missing_roles.append(f"<@&{role_id}>")
+                continue
 
             # Vérifie que le rôle n'est pas @everyone
             if role.id == guild.id:
-                return False, "Vous ne pouvez pas utiliser @everyone comme rôle automatique"
+                if role.mention not in everyone_roles:
+                    everyone_roles.append(role.mention)
+                continue
 
             # Vérifie que le rôle n'est pas managé
             if role.managed:
-                return False, f"Le rôle {role.mention} est géré automatiquement et ne peut pas être attribué manuellement"
+                if role.mention not in managed_roles:
+                    managed_roles.append(role.mention)
+                continue
+
+            # Vérifie que le bot peut attribuer ce rôle
+            if role >= guild.me.top_role:
+                if role.mention not in roles_too_high:
+                    roles_too_high.append(role.mention)
+
+        # Retourne le premier problème trouvé avec tous les rôles concernés
+        if missing_roles:
+            roles_list = ", ".join(missing_roles)
+            return False, f"Rôle(s) introuvable(s) : {roles_list}"
+
+        if everyone_roles:
+            return False, "Vous ne pouvez pas utiliser @everyone comme rôle automatique"
+
+        if managed_roles:
+            roles_list = ", ".join(managed_roles)
+            if len(managed_roles) == 1:
+                return False, f"Le rôle {roles_list} est géré automatiquement et ne peut pas être attribué manuellement"
+            else:
+                return False, f"Les rôles {roles_list} sont gérés automatiquement et ne peuvent pas être attribués manuellement"
+
+        if roles_too_high:
+            roles_list = ", ".join(roles_too_high)
+            if len(roles_too_high) == 1:
+                return False, f"Je ne peux pas attribuer le rôle {roles_list} car il est au-dessus de mon rôle le plus élevé"
+            else:
+                return False, f"Je ne peux pas attribuer les rôles {roles_list} car ils sont au-dessus de mon rôle le plus élevé"
 
         # Vérifie que le bot a la permission de gérer les rôles
         if not guild.me.guild_permissions.manage_roles:

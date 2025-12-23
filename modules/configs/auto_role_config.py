@@ -72,21 +72,6 @@ class AutoRoleConfigView(BaseView):
             f"-# {t('modules.auto_role.config.member_roles.section_description', locale=self.locale)}"
         ))
 
-        # Show current member roles if any
-        if self.working_config.get('member_roles'):
-            member_role_names = []
-            guild = self.bot.get_guild(self.guild_id)
-            if guild:
-                for role_id in self.working_config['member_roles']:
-                    role = guild.get_role(role_id)
-                    if role:
-                        member_role_names.append(role.mention)
-
-            if member_role_names:
-                container.add_item(ui.TextDisplay(
-                    f"-# {t('modules.config.current_value', locale=self.locale)} {', '.join(member_role_names)}"
-                ))
-
         member_roles_row = ui.ActionRow()
         member_roles_select = ui.RoleSelect(
             placeholder=t('modules.auto_role.config.member_roles.placeholder', locale=self.locale),
@@ -115,21 +100,6 @@ class AutoRoleConfigView(BaseView):
             f"**{t('modules.auto_role.config.bot_roles.section_title', locale=self.locale)}**\n"
             f"-# {t('modules.auto_role.config.bot_roles.section_description', locale=self.locale)}"
         ))
-
-        # Show current bot roles if any
-        if self.working_config.get('bot_roles'):
-            bot_role_names = []
-            guild = self.bot.get_guild(self.guild_id)
-            if guild:
-                for role_id in self.working_config['bot_roles']:
-                    role = guild.get_role(role_id)
-                    if role:
-                        bot_role_names.append(role.mention)
-
-            if bot_role_names:
-                container.add_item(ui.TextDisplay(
-                    f"-# {t('modules.config.current_value', locale=self.locale)} {', '.join(bot_role_names)}"
-                ))
 
         bot_roles_row = ui.ActionRow()
         bot_roles_select = ui.RoleSelect(
