@@ -46,8 +46,8 @@ class InterServerModule(ModuleBase):
         # Cooldown tracking (user_id -> timestamp)
         self.cooldowns: Dict[int, datetime] = {}
 
-        # Sticky message tracking (channel_id -> message_id)
-        self.sticky_message_id: Optional[int] = None
+        # Track users who have already received the welcome DM
+        self.welcomed_users: set = set()
 
     async def load_config(self, config_data: Dict[str, Any]) -> bool:
         """Charge la configuration depuis la DB"""
@@ -58,14 +58,14 @@ class InterServerModule(ModuleBase):
             self.show_server_name = config_data.get('show_server_name', True)
             self.show_avatar = config_data.get('show_avatar', True)
             self.allowed_mentions = config_data.get('allowed_mentions', False)
-            self.sticky_message_id = config_data.get('sticky_message_id')
 
             # Le module est activé si un salon est configuré
             self.enabled = self.channel_id is not None
 
-            # Configure le slowmode si le module est activé
+            # Configure le slowmode et la description si le module est activé
             if self.enabled:
                 await self._setup_slowmode()
+                await self._setup_channel_description()
 
             return True
         except Exception as e:
@@ -114,8 +114,7 @@ class InterServerModule(ModuleBase):
             'interserver_type': 'english',
             'show_server_name': True,
             'show_avatar': True,
-            'allowed_mentions': False,
-            'sticky_message_id': None
+            'allowed_mentions': False
         }
 
     def get_required_fields(self) -> List[str]:
@@ -139,6 +138,32 @@ class InterServerModule(ModuleBase):
                 logger.info(f"Set slowmode to 3 seconds for inter-server channel in guild {self.guild_id}")
         except Exception as e:
             logger.error(f"Error setting up slowmode: {e}")
+
+    async def _setup_channel_description(self):
+        """Configure la description du salon inter-serveur avec les règles"""
+        try:
+            from utils.i18n import t
+
+            guild = self.bot.get_guild(self.guild_id)
+            if not guild:
+                return
+
+            channel = guild.get_channel(self.channel_id)
+            if not channel or not isinstance(channel, discord.TextChannel):
+                return
+
+            # Détermine la langue selon le type d'inter-serveur
+            locale = 'fr' if self.interserver_type == "french" else 'en-US'
+
+            # Récupère la description depuis les traductions
+            description = t('modules.interserver.channel_description', locale=locale)
+
+            # Met à jour la description du salon si elle est différente
+            if channel.topic != description:
+                await channel.edit(topic=description, reason="Inter-server channel description")
+                logger.info(f"Updated channel description for inter-server channel in guild {self.guild_id}")
+        except Exception as e:
+            logger.error(f"Error setting up channel description: {e}")
 
     def _generate_moddy_id(self) -> str:
         """Génère un ID Moddy unique (8 caractères alphanumériques)"""
@@ -391,62 +416,58 @@ class InterServerModule(ModuleBase):
             logger.error(f"Error getting/creating webhook: {e}", exc_info=True)
             return None
 
-    async def _manage_sticky_message(self, channel: discord.TextChannel):
+    async def _send_welcome_dm(self, user: discord.User):
         """
-        Gère le sticky message en bas du salon inter-serveur
-        Supprime l'ancien et en crée un nouveau
+        Envoie un DM de bienvenue à l'utilisateur s'il n'en a pas déjà reçu
         """
+        # Vérifie si l'utilisateur a déjà été accueilli
+        if user.id in self.welcomed_users:
+            return
+
         try:
             from utils.i18n import t
 
-            # Détermine la langue du sticky message selon le type d'inter-serveur
-            if self.interserver_type == "french":
-                sticky_title = t('modules.interserver.sticky_message.french_title', locale='fr')
-                sticky_body = t('modules.interserver.sticky_message.french_body', locale='fr')
-            else:
-                sticky_title = t('modules.interserver.sticky_message.english_title', locale='en-US')
-                sticky_body = t('modules.interserver.sticky_message.english_body', locale='en-US')
+            # Détermine la langue selon le type d'inter-serveur
+            locale = 'fr' if self.interserver_type == "french" else 'en-US'
 
-            # Crée le sticky message avec Components V2
-            from discord.ui import LayoutView, Container, TextDisplay
+            # Récupère le contenu du DM depuis les traductions
+            welcome_title = t('modules.interserver.welcome_dm.title', locale=locale)
+            welcome_body = t('modules.interserver.welcome_dm.body', locale=locale)
 
-            class StickyComponents(discord.ui.LayoutView):
+            # Crée le message avec Components V2
+            from discord.ui import Container, TextDisplay
+            from cogs.error_handler import BaseView
+
+            class WelcomeView(BaseView):
                 def __init__(self):
                     super().__init__()
-                    container = discord.ui.Container(
-                        discord.ui.TextDisplay(content=sticky_title),
-                        discord.ui.TextDisplay(content=sticky_body),
+                    container = Container(
+                        TextDisplay(content=welcome_title),
+                        TextDisplay(content=welcome_body),
                     )
                     self.add_item(container)
 
-            view = StickyComponents()
+            view = WelcomeView()
 
-            # Supprime l'ancien sticky message s'il existe
-            if self.sticky_message_id:
-                try:
-                    old_sticky = await channel.fetch_message(self.sticky_message_id)
-                    await old_sticky.delete()
-                except (discord.NotFound, discord.Forbidden):
-                    pass
+            # Envoie le DM
+            await user.send(view=view)
 
-            # Envoie le nouveau sticky message
-            sticky_msg = await channel.send(view=view)
-            self.sticky_message_id = sticky_msg.id
+            # Marque l'utilisateur comme accueilli
+            self.welcomed_users.add(user.id)
 
-            # Sauvegarde l'ID en DB pour persistence
-            self.config['sticky_message_id'] = sticky_msg.id
-            await self.bot.module_manager.save_module_config(
-                self.guild_id,
-                'interserver',
-                self.config
-            )
+            logger.info(f"Sent welcome DM to user {user.id} in interserver {self.interserver_type}")
 
+        except discord.Forbidden:
+            # L'utilisateur a désactivé les DMs
+            logger.debug(f"Could not send welcome DM to user {user.id} - DMs disabled")
+            # On marque quand même comme accueilli pour ne pas réessayer
+            self.welcomed_users.add(user.id)
         except Exception as e:
-            logger.error(f"Error managing sticky message: {e}", exc_info=True)
+            logger.error(f"Error sending welcome DM: {e}", exc_info=True)
 
     async def _send_staff_log(self, message: discord.Message, moddy_id: str, is_moddy_team: bool, success_count: int, total_count: int):
         """
-        Envoie un log du message au salon staff approprié
+        Envoie un log du message au salon staff approprié (sans boutons)
         """
         try:
             # Détermine le salon de log selon le type d'inter-serveur
@@ -462,17 +483,14 @@ class InterServerModule(ModuleBase):
             server_info = f"{message.guild.name} (`{message.guild.id}`)"
             content_preview = message.content[:500] if message.content else "*No content*"
 
-            # Crée le message de log avec Components V2
+            # Crée le message de log avec Components V2 (SANS boutons)
             from discord import ui as discord_ui
             from cogs.error_handler import BaseView
 
             class StaffLogView(BaseView):
-                def __init__(self, bot, moddy_id: str, message: discord.Message, author_info: str, server_info: str, content_preview: str, success_count: int, total_count: int, is_moddy_team: bool):
+                def __init__(self, moddy_id: str, author_info: str, server_info: str, content_preview: str, success_count: int, total_count: int, is_moddy_team: bool):
                     super().__init__()
-                    self.bot = bot
                     self.moddy_id = moddy_id
-                    self.message = message
-                    self.claimed_by = None
                     self.author_info = author_info
                     self.server_info = server_info
                     self.content_preview = content_preview
@@ -480,185 +498,15 @@ class InterServerModule(ModuleBase):
                     self.total_count = total_count
                     self.is_moddy_team = is_moddy_team
 
-                    self._build_view()
-
-                def _build_view(self):
-                    """Construit la vue avec containers et boutons"""
-                    self.clear_items()
-
-                    # Container avec les informations
+                    # Container avec les informations uniquement
                     container = discord_ui.Container(
                         discord_ui.TextDisplay(content=f"### <:groups:1446127489842806967> New Inter-Server Message"),
-                        discord_ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {self.author_info}\n**Server:** {self.server_info}\n**Relayed:** {self.success_count}/{self.total_count} servers\n**Moddy Team:** {'✅ Yes' if self.is_moddy_team else '❌ No'}\n**Time:** <t:{int(datetime.now(timezone.utc).timestamp())}:R>\n{f'**Claimed by:** {self.claimed_by.name}' if self.claimed_by else ''}\n\n**Content:**\n{self.content_preview}"),
+                        discord_ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Author:** {self.author_info}\n**Server:** {self.server_info}\n**Relayed:** {self.success_count}/{self.total_count} servers\n**Moddy Team:** {'✅ Yes' if self.is_moddy_team else '❌ No'}\n**Time:** <t:{int(datetime.now(timezone.utc).timestamp())}:R>\n\n**Content:**\n{self.content_preview}"),
                     )
                     self.add_item(container)
-
-                    # ActionRow avec les boutons
-                    button_row = discord_ui.ActionRow()
-
-                    # Delete button
-                    delete_btn = discord_ui.Button(
-                        label="Delete",
-                        style=discord.ButtonStyle.danger,
-                        emoji="🗑️",
-                        custom_id="delete_btn"
-                    )
-                    delete_btn.callback = self.on_delete
-                    button_row.add_item(delete_btn)
-
-                    # Invite Link button
-                    invite_btn = discord_ui.Button(
-                        label="Invite Link",
-                        style=discord.ButtonStyle.secondary,
-                        emoji="🔗",
-                        custom_id="invite_btn"
-                    )
-                    invite_btn.callback = self.on_invite
-                    button_row.add_item(invite_btn)
-
-                    # Claim button
-                    claim_btn = discord_ui.Button(
-                        label="Claim",
-                        style=discord.ButtonStyle.primary,
-                        emoji="👋",
-                        custom_id="claim_btn",
-                        disabled=self.claimed_by is not None
-                    )
-                    claim_btn.callback = self.on_claim
-                    button_row.add_item(claim_btn)
-
-                    # Processed button
-                    processed_btn = discord_ui.Button(
-                        label="Processed",
-                        style=discord.ButtonStyle.success,
-                        emoji="✅",
-                        custom_id="processed_btn",
-                        disabled=self.claimed_by is None
-                    )
-                    processed_btn.callback = self.on_processed
-                    button_row.add_item(processed_btn)
-
-                    self.add_item(button_row)
-
-                async def on_delete(self, interaction: discord.Interaction):
-                    """Supprime le message inter-serveur"""
-                    # Vérifie les permissions
-                    from utils.staff_permissions import staff_permissions, StaffRole
-                    user_roles = await staff_permissions.get_user_roles(interaction.user.id)
-
-                    allowed_roles = [StaffRole.Dev, StaffRole.Manager, StaffRole.Supervisor_Mod, StaffRole.Moderator]
-                    if not any(role in allowed_roles for role in user_roles):
-                        await interaction.response.send_message(
-                            "You don't have permission to delete inter-server messages.",
-                            ephemeral=True
-                        )
-                        return
-
-                    # Supprime le message
-                    msg_data = await self.bot.db.get_interserver_message(self.moddy_id)
-                    if not msg_data:
-                        await interaction.response.send_message(
-                            "Message not found in database.",
-                            ephemeral=True
-                        )
-                        return
-
-                    # Supprime tous les messages relayés
-                    deleted_count = 0
-                    for relayed in msg_data.get('relayed_messages', []):
-                        try:
-                            guild = self.bot.get_guild(relayed['guild_id'])
-                            if guild:
-                                channel = guild.get_channel(relayed['channel_id'])
-                                if channel:
-                                    msg = await channel.fetch_message(relayed['message_id'])
-                                    await msg.delete()
-                                    deleted_count += 1
-                        except:
-                            pass
-
-                    # Marque comme supprimé en DB
-                    await self.bot.db.delete_interserver_message(self.moddy_id)
-
-                    # Met à jour le log
-                    self.clear_items()
-                    container = discord_ui.Container(
-                        discord_ui.TextDisplay(content=f"### <:delete:1401600770431909939> Message Deleted"),
-                        discord_ui.TextDisplay(content=f"**Moddy ID:** `{self.moddy_id}`\n**Deleted by:** {interaction.user.name}\n**Messages deleted:** {deleted_count}"),
-                    )
-                    self.add_item(container)
-
-                    await interaction.response.edit_message(view=self)
-
-                async def on_invite(self, interaction: discord.Interaction):
-                    """Crée un lien d'invitation vers le serveur"""
-                    # Vérifie les permissions
-                    from utils.staff_permissions import staff_permissions, StaffRole
-                    user_roles = await staff_permissions.get_user_roles(interaction.user.id)
-
-                    allowed_roles = [StaffRole.Dev, StaffRole.Manager, StaffRole.Supervisor_Mod, StaffRole.Moderator]
-                    if not any(role in allowed_roles for role in user_roles):
-                        await interaction.response.send_message(
-                            "You don't have permission to get invite links.",
-                            ephemeral=True
-                        )
-                        return
-
-                    # Récupère le serveur
-                    guild = self.message.guild
-                    if not guild:
-                        await interaction.response.send_message(
-                            "Could not find the server.",
-                            ephemeral=True
-                        )
-                        return
-
-                    # Crée un lien d'invitation
-                    try:
-                        invite_channel = guild.system_channel or self.message.channel
-                        invite = await invite_channel.create_invite(
-                            max_age=604800,  # 7 jours
-                            max_uses=5,
-                            reason=f"Staff invite requested by {interaction.user}"
-                        )
-
-                        await interaction.response.send_message(
-                            f"**Invite link for {guild.name}:**\n{invite.url}",
-                            ephemeral=True
-                        )
-                    except Exception as e:
-                        await interaction.response.send_message(
-                            f"Failed to create invite: {str(e)}",
-                            ephemeral=True
-                        )
-
-                async def on_claim(self, interaction: discord.Interaction):
-                    """Claim le message pour investigation"""
-                    # Vérifie les permissions
-                    from utils.staff_permissions import staff_permissions, StaffRole
-                    user_roles = await staff_permissions.get_user_roles(interaction.user.id)
-
-                    allowed_roles = [StaffRole.Dev, StaffRole.Manager, StaffRole.Supervisor_Mod, StaffRole.Moderator]
-                    if not any(role in allowed_roles for role in user_roles):
-                        await interaction.response.send_message(
-                            "You don't have permission to claim messages.",
-                            ephemeral=True
-                        )
-                        return
-
-                    self.claimed_by = interaction.user
-                    self._build_view()
-                    await interaction.response.edit_message(view=self)
-
-                async def on_processed(self, interaction: discord.Interaction):
-                    """Marque comme traité avec un formulaire"""
-                    # Ouvre un modal pour les actions prises
-                    from cogs.interserver_commands import ProcessedModal
-                    modal = ProcessedModal(self.moddy_id)
-                    await interaction.response.send_modal(modal)
 
             # Envoie le log
-            log_view = StaffLogView(self.bot, moddy_id, message, author_info, server_info, content_preview, success_count, total_count, is_moddy_team)
+            log_view = StaffLogView(moddy_id, author_info, server_info, content_preview, success_count, total_count, is_moddy_team)
             await log_channel.send(view=log_view, allowed_mentions=discord.AllowedMentions.none())
 
         except Exception as e:
@@ -751,14 +599,24 @@ class InterServerModule(ModuleBase):
             # Retire le salon actuel de la liste
             target_channels = [ch for ch in target_channels if ch.id != message.channel.id]
 
+            # Envoie le DM de bienvenue si c'est la première fois
+            await self._send_welcome_dm(message.author)
+
             if not target_channels:
                 logger.debug(f"No target channels found for interserver relay from guild {self.guild_id}")
                 # Retire la réaction loading et ajoute done quand même
                 await message.remove_reaction("<a:loading:1395047662092550194>", self.bot.user)
                 await message.add_reaction("<:done:1398729525277229066>")
 
-                # Gère le sticky message pour ce salon
-                await self._manage_sticky_message(message.channel)
+                # Supprime la réaction done après 5 secondes
+                async def remove_done_reaction():
+                    await asyncio.sleep(5)
+                    try:
+                        await message.remove_reaction("<:done:1398729525277229066>", self.bot.user)
+                    except:
+                        pass
+
+                asyncio.create_task(remove_done_reaction())
                 return
 
             # Prépare et envoie le message
@@ -772,23 +630,18 @@ class InterServerModule(ModuleBase):
             await message.remove_reaction("<a:loading:1395047662092550194>", self.bot.user)
             if success_count >= len(target_channels) // 2:  # Au moins 50% de succès
                 await message.add_reaction("<:done:1398729525277229066>")
+
+                # Supprime la réaction done après 5 secondes
+                async def remove_done_reaction():
+                    await asyncio.sleep(5)
+                    try:
+                        await message.remove_reaction("<:done:1398729525277229066>", self.bot.user)
+                    except:
+                        pass
+
+                asyncio.create_task(remove_done_reaction())
             else:
                 await message.add_reaction("<:undone:1398729502028333218>")
-
-            # Gère le sticky message pour ce salon et tous les salons cibles
-            await self._manage_sticky_message(message.channel)
-
-            # Gère le sticky message pour tous les salons qui ont reçu le message
-            for channel in target_channels:
-                try:
-                    target_module = await self.bot.module_manager.get_module_instance(
-                        channel.guild.id,
-                        'interserver'
-                    )
-                    if target_module:
-                        await target_module._manage_sticky_message(channel)
-                except Exception as e:
-                    logger.debug(f"Error managing sticky message for {channel.guild.name}: {e}")
 
             # Envoie le log au salon staff approprié
             await self._send_staff_log(message, moddy_id, is_moddy_team_message, success_count, len(target_channels))

@@ -130,46 +130,6 @@ class InterServerConfigView(BaseView):
         type_row.add_item(type_select)
         container.add_item(type_row)
 
-        # Section : Options d'affichage
-        container.add_item(ui.TextDisplay(
-            f"**{t('modules.interserver.config.options.section_title', locale=self.locale)}**\n"
-            f"-# {t('modules.interserver.config.options.section_description', locale=self.locale)}"
-        ))
-
-        # Sélecteur pour les options
-        options_row = ui.ActionRow()
-        options_select = ui.Select(
-            placeholder=t('modules.interserver.config.options.placeholder', locale=self.locale),
-            options=[
-                discord.SelectOption(
-                    label=t('modules.interserver.config.options.show_server_name', locale=self.locale),
-                    value="show_server_name",
-                    description=t('modules.interserver.config.options.show_server_name_desc', locale=self.locale),
-                    emoji=discord.PartialEmoji.from_str("<:label:1398729473649676440>"),
-                    default=self.working_config.get('show_server_name', True)
-                ),
-                discord.SelectOption(
-                    label=t('modules.interserver.config.options.show_avatar', locale=self.locale),
-                    value="show_avatar",
-                    description=t('modules.interserver.config.options.show_avatar_desc', locale=self.locale),
-                    emoji=discord.PartialEmoji.from_str("<:user:1398729712204779571>"),
-                    default=self.working_config.get('show_avatar', True)
-                ),
-                discord.SelectOption(
-                    label=t('modules.interserver.config.options.allowed_mentions', locale=self.locale),
-                    value="allowed_mentions",
-                    description=t('modules.interserver.config.options.allowed_mentions_desc', locale=self.locale),
-                    emoji=discord.PartialEmoji.from_str("<:notifications:1402261437493022775>"),
-                    default=self.working_config.get('allowed_mentions', False)
-                )
-            ],
-            min_values=0,
-            max_values=3
-        )
-        options_select.callback = self.on_options_select
-        options_row.add_item(options_select)
-        container.add_item(options_row)
-
         container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
         # Avertissement de sécurité
@@ -243,28 +203,6 @@ class InterServerConfigView(BaseView):
             self.working_config['channel_id'] = channel_id
         else:
             self.working_config['channel_id'] = None
-
-        # Marque comme modifié
-        self.has_changes = True
-
-        # Reconstruit la vue
-        self._build_view()
-
-        # Met à jour le message
-        await interaction.response.edit_message(view=self)
-
-    async def on_options_select(self, interaction: discord.Interaction):
-        """Callback quand des options sont sélectionnées"""
-        if not await self.check_user(interaction):
-            return
-
-        # Récupère les options sélectionnées
-        selected_options = interaction.data['values']
-
-        # Met à jour les options
-        self.working_config['show_server_name'] = 'show_server_name' in selected_options
-        self.working_config['show_avatar'] = 'show_avatar' in selected_options
-        self.working_config['allowed_mentions'] = 'allowed_mentions' in selected_options
 
         # Marque comme modifié
         self.has_changes = True

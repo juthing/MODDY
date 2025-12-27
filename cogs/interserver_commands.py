@@ -30,52 +30,70 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         self.bot = bot
         super().__init__()
 
+    async def _get_message_by_id(self, message_id: str) -> Optional[Dict]:
+        """
+        Récupère un message inter-serveur soit par ID MODDY (F6ZEU3VS) soit par snowflake Discord
+
+        Args:
+            message_id: L'ID du message (MODDY ou snowflake)
+
+        Returns:
+            Dict avec les données du message ou None si non trouvé
+        """
+        import re
+
+        # Normalise l'ID
+        message_id = message_id.strip().upper()
+
+        # Vérifie si c'est un ID MODDY (8 caractères alphanumériques)
+        if re.match(r'^[A-Z0-9]{8}$', message_id):
+            # Format MODDY ID
+            return await self.bot.db.get_interserver_message(message_id)
+
+        # Sinon, essaie de le traiter comme un snowflake Discord
+        try:
+            snowflake_id = int(message_id)
+            return await self.bot.db.get_interserver_message_by_original(snowflake_id)
+        except ValueError:
+            # Ce n'est ni un MODDY ID ni un snowflake valide
+            return None
+
     @app_commands.command(
         name="report",
         description="Report an inter-server message to the moderation team"
     )
     @app_commands.guild_only()
     @app_commands.describe(
-        moddy_id="The Moddy ID of the message to report (format: XXXX-XXXX)"
+        message_id="The message ID to report (Moddy ID like F6ZEU3VS or Discord message ID)"
     )
     async def report(
         self,
         interaction: discord.Interaction,
-        moddy_id: str
+        message_id: str
     ):
         """Signale un message inter-serveur à l'équipe de modération"""
         try:
-            # Normalise le moddy_id
-            moddy_id = moddy_id.strip().upper()
-
-            # Valide le format du Moddy ID (XXXX-XXXX)
-            import re
-            if not re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$', moddy_id):
-                view = create_error_message(
-                    "Invalid Moddy ID",
-                    f"The Moddy ID `{moddy_id}` is invalid. Format should be `XXXX-XXXX` (e.g., `AB12-CD34`)."
-                )
-                await interaction.response.send_message(view=view, ephemeral=True)
-                return
-
-            # Récupère les informations du message
-            msg_data = await self.bot.db.get_interserver_message(moddy_id)
+            # Récupère les informations du message (supporte Moddy ID et snowflake)
+            msg_data = await self._get_message_by_id(message_id)
 
             if not msg_data:
                 view = create_error_message(
                     "Message Not Found",
-                    f"No inter-server message found with ID `{moddy_id}`.\n\nMake sure the ID is correct and the message hasn't been deleted."
+                    f"No inter-server message found with ID `{message_id}`.\n\nMake sure the ID is correct (Moddy ID like `F6ZEU3VS` or Discord message ID) and the message hasn't been deleted."
                 )
                 await interaction.response.send_message(view=view, ephemeral=True)
                 return
         except Exception as e:
-            logger.error(f"Error validating/fetching message {moddy_id}: {e}", exc_info=True)
+            logger.error(f"Error validating/fetching message {message_id}: {e}", exc_info=True)
             view = create_error_message(
                 "Error",
                 f"An error occurred while fetching the message. Please verify the ID and try again."
             )
             await interaction.response.send_message(view=view, ephemeral=True)
             return
+
+        # Récupère le Moddy ID réel du message
+        moddy_id = msg_data['moddy_id']
 
         # Vérifie si le message est déjà supprimé
         if msg_data['status'] == 'deleted':
@@ -255,48 +273,38 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
     )
     @app_commands.guild_only()
     @app_commands.describe(
-        moddy_id="The Moddy ID of the message to get info about",
+        message_id="The message ID to get info about (Moddy ID like F6ZEU3VS or Discord message ID)",
         incognito="Hide your identity in the request (default: False)"
     )
     async def info(
         self,
         interaction: discord.Interaction,
-        moddy_id: str,
+        message_id: str,
         incognito: bool = False
     ):
         """Obtient des informations sur un message inter-serveur"""
         try:
-            # Normalise le moddy_id
-            moddy_id = moddy_id.strip().upper()
-
-            # Valide le format du Moddy ID (XXXX-XXXX)
-            import re
-            if not re.match(r'^[A-Z0-9]{4}-[A-Z0-9]{4}$', moddy_id):
-                view = create_error_message(
-                    "Invalid Moddy ID",
-                    f"The Moddy ID `{moddy_id}` is invalid. Format should be `XXXX-XXXX` (e.g., `AB12-CD34`)."
-                )
-                await interaction.response.send_message(view=view, ephemeral=True)
-                return
-
-            # Récupère les informations du message
-            msg_data = await self.bot.db.get_interserver_message(moddy_id)
+            # Récupère les informations du message (supporte Moddy ID et snowflake)
+            msg_data = await self._get_message_by_id(message_id)
 
             if not msg_data:
                 view = create_error_message(
                     "Message Not Found",
-                    f"No inter-server message found with ID `{moddy_id}`.\n\nMake sure the ID is correct and the message hasn't been deleted."
+                    f"No inter-server message found with ID `{message_id}`.\n\nMake sure the ID is correct (Moddy ID like `F6ZEU3VS` or Discord message ID) and the message hasn't been deleted."
                 )
                 await interaction.response.send_message(view=view, ephemeral=True)
                 return
         except Exception as e:
-            logger.error(f"Error validating/fetching message {moddy_id}: {e}", exc_info=True)
+            logger.error(f"Error validating/fetching message {message_id}: {e}", exc_info=True)
             view = create_error_message(
                 "Error",
                 f"An error occurred while fetching the message. Please verify the ID and try again."
             )
             await interaction.response.send_message(view=view, ephemeral=True)
             return
+
+        # Récupère le Moddy ID réel du message
+        moddy_id = msg_data['moddy_id']
 
         # Récupère l'auteur du message
         try:
