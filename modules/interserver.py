@@ -46,9 +46,6 @@ class InterServerModule(ModuleBase):
         # Cooldown tracking (user_id -> timestamp)
         self.cooldowns: Dict[int, datetime] = {}
 
-        # Track users who have already received the welcome DM
-        self.welcomed_users: set = set()
-
     async def load_config(self, config_data: Dict[str, Any]) -> bool:
         """Charge la configuration depuis la DB"""
         try:
@@ -419,9 +416,14 @@ class InterServerModule(ModuleBase):
     async def _send_welcome_dm(self, user: discord.User):
         """
         Envoie un DM de bienvenue à l'utilisateur s'il n'en a pas déjà reçu
+        Utilise le système d'attributs DB pour persister l'information
         """
-        # Vérifie si l'utilisateur a déjà été accueilli
-        if user.id in self.welcomed_users:
+        # Détermine l'attribut selon le type d'inter-serveur
+        attribute_name = f'INTERSERVER_WELCOMED_{self.interserver_type.upper()}'
+
+        # Vérifie si l'utilisateur a déjà été accueilli (depuis la DB)
+        has_been_welcomed = await self.bot.db.has_attribute('user', user.id, attribute_name)
+        if has_been_welcomed:
             return
 
         try:
@@ -452,8 +454,15 @@ class InterServerModule(ModuleBase):
             # Envoie le DM
             await user.send(view=view)
 
-            # Marque l'utilisateur comme accueilli
-            self.welcomed_users.add(user.id)
+            # Marque l'utilisateur comme accueilli en DB
+            await self.bot.db.set_attribute(
+                entity_type='user',
+                entity_id=user.id,
+                attribute=attribute_name,
+                value=True,
+                changed_by=self.bot.user.id,
+                reason=f'First message in {self.interserver_type} inter-server'
+            )
 
             logger.info(f"Sent welcome DM to user {user.id} in interserver {self.interserver_type}")
 
@@ -461,7 +470,14 @@ class InterServerModule(ModuleBase):
             # L'utilisateur a désactivé les DMs
             logger.debug(f"Could not send welcome DM to user {user.id} - DMs disabled")
             # On marque quand même comme accueilli pour ne pas réessayer
-            self.welcomed_users.add(user.id)
+            await self.bot.db.set_attribute(
+                entity_type='user',
+                entity_id=user.id,
+                attribute=attribute_name,
+                value=True,
+                changed_by=self.bot.user.id,
+                reason=f'DMs disabled - marked to prevent retry'
+            )
         except Exception as e:
             logger.error(f"Error sending welcome DM: {e}", exc_info=True)
 
