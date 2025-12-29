@@ -738,8 +738,8 @@
         }
       },
       "welcome_dm": {
-        "title": "### <:groups:1446127489842806967> Welcome to Inter-Server!",
-        "body": "<:web:1398729801061240883> This is an international inter-server channel connecting multiple Discord servers.\n\n<:book:1446557736350388364> **Please follow:**\n• The [Inter-Server Guidelines](https://moddy.app/interserver-guidelines)\n• Discord's Terms of Service\n\n<:verified:1398729677601902635> This channel is moderated by Moddy's moderation team.\n\n<:flag:1446197210198048778> **To report a message:**\nJoin our [support server](https://moddy.app/support/) or use `/interserver report`\n\n-# You're receiving this message because you sent your first message in an inter-server channel."
+        "title": "### <:groups:1446127489842806967> Inter-Server Channel",
+        "body": "<:web:1398729801061240883> This is an international inter-server channel connecting multiple Discord servers.\n<:book:1446557736350388364> Please follow the Inter-Server Guidelines and Discord's Terms of Service.\n<:verified:1398729677601902635> This channel is moderated by Moddy's moderation team.\n<:flag:1446197210198048778> To report a message to our team, join our support server or use /interserver report.\n\n-# You're receiving this message because you sent your first message in an inter-server channel."
       },
       "channel_description": "🌐 Inter-Server Channel | Connect with users from multiple Discord servers | Follow the Inter-Server Guidelines (https://moddy.app/interserver-guidelines) | Moderated by Moddy Team | Report: /interserver report"
     },
