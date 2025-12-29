@@ -474,24 +474,49 @@ class ErrorTracker(commands.Cog):
         """
         Fetch Sentry issue ID from the API and update the database.
         This runs asynchronously in the background.
+
+        Retries up to 3 times with exponential backoff:
+        - First attempt: after 5 seconds
+        - Second attempt: after 10 seconds (5 + 5)
+        - Third attempt: after 15 seconds (5 + 10)
         """
-        try:
-            # Wait a bit for Sentry to process the event
-            await asyncio.sleep(2)
+        max_retries = 3
+        base_delay = 5  # Start with 5 seconds
 
-            # Fetch the issue ID from Sentry API
-            sentry_issue_id = await fetch_sentry_issue_id(sentry_event_id)
+        for attempt in range(max_retries):
+            try:
+                # Wait before attempting (exponential backoff)
+                wait_time = base_delay * (attempt + 1)
+                await asyncio.sleep(wait_time)
 
-            if sentry_issue_id and self.bot.db:
-                # Update the database with the issue ID
-                await self.bot.db.update_error_sentry_ids(
-                    error_code,
-                    sentry_issue_id=sentry_issue_id
-                )
-                logger.info(f"Updated error {error_code} with Sentry issue ID: {sentry_issue_id}")
+                logger.debug(f"Attempting to fetch Sentry issue ID for {error_code} (attempt {attempt + 1}/{max_retries}, waited {wait_time}s)")
 
-        except Exception as e:
-            logger.error(f"Failed to update Sentry issue ID for error {error_code}: {e}")
+                # Fetch the issue ID from Sentry API
+                sentry_issue_id = await fetch_sentry_issue_id(sentry_event_id)
+
+                if sentry_issue_id and self.bot.db:
+                    # Success! Update the database with the issue ID
+                    await self.bot.db.update_error_sentry_ids(
+                        error_code,
+                        sentry_issue_id=sentry_issue_id
+                    )
+                    logger.info(f"✅ Updated error {error_code} with Sentry issue ID: {sentry_issue_id} (attempt {attempt + 1})")
+                    return  # Success, exit the retry loop
+                elif attempt < max_retries - 1:
+                    # No issue ID yet, but we have more retries
+                    logger.debug(f"No issue ID yet for {error_code}, will retry...")
+                    continue
+                else:
+                    # Last attempt failed
+                    logger.warning(f"Failed to fetch Sentry issue ID for {error_code} after {max_retries} attempts")
+                    return
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Error fetching Sentry issue ID for {error_code} (attempt {attempt + 1}): {e}, retrying...")
+                else:
+                    logger.error(f"Failed to update Sentry issue ID for error {error_code} after {max_retries} attempts: {e}")
+                    return
 
     async def get_error_channel(self) -> Optional[discord.TextChannel]:
         """Gets the error channel"""
