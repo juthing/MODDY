@@ -88,12 +88,13 @@ def capture_error_to_sentry(error: Exception, context: Dict[str, Any] = None) ->
         return None
 
 
-async def fetch_sentry_issue_id(event_id: str) -> Optional[str]:
+async def fetch_sentry_issue_id(event_id: str, project_slug: str = "moddy") -> Optional[str]:
     """
     Fetch the Sentry Issue ID (group ID) from the Sentry API using the event ID.
 
     Args:
         event_id: The Sentry event ID
+        project_slug: The Sentry project slug (default: "moddy")
 
     Returns:
         str: The Issue ID (group ID) if found, None otherwise
@@ -109,9 +110,12 @@ async def fetch_sentry_issue_id(event_id: str) -> Optional[str]:
     try:
         import aiohttp
 
-        # API endpoint to get event details
-        # Format: https://sentry.io/api/0/organizations/{org_slug}/eventids/{event_id}/
-        url = f"https://sentry.io/api/0/organizations/moddy-0f/eventids/{event_id}/"
+        # Try multiple API endpoints
+        # First: /organizations/{org}/eventids/{event_id}/
+        url1 = f"https://sentry.io/api/0/organizations/moddy-0f/eventids/{event_id}/"
+
+        # Second (alternative): /projects/{org}/{project}/events/{event_id}/
+        url2 = f"https://sentry.io/api/0/projects/moddy-0f/{project_slug}/events/{event_id}/"
 
         headers = {
             "Authorization": f"Bearer {sentry_api_token}",
@@ -119,14 +123,37 @@ async def fetch_sentry_issue_id(event_id: str) -> Optional[str]:
         }
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
+            # Try first endpoint
+            async with session.get(url1, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     # The issue ID is in groupId or event.groupID
                     issue_id = data.get('groupId') or data.get('event', {}).get('groupID')
-                    return str(issue_id) if issue_id else None
+                    if issue_id:
+                        logger.info(f"Successfully fetched Sentry issue ID from eventids endpoint: {issue_id}")
+                        return str(issue_id)
                 else:
-                    logger.warning(f"Failed to fetch Sentry issue ID: HTTP {response.status}")
+                    # Log error and try alternative endpoint
+                    error_text = await response.text()
+                    logger.debug(f"First endpoint failed (HTTP {response.status}): {url1}")
+                    logger.debug(f"Response: {error_text[:500]}")
+
+            # Try alternative endpoint
+            async with session.get(url2, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # The issue ID is in groupID
+                    issue_id = data.get('groupID')
+                    if issue_id:
+                        logger.info(f"Successfully fetched Sentry issue ID from events endpoint: {issue_id}")
+                        return str(issue_id)
+                else:
+                    # Log error details
+                    error_text = await response.text()
+                    logger.warning(f"Failed to fetch Sentry issue ID from both endpoints")
+                    logger.debug(f"Second endpoint failed (HTTP {response.status}): {url2}")
+                    logger.debug(f"Response: {error_text[:500]}")
+                    logger.debug(f"Token suffix: ***{sentry_api_token[-8:]}")
                     return None
 
     except Exception as e:
