@@ -110,12 +110,9 @@ async def fetch_sentry_issue_id(event_id: str, project_slug: str = "moddy") -> O
     try:
         import aiohttp
 
-        # Try multiple API endpoints
-        # First: /organizations/{org}/eventids/{event_id}/
-        url1 = f"https://sentry.io/api/0/organizations/moddy-0f/eventids/{event_id}/"
-
-        # Second (alternative): /projects/{org}/{project}/events/{event_id}/
-        url2 = f"https://sentry.io/api/0/projects/moddy-0f/{project_slug}/events/{event_id}/"
+        # API endpoint: /organizations/{org}/eventids/{event_id}/
+        # Requires token with org:read, org:write, or org:admin scope
+        url = f"https://sentry.io/api/0/organizations/moddy-0f/eventids/{event_id}/"
 
         headers = {
             "Authorization": f"Bearer {sentry_api_token}",
@@ -123,37 +120,42 @@ async def fetch_sentry_issue_id(event_id: str, project_slug: str = "moddy") -> O
         }
 
         async with aiohttp.ClientSession() as session:
-            # Try first endpoint
-            async with session.get(url1, headers=headers) as response:
+            async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
-                    # The issue ID is in groupId or event.groupID
-                    issue_id = data.get('groupId') or data.get('event', {}).get('groupID')
+                    # According to Sentry API docs, groupId is at root level
+                    issue_id = data.get('groupId')
                     if issue_id:
-                        logger.info(f"Successfully fetched Sentry issue ID from eventids endpoint: {issue_id}")
+                        logger.info(f"Successfully fetched Sentry issue ID: {issue_id} for event {event_id}")
                         return str(issue_id)
-                else:
-                    # Log error and try alternative endpoint
+                    else:
+                        logger.warning(f"Sentry API returned 200 but no groupId found in response")
+                        logger.debug(f"Response data: {data}")
+                        return None
+                elif response.status == 401:
+                    # Unauthorized - token issue
                     error_text = await response.text()
-                    logger.debug(f"First endpoint failed (HTTP {response.status}): {url1}")
+                    logger.error(f"Sentry API authentication failed (401). Check SENTRY_API_TOKEN permissions.")
+                    logger.error(f"Required scopes: org:read, org:write, or org:admin")
                     logger.debug(f"Response: {error_text[:500]}")
-
-            # Try alternative endpoint
-            async with session.get(url2, headers=headers) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    # The issue ID is in groupID
-                    issue_id = data.get('groupID')
-                    if issue_id:
-                        logger.info(f"Successfully fetched Sentry issue ID from events endpoint: {issue_id}")
-                        return str(issue_id)
-                else:
-                    # Log error details
+                    return None
+                elif response.status == 403:
+                    # Forbidden - permission issue
                     error_text = await response.text()
-                    logger.warning(f"Failed to fetch Sentry issue ID from both endpoints")
-                    logger.debug(f"Second endpoint failed (HTTP {response.status}): {url2}")
+                    logger.error(f"Sentry API access forbidden (403). Token may not have required scope.")
+                    logger.error(f"Required scopes: org:read, org:write, or org:admin")
                     logger.debug(f"Response: {error_text[:500]}")
-                    logger.debug(f"Token suffix: ***{sentry_api_token[-8:]}")
+                    return None
+                elif response.status == 404:
+                    # Event not found yet - might be too early
+                    logger.info(f"Sentry event {event_id} not found yet (404). May need to wait longer.")
+                    return None
+                else:
+                    # Other error
+                    error_text = await response.text()
+                    logger.warning(f"Failed to fetch Sentry issue ID: HTTP {response.status}")
+                    logger.debug(f"URL: {url}")
+                    logger.debug(f"Response: {error_text[:500]}")
                     return None
 
     except Exception as e:
