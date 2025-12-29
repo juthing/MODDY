@@ -44,38 +44,94 @@ else:
     logger.warning("SENTRY_DSN not set - Sentry integration disabled")
 
 
-def capture_error_to_sentry(error: Exception, context: Dict[str, Any] = None):
+def capture_error_to_sentry(error: Exception, context: Dict[str, Any] = None) -> Optional[str]:
     """
     Helper function to capture errors to Sentry with additional context.
     This runs in parallel to the existing error handling system.
+
+    Returns:
+        str: The Sentry event ID if capture was successful, None otherwise
     """
     if not SENTRY_DSN:
-        return  # Sentry not configured, skip
+        return None  # Sentry not configured, skip
 
     try:
         # Set additional context if provided
         if context:
             with sentry_sdk.push_scope() as scope:
-                # Add context information
+                # Add context information as extras
                 for key, value in context.items():
                     scope.set_extra(key, value)
 
                 # Add tags for better filtering in Sentry
+                if 'error_code' in context:
+                    scope.set_tag('error_code', context['error_code'])
                 if 'command' in context:
                     scope.set_tag('command', context['command'])
                 if 'guild_id' in context:
-                    scope.set_tag('guild_id', context['guild_id'])
+                    scope.set_tag('guild_id', str(context['guild_id']))
                 if 'user_id' in context:
-                    scope.set_tag('user_id', context['user_id'])
+                    scope.set_tag('user_id', str(context['user_id']))
+                if 'error_type' in context:
+                    scope.set_tag('error_type', context['error_type'])
 
-                # Capture the exception
-                sentry_sdk.capture_exception(error)
+                # Capture the exception and get the event ID
+                event_id = sentry_sdk.capture_exception(error)
+                return event_id
         else:
             # Capture without additional context
-            sentry_sdk.capture_exception(error)
+            event_id = sentry_sdk.capture_exception(error)
+            return event_id
     except Exception as sentry_error:
         # Don't let Sentry errors break the main error handling
         logger.error(f"Failed to capture error to Sentry: {sentry_error}")
+        return None
+
+
+async def fetch_sentry_issue_id(event_id: str) -> Optional[str]:
+    """
+    Fetch the Sentry Issue ID (group ID) from the Sentry API using the event ID.
+
+    Args:
+        event_id: The Sentry event ID
+
+    Returns:
+        str: The Issue ID (group ID) if found, None otherwise
+    """
+    if not event_id or not SENTRY_DSN:
+        return None
+
+    sentry_api_token = os.getenv('SENTRY_API_TOKEN')
+    if not sentry_api_token:
+        logger.warning("SENTRY_API_TOKEN not set - cannot fetch issue ID")
+        return None
+
+    try:
+        import aiohttp
+
+        # API endpoint to get event details
+        # Format: https://sentry.io/api/0/organizations/{org_slug}/eventids/{event_id}/
+        url = f"https://sentry.io/api/0/organizations/moddy-0f/eventids/{event_id}/"
+
+        headers = {
+            "Authorization": f"Bearer {sentry_api_token}",
+            "Content-Type": "application/json"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # The issue ID is in groupId or event.groupID
+                    issue_id = data.get('groupId') or data.get('event', {}).get('groupID')
+                    return str(issue_id) if issue_id else None
+                else:
+                    logger.warning(f"Failed to fetch Sentry issue ID: HTTP {response.status}")
+                    return None
+
+    except Exception as e:
+        logger.error(f"Error fetching Sentry issue ID: {e}")
+        return None
 
 
 class BaseView(ui.LayoutView):
@@ -103,16 +159,6 @@ class BaseView(ui.LayoutView):
         compact_tb = error_tb.replace('\n', ' ⮐ ')
         logger.error(f"UI Error in {self.__class__.__name__} - Item: {item.__class__.__name__} - {compact_tb}")
 
-        # Capture to Sentry with context
-        capture_error_to_sentry(error, {
-            'error_type': 'UI Error',
-            'view_class': self.__class__.__name__,
-            'item_class': item.__class__.__name__,
-            'user_id': interaction.user.id if interaction.user else None,
-            'guild_id': interaction.guild.id if interaction.guild else None,
-            'channel_id': interaction.channel.id if interaction.channel else None,
-        })
-
         # Get bot - try self.bot first, then interaction.client
         bot = self.bot if self.bot else interaction.client
 
@@ -133,9 +179,28 @@ class BaseView(ui.LayoutView):
                 "item": f"{item.__class__.__name__}"
             })
 
+            # Capture to Sentry and get event ID
+            sentry_event_id = capture_error_to_sentry(error, {
+                'error_type': 'UI Error',
+                'error_code': error_code,
+                'view_class': self.__class__.__name__,
+                'item_class': item.__class__.__name__,
+                'user_id': interaction.user.id if interaction.user else None,
+                'guild_id': interaction.guild.id if interaction.guild else None,
+                'channel_id': interaction.channel.id if interaction.channel else None,
+            })
+
+            # Add Sentry event ID to error details
+            if sentry_event_id:
+                error_details['sentry_event_id'] = sentry_event_id
+
             # Store error
             error_tracker.store_error(error_code, error_details)
             await error_tracker.store_error_db(error_code, error_details)
+
+            # Fetch Sentry issue ID asynchronously (don't wait for it)
+            if sentry_event_id and bot.db:
+                asyncio.create_task(error_tracker._update_sentry_issue_id(error_code, sentry_event_id))
 
             # Determine if fatal
             is_fatal = isinstance(error, (
@@ -198,15 +263,6 @@ class BaseModal(ui.Modal):
         compact_tb = error_tb.replace('\n', ' ⮐ ')
         logger.error(f"Modal Error in {self.__class__.__name__}: {compact_tb}")
 
-        # Capture to Sentry with context
-        capture_error_to_sentry(error, {
-            'error_type': 'Modal Error',
-            'modal_class': self.__class__.__name__,
-            'user_id': interaction.user.id if interaction.user else None,
-            'guild_id': interaction.guild.id if interaction.guild else None,
-            'channel_id': interaction.channel.id if interaction.channel else None,
-        })
-
         # Get bot - try self.bot first, then interaction.client
         bot = self.bot if self.bot else interaction.client
 
@@ -223,8 +279,26 @@ class BaseModal(ui.Modal):
                 "channel": f"#{interaction.channel.name}" if hasattr(interaction.channel, 'name') else "DM"
             })
 
+            # Capture to Sentry and get event ID
+            sentry_event_id = capture_error_to_sentry(error, {
+                'error_type': 'Modal Error',
+                'error_code': error_code,
+                'modal_class': self.__class__.__name__,
+                'user_id': interaction.user.id if interaction.user else None,
+                'guild_id': interaction.guild.id if interaction.guild else None,
+                'channel_id': interaction.channel.id if interaction.channel else None,
+            })
+
+            # Add Sentry event ID to error details
+            if sentry_event_id:
+                error_details['sentry_event_id'] = sentry_event_id
+
             error_tracker.store_error(error_code, error_details)
             await error_tracker.store_error_db(error_code, error_details)
+
+            # Fetch Sentry issue ID asynchronously (don't wait for it)
+            if sentry_event_id and bot.db:
+                asyncio.create_task(error_tracker._update_sentry_issue_id(error_code, sentry_event_id))
 
             is_fatal = isinstance(error, (
                 RuntimeError,
@@ -345,7 +419,9 @@ class ErrorTracker(commands.Cog):
                 "user_id": None,
                 "guild_id": None,
                 "command": error_data.get("command"),
-                "context": None
+                "context": None,
+                "sentry_event_id": error_data.get("sentry_event_id"),
+                "sentry_issue_id": error_data.get("sentry_issue_id")
             }
 
             # Add context info if available
@@ -364,6 +440,29 @@ class ErrorTracker(commands.Cog):
             import logging
             logger = logging.getLogger('moddy')
             logger.error(f"Error while storing in DB: {e}")
+
+    async def _update_sentry_issue_id(self, error_code: str, sentry_event_id: str):
+        """
+        Fetch Sentry issue ID from the API and update the database.
+        This runs asynchronously in the background.
+        """
+        try:
+            # Wait a bit for Sentry to process the event
+            await asyncio.sleep(2)
+
+            # Fetch the issue ID from Sentry API
+            sentry_issue_id = await fetch_sentry_issue_id(sentry_event_id)
+
+            if sentry_issue_id and self.bot.db:
+                # Update the database with the issue ID
+                await self.bot.db.update_error_sentry_ids(
+                    error_code,
+                    sentry_issue_id=sentry_issue_id
+                )
+                logger.info(f"Updated error {error_code} with Sentry issue ID: {sentry_issue_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to update Sentry issue ID for error {error_code}: {e}")
 
     async def get_error_channel(self) -> Optional[discord.TextChannel]:
         """Gets the error channel"""
@@ -532,15 +631,9 @@ class ErrorTracker(commands.Cog):
         error_code = self.generate_error_code(error, ctx)
         error_details = self.format_error_details(error.original if hasattr(error, 'original') else error, ctx)
 
-        # Store the error in memory
-        self.store_error(error_code, error_details)
-
-        # Store in the DB if available
-        await self.store_error_db(error_code, error_details, ctx)
-
-        # Capture to Sentry
+        # Capture to Sentry and get event ID
         actual_error = error.original if hasattr(error, 'original') else error
-        capture_error_to_sentry(actual_error, {
+        sentry_event_id = capture_error_to_sentry(actual_error, {
             'error_type': 'Command Error',
             'error_code': error_code,
             'command': str(ctx.command) if ctx.command else 'None',
@@ -548,6 +641,20 @@ class ErrorTracker(commands.Cog):
             'guild_id': ctx.guild.id if ctx.guild else None,
             'channel_id': ctx.channel.id if ctx.channel else None,
         })
+
+        # Add Sentry event ID to error details
+        if sentry_event_id:
+            error_details['sentry_event_id'] = sentry_event_id
+
+        # Store the error in memory
+        self.store_error(error_code, error_details)
+
+        # Store in the DB if available
+        await self.store_error_db(error_code, error_details, ctx)
+
+        # Fetch Sentry issue ID asynchronously (don't wait for it)
+        if sentry_event_id and self.bot.db:
+            asyncio.create_task(self._update_sentry_issue_id(error_code, sentry_event_id))
 
         # Determine if it's fatal
         is_fatal = isinstance(error.original if hasattr(error, 'original') else error, (
@@ -607,18 +714,26 @@ class ErrorTracker(commands.Cog):
             "context": f"Discord event: {event}"
         })
 
+        # Capture to Sentry and get event ID
+        sentry_event_id = capture_error_to_sentry(exc_value, {
+            'error_type': 'Event Error',
+            'error_code': error_code,
+            'event': event,
+        })
+
+        # Add Sentry event ID to error details
+        if sentry_event_id:
+            error_details['sentry_event_id'] = sentry_event_id
+
         self.store_error(error_code, error_details)
 
         # Store in the DB if available
         if self.bot.db:
             await self.store_error_db(error_code, error_details)
 
-        # Capture to Sentry
-        capture_error_to_sentry(exc_value, {
-            'error_type': 'Event Error',
-            'error_code': error_code,
-            'event': event,
-        })
+        # Fetch Sentry issue ID asynchronously (don't wait for it)
+        if sentry_event_id and self.bot.db:
+            asyncio.create_task(self._update_sentry_issue_id(error_code, sentry_event_id))
 
         await self.send_error_log(error_code, error_details, is_fatal=True)
 
@@ -704,12 +819,8 @@ class ErrorTracker(commands.Cog):
             "channel": f"#{interaction.channel.name}" if hasattr(interaction.channel, 'name') else "DM"
         })
 
-        # Store error
-        self.store_error(error_code, error_details)
-        await self.store_error_db(error_code, error_details)
-
-        # Capture to Sentry
-        capture_error_to_sentry(actual_error, {
+        # Capture to Sentry and get event ID
+        sentry_event_id = capture_error_to_sentry(actual_error, {
             'error_type': 'App Command Error',
             'error_code': error_code,
             'command': interaction.command.name if interaction.command else 'Unknown',
@@ -717,6 +828,18 @@ class ErrorTracker(commands.Cog):
             'guild_id': interaction.guild.id if interaction.guild else None,
             'channel_id': interaction.channel.id if interaction.channel else None,
         })
+
+        # Add Sentry event ID to error details
+        if sentry_event_id:
+            error_details['sentry_event_id'] = sentry_event_id
+
+        # Store error
+        self.store_error(error_code, error_details)
+        await self.store_error_db(error_code, error_details)
+
+        # Fetch Sentry issue ID asynchronously (don't wait for it)
+        if sentry_event_id and self.bot.db:
+            asyncio.create_task(self._update_sentry_issue_id(error_code, sentry_event_id))
 
         # Determine if it's fatal
         is_fatal = isinstance(actual_error, (
