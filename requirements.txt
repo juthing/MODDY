@@ -36,3 +36,6 @@ redis[hiredis]==5.0.1
 pydantic==2.9.2
 python-multipart==0.0.9
 
+# Error tracking and monitoring
+sentry-sdk==2.18.0
+
