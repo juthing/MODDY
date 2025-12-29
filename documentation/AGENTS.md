@@ -611,7 +611,7 @@ panel – 1398720151980998789 – <:panel:1398720151980998789> – *(pas d’éq
 translate – 1398720130950627600 – <:translate:1398720130950627600> – 🌐  
 moddy – 1396880909117947924 – <:moddy:1396880909117947924> – *(pas d’équivalent)* - Logo de moddy
 translatemt – 1395048813353242735 – <:translatemt:1395048813353242735> – *(pas d’équivalent)*  
-loading – 1395047662092550194 – <:loading:1395047662092550194> – *(pas d’équivalent)*  - à utiliser quand ça charge c'est le truc en rond qui tourne  
+loading – 1395047662092550194 – <a:loading:1455219844080336907> – *(pas d’équivalent)*  - à utiliser quand ça charge c'est le truc en rond qui tourne  
 support – 1398734366670065726 – <:support:1398734366670065726> – 🛟  
 snowflake – 1398729841938792458 – <:snowflake:1398729841938792458> – ❄️  
 invalidsnowflake – 1398729819855913143 – <:invalidsnowflake:1398729819855913143> – *(pas d’équivalent)*  (flocon avec un point d'exclamation) (à utiliser quand un snowflake, donc un id discord, est invalide)

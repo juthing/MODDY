@@ -25,7 +25,7 @@ EMOJIS = {
     'snowflake': '<:snowflake:1398729841938792458>',
     'web': '<:web:1398729801061240883>',
     'moddy': '<:moddy:1396880909117947924>',
-    'loading': '<:loading:1395047662092550194>',
+    'loading': '<a:loading:1455219844080336907>',
     'history': '<:history:1401600464587456512>',
     'delete': '<:delete:1401600770431909939>',
     'commands': '<:commands:1401610449136648283>',

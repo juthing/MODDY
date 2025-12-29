@@ -177,7 +177,7 @@ class ModdyResponse:
     def loading(message: str = "Loading...") -> discord.Embed:
         """Clean loading message."""
         return ModdyEmbed.minimal(
-            description=f"<:loading:1395047662092550194> {message}",
+            description=f"<a:loading:1455219844080336907> {message}",
             color=ModdyColors.LIGHT
         )
 

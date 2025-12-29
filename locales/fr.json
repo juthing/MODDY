@@ -548,7 +548,7 @@
     }
   },
   "common": {
-    "loading": "<:loading:1395047662092550194> Chargement...",
+    "loading": "<a:loading:1455219844080336907> Chargement...",
     "success": "<:done:1398729525277229066> Succès !",
     "error": "<:undone:1398729502028333218> Erreur",
     "info": "<:info:1401614681440784477> Information",
