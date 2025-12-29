@@ -195,7 +195,7 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                     user_roles = await staff_permissions.get_user_roles(interaction.user.id)
 
                     # Vérifie si l'utilisateur est au moins modérateur
-                    allowed_roles = [StaffRole.Dev, StaffRole.Manager, StaffRole.Supervisor_Mod, StaffRole.Moderator]
+                    allowed_roles = [StaffRole.DEV, StaffRole.MANAGER, StaffRole.SUPERVISOR_MOD, StaffRole.MODERATOR]
                     if not any(role in allowed_roles for role in user_roles):
                         await interaction.response.send_message(
                             "You don't have permission to claim reports.",
@@ -219,7 +219,7 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                     from utils.staff_permissions import staff_permissions, StaffRole
                     user_roles = await staff_permissions.get_user_roles(interaction.user.id)
 
-                    allowed_roles = [StaffRole.Dev, StaffRole.Manager, StaffRole.Supervisor_Mod, StaffRole.Moderator]
+                    allowed_roles = [StaffRole.DEV, StaffRole.MANAGER, StaffRole.SUPERVISOR_MOD, StaffRole.MODERATOR]
                     if not any(role in allowed_roles for role in user_roles):
                         await interaction.response.send_message(
                             "You don't have permission to skip reports.",
