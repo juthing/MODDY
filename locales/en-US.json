@@ -789,7 +789,7 @@
       "name": "Auto Restore Roles",
       "description": "Automatically restores roles for returning users",
       "config": {
-        "title": "Auto Restore Roles Configuration",
+        "title": "Auto Restore Roles",
         "description": "Configure automatic role restoration when a user who left the server returns.",
         "mode": {
           "section_title": "Save mode",

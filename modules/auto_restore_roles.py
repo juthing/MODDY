@@ -34,7 +34,7 @@ class AutoRestoreRolesModule(ModuleBase):
         super().__init__(bot, guild_id)
 
         # Configuration
-        self.mode: str = self.MODE_ALL
+        self.mode: Optional[str] = None
         self.excluded_roles: List[int] = []  # Pour mode EXCEPT
         self.included_roles: List[int] = []  # Pour mode ONLY
         self.log_channel_id: Optional[int] = None
@@ -45,13 +45,13 @@ class AutoRestoreRolesModule(ModuleBase):
             self.config = config_data
 
             # Configuration du mode
-            self.mode = config_data.get('mode', self.MODE_ALL)
+            self.mode = config_data.get('mode')
             self.excluded_roles = config_data.get('excluded_roles', [])
             self.included_roles = config_data.get('included_roles', [])
             self.log_channel_id = config_data.get('log_channel_id')
 
-            # Module is enabled if mode is configured
-            self.enabled = True
+            # Module is enabled only if mode is configured
+            self.enabled = self.mode is not None
 
             return True
         except Exception as e:
@@ -61,7 +61,10 @@ class AutoRestoreRolesModule(ModuleBase):
     async def validate_config(self, config_data: Dict[str, Any]) -> tuple[bool, Optional[str]]:
         """Valide la configuration"""
         # Valide le mode
-        mode = config_data.get('mode', self.MODE_ALL)
+        mode = config_data.get('mode')
+        if mode is None:
+            return False, "Vous devez sélectionner un mode de sauvegarde"
+
         if mode not in [self.MODE_ALL, self.MODE_EXCEPT, self.MODE_ONLY]:
             return False, "Mode de sauvegarde invalide"
 
@@ -106,7 +109,7 @@ class AutoRestoreRolesModule(ModuleBase):
     def get_default_config(self) -> Dict[str, Any]:
         """Retourne la configuration par défaut"""
         return {
-            'mode': self.MODE_ALL,
+            'mode': None,
             'excluded_roles': [],
             'included_roles': [],
             'log_channel_id': None
