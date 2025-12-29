@@ -14,11 +14,68 @@ from typing import Optional, Dict, Any
 import asyncio
 import sys
 from collections import deque
+import os
 
 from config import COLORS
 import logging
 
 logger = logging.getLogger('moddy.error_handler')
+
+# Initialize Sentry integration
+import sentry_sdk
+
+# Only initialize Sentry if SENTRY_DSN is set in environment
+SENTRY_DSN = os.getenv('SENTRY_DSN')
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        # Add data like request headers and IP for users
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=True,
+        # Set traces_sample_rate to 1.0 to capture 100% of transactions for performance monitoring.
+        # Adjust this value in production.
+        traces_sample_rate=0.1,  # 10% of transactions
+        # Set profiles_sample_rate to 1.0 to profile 100% of sampled transactions.
+        # Adjust this value in production.
+        profiles_sample_rate=0.1,  # 10% of sampled transactions
+    )
+    logger.info("Sentry initialized successfully")
+else:
+    logger.warning("SENTRY_DSN not set - Sentry integration disabled")
+
+
+def capture_error_to_sentry(error: Exception, context: Dict[str, Any] = None):
+    """
+    Helper function to capture errors to Sentry with additional context.
+    This runs in parallel to the existing error handling system.
+    """
+    if not SENTRY_DSN:
+        return  # Sentry not configured, skip
+
+    try:
+        # Set additional context if provided
+        if context:
+            with sentry_sdk.push_scope() as scope:
+                # Add context information
+                for key, value in context.items():
+                    scope.set_extra(key, value)
+
+                # Add tags for better filtering in Sentry
+                if 'command' in context:
+                    scope.set_tag('command', context['command'])
+                if 'guild_id' in context:
+                    scope.set_tag('guild_id', context['guild_id'])
+                if 'user_id' in context:
+                    scope.set_tag('user_id', context['user_id'])
+
+                # Capture the exception
+                sentry_sdk.capture_exception(error)
+        else:
+            # Capture without additional context
+            sentry_sdk.capture_exception(error)
+    except Exception as sentry_error:
+        # Don't let Sentry errors break the main error handling
+        logger.error(f"Failed to capture error to Sentry: {sentry_error}")
 
 
 class BaseView(ui.LayoutView):
@@ -45,6 +102,16 @@ class BaseView(ui.LayoutView):
         error_tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
         compact_tb = error_tb.replace('\n', ' ⮐ ')
         logger.error(f"UI Error in {self.__class__.__name__} - Item: {item.__class__.__name__} - {compact_tb}")
+
+        # Capture to Sentry with context
+        capture_error_to_sentry(error, {
+            'error_type': 'UI Error',
+            'view_class': self.__class__.__name__,
+            'item_class': item.__class__.__name__,
+            'user_id': interaction.user.id if interaction.user else None,
+            'guild_id': interaction.guild.id if interaction.guild else None,
+            'channel_id': interaction.channel.id if interaction.channel else None,
+        })
 
         # Get bot - try self.bot first, then interaction.client
         bot = self.bot if self.bot else interaction.client
@@ -130,6 +197,15 @@ class BaseModal(ui.Modal):
         error_tb = ''.join(traceback.format_exception(type(error), error, error.__traceback__))
         compact_tb = error_tb.replace('\n', ' ⮐ ')
         logger.error(f"Modal Error in {self.__class__.__name__}: {compact_tb}")
+
+        # Capture to Sentry with context
+        capture_error_to_sentry(error, {
+            'error_type': 'Modal Error',
+            'modal_class': self.__class__.__name__,
+            'user_id': interaction.user.id if interaction.user else None,
+            'guild_id': interaction.guild.id if interaction.guild else None,
+            'channel_id': interaction.channel.id if interaction.channel else None,
+        })
 
         # Get bot - try self.bot first, then interaction.client
         bot = self.bot if self.bot else interaction.client
@@ -462,6 +538,17 @@ class ErrorTracker(commands.Cog):
         # Store in the DB if available
         await self.store_error_db(error_code, error_details, ctx)
 
+        # Capture to Sentry
+        actual_error = error.original if hasattr(error, 'original') else error
+        capture_error_to_sentry(actual_error, {
+            'error_type': 'Command Error',
+            'error_code': error_code,
+            'command': str(ctx.command) if ctx.command else 'None',
+            'user_id': ctx.author.id if ctx.author else None,
+            'guild_id': ctx.guild.id if ctx.guild else None,
+            'channel_id': ctx.channel.id if ctx.channel else None,
+        })
+
         # Determine if it's fatal
         is_fatal = isinstance(error.original if hasattr(error, 'original') else error, (
             RuntimeError,
@@ -525,6 +612,13 @@ class ErrorTracker(commands.Cog):
         # Store in the DB if available
         if self.bot.db:
             await self.store_error_db(error_code, error_details)
+
+        # Capture to Sentry
+        capture_error_to_sentry(exc_value, {
+            'error_type': 'Event Error',
+            'error_code': error_code,
+            'event': event,
+        })
 
         await self.send_error_log(error_code, error_details, is_fatal=True)
 
@@ -613,6 +707,16 @@ class ErrorTracker(commands.Cog):
         # Store error
         self.store_error(error_code, error_details)
         await self.store_error_db(error_code, error_details)
+
+        # Capture to Sentry
+        capture_error_to_sentry(actual_error, {
+            'error_type': 'App Command Error',
+            'error_code': error_code,
+            'command': interaction.command.name if interaction.command else 'Unknown',
+            'user_id': interaction.user.id if interaction.user else None,
+            'guild_id': interaction.guild.id if interaction.guild else None,
+            'channel_id': interaction.channel.id if interaction.channel else None,
+        })
 
         # Determine if it's fatal
         is_fatal = isinstance(actual_error, (
