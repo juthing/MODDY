@@ -619,9 +619,27 @@ class DeveloperCommands(StaffCommandsCog):
         fields = []
 
         # Error details
+        error_details_lines = [
+            f"**Code:** `{error_code}`",
+            f"**Type:** `{error_data.get('error_type') or error_data.get('type')}`",
+            f"**File:** `{error_data.get('file_source') or error_data.get('file')}:{error_data.get('line_number') or error_data.get('line')}`"
+        ]
+
+        # Add Sentry IDs if available
+        sentry_event_id = error_data.get('sentry_event_id')
+        sentry_issue_id = error_data.get('sentry_issue_id')
+
+        if sentry_event_id:
+            error_details_lines.append(f"**Sentry Event ID:** `{sentry_event_id}`")
+
+        if sentry_issue_id:
+            # Create a link to the Sentry issue
+            sentry_url = f"https://moddy-0f.sentry.io/issues/{sentry_issue_id}/"
+            error_details_lines.append(f"**Sentry Issue:** [#{sentry_issue_id}]({sentry_url})")
+
         fields.append({
             'name': f"{EMOJIS['info']} Error Details",
-            'value': f"**Code:** `{error_code}`\n**Type:** `{error_data.get('error_type') or error_data.get('type')}`\n**File:** `{error_data.get('file_source') or error_data.get('file')}:{error_data.get('line_number') or error_data.get('line')}`"
+            'value': "\n".join(error_details_lines)
         })
 
         # Error message

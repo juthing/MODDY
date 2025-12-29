@@ -77,12 +77,34 @@ class ModdyDatabase:
                     guild_id BIGINT,
                     command VARCHAR(100),
                     timestamp TIMESTAMPTZ DEFAULT NOW(),
-                    context JSONB DEFAULT '{}'::jsonb
+                    context JSONB DEFAULT '{}'::jsonb,
+                    sentry_event_id VARCHAR(32),
+                    sentry_issue_id VARCHAR(20)
                 )
             """)
 
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_errors_timestamp ON errors(timestamp)
+            """)
+
+            # Add Sentry columns if they don't exist (migration)
+            await conn.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='errors' AND column_name='sentry_event_id'
+                    ) THEN
+                        ALTER TABLE errors ADD COLUMN sentry_event_id VARCHAR(32);
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='errors' AND column_name='sentry_issue_id'
+                    ) THEN
+                        ALTER TABLE errors ADD COLUMN sentry_issue_id VARCHAR(20);
+                    END IF;
+                END $$;
             """)
 
             await conn.execute("""
@@ -396,8 +418,8 @@ class ModdyDatabase:
             await conn.execute("""
                 INSERT INTO errors (error_code, error_type, message, file_source,
                                     line_number, traceback, user_id, guild_id,
-                                    command, context)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                                    command, context, sentry_event_id, sentry_issue_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             """,
                 error_code,
                 error_data.get('type'),
@@ -408,8 +430,32 @@ class ModdyDatabase:
                 error_data.get('user_id'),
                 error_data.get('guild_id'),
                 error_data.get('command'),
-                error_data.get('context', {})
+                error_data.get('context', {}),
+                error_data.get('sentry_event_id'),
+                error_data.get('sentry_issue_id')
             )
+
+    async def update_error_sentry_ids(self, error_code: str, sentry_event_id: Optional[str] = None, sentry_issue_id: Optional[str] = None):
+        """Met à jour les IDs Sentry d'une erreur"""
+        async with self.pool.acquire() as conn:
+            if sentry_event_id and sentry_issue_id:
+                await conn.execute("""
+                    UPDATE errors
+                    SET sentry_event_id = $2, sentry_issue_id = $3
+                    WHERE error_code = $1
+                """, error_code, sentry_event_id, sentry_issue_id)
+            elif sentry_event_id:
+                await conn.execute("""
+                    UPDATE errors
+                    SET sentry_event_id = $2
+                    WHERE error_code = $1
+                """, error_code, sentry_event_id)
+            elif sentry_issue_id:
+                await conn.execute("""
+                    UPDATE errors
+                    SET sentry_issue_id = $2
+                    WHERE error_code = $1
+                """, error_code, sentry_issue_id)
 
     async def get_error(self, error_code: str) -> Optional[Dict[str, Any]]:
         """Récupère une erreur par son code"""
