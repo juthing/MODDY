@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from utils.i18n import t
 from config import EMOJIS
 from utils.components_v2 import create_error_message, create_info_message, create_success_message
-from cogs.error_handler import BaseView
+from cogs.error_handler import BaseView, BaseModal
 
 logger = logging.getLogger('moddy.cogs.interserver_commands')
 
@@ -211,6 +211,7 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
                     """Marque le rapport comme traité avec un formulaire pour les actions prises"""
                     # Ouvre un modal pour les actions prises
                     modal = ProcessedModal(self.moddy_id)
+                    modal.bot = self.bot
                     await interaction.response.send_modal(modal)
 
                 async def on_skip(self, interaction: discord.Interaction):
@@ -343,7 +344,7 @@ class InterServerCommands(commands.GroupCog, name="interserver"):
         await interaction.response.send_message(view=view, ephemeral=True)
 
 
-class ProcessedModal(discord.ui.Modal, title="Report Processing"):
+class ProcessedModal(BaseModal, title="Report Processing"):
     """Modal pour les actions prises sur un rapport"""
 
     actions_taken = discord.ui.TextInput(
@@ -360,10 +361,18 @@ class ProcessedModal(discord.ui.Modal, title="Report Processing"):
 
     async def on_submit(self, interaction: discord.Interaction):
         """Appelé quand le formulaire est soumis"""
-        # Met à jour le message
-        await interaction.response.edit_message(
-            content=f"### <:done:1398729525277229066> Report Processed\n\n**Moddy ID:** `{self.moddy_id}`\n**Processed by:** {interaction.user.mention}\n**Actions taken:**\n{self.actions_taken.value}"
-        )
+        # Crée une nouvelle vue avec Components V2 pour afficher le message de succès
+        class ProcessedView(BaseView):
+            def __init__(self, moddy_id: str, processed_by: discord.User, actions: str):
+                super().__init__()
+                container = ui.Container(
+                    ui.TextDisplay(content=f"### <:done:1398729525277229066> Report Processed"),
+                    ui.TextDisplay(content=f"**Moddy ID:** `{moddy_id}`\n**Processed by:** {processed_by.mention}\n**Actions taken:**\n{actions}"),
+                )
+                self.add_item(container)
+
+        view = ProcessedView(self.moddy_id, interaction.user, self.actions_taken.value)
+        await interaction.response.edit_message(view=view)
 
         logger.info(f"Report {self.moddy_id} processed by {interaction.user} ({interaction.user.id})")
 
