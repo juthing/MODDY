@@ -217,7 +217,9 @@ class ModuleManager:
             # Charge chaque module configuré
             for module_id, config_data in modules_config.items():
                 if module_id not in self.registered_modules:
-                    logger.warning(f"⚠️ Module {module_id} configured but not registered")
+                    # Ignore silently old/obsolete module configurations
+                    # This can happen when modules are renamed or removed
+                    logger.debug(f"Skipping module {module_id} (configured but not registered - likely obsolete)")
                     continue
 
                 # Crée une instance du module

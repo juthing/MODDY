@@ -6,7 +6,7 @@ Permet de signaler et d'obtenir des informations sur les messages inter-serveur
 import discord
 from discord import app_commands, ui
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, Dict
 import logging
 from datetime import datetime, timezone
 
