@@ -6,6 +6,7 @@ python-dotenv==1.0.1
 
 # HTTP requests
 aiohttp==3.9.5
+httpx==0.27.2
 
 # System monitoring
 psutil==5.9.8
