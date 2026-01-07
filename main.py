@@ -418,11 +418,23 @@ async def main():
                 # Handle Discord rate limits (429) with longer delay
                 if e.status == 429:
                     if attempt < max_retries:
-                        # Rate limit: wait longer before retrying
-                        rate_limit_delay = 60  # 1 minute
+                        # Check if Discord provided a Retry-After header
+                        retry_after = None
+                        if hasattr(e.response, 'headers') and 'Retry-After' in e.response.headers:
+                            try:
+                                retry_after = int(e.response.headers['Retry-After'])
+                            except (ValueError, TypeError):
+                                pass
+
+                        # Use Discord's suggested delay or default to 60 seconds
+                        rate_limit_delay = retry_after if retry_after else 60
+
                         logger.warning(f"⚠️ Discord rate limit hit (429) - attempt {attempt}/{max_retries}")
-                        logger.info(f"🔄 Waiting {rate_limit_delay} seconds before retry...")
-                        logger.info("💡 Tip: Too many restarts can trigger rate limits. Wait a few minutes.")
+                        if retry_after:
+                            logger.info(f"🔄 Discord requests waiting {rate_limit_delay} seconds (Retry-After header)")
+                        else:
+                            logger.info(f"🔄 Waiting {rate_limit_delay} seconds before retry...")
+                        logger.info("💡 Tip: Too many restarts can trigger rate limits. The timer does NOT reset on retries.")
                         await asyncio.sleep(rate_limit_delay)
                     else:
                         logger.error(f"❌ Failed to connect after {max_retries} attempts (rate limited)")
