@@ -88,6 +88,10 @@ class ModdyBot(commands.Bot):
         # Cache pour les commandes guild-only (NE JAMAIS les remettre dans l'arbre global)
         self._guild_only_commands = []
 
+        # Serveur HTTP interne pour l'API backend
+        self.internal_api_server = None
+        self.internal_api_thread = None
+
         # Configure global error handler
         self.setup_error_handler()
 
@@ -149,6 +153,42 @@ class ModdyBot(commands.Bot):
             logger.error(f"❌ Error fetching version: {e}")
             self.version = "Unknown"
 
+    def start_internal_api_server(self):
+        """
+        Démarre le serveur HTTP interne dans un thread séparé.
+        Ce serveur écoute sur le port INTERNAL_PORT (3000) pour recevoir
+        les requêtes du backend via Railway Private Network.
+        """
+        import threading
+        import uvicorn
+        from internal_api.server import app, set_bot
+
+        # Configurer le bot dans le serveur interne
+        set_bot(self)
+
+        # Port du serveur interne
+        internal_port = int(os.getenv("INTERNAL_PORT", 3000))
+
+        # Fonction pour exécuter le serveur dans le thread
+        def run_server():
+            logger.info(f"🌐 Starting internal API server on port {internal_port}")
+            uvicorn.run(
+                app,
+                host="::",  # IPv4 + IPv6
+                port=internal_port,
+                log_level="info",
+                access_log=False  # Désactiver les logs d'accès pour éviter le spam
+            )
+
+        # Créer et démarrer le thread
+        self.internal_api_thread = threading.Thread(
+            target=run_server,
+            daemon=True,
+            name="InternalAPIServer"
+        )
+        self.internal_api_thread.start()
+        logger.info(f"✅ Internal API server started on port {internal_port}")
+
     async def setup_hook(self):
         """Called once on bot startup"""
         logger.info("🔧 Initial setup...")
@@ -183,6 +223,10 @@ class ModdyBot(commands.Bot):
         self.module_manager = ModuleManager(self)
         self.module_manager.discover_modules()
         logger.info("✅ Module manager ready")
+
+        # Start internal API server
+        logger.info("🌐 Starting internal API server...")
+        self.start_internal_api_server()
 
         # Load extensions
         await self.load_extensions()
@@ -869,6 +913,14 @@ class ModdyBot(commands.Bot):
         # Wait a bit for tasks to finish
         await asyncio.sleep(0.1)
 
+        # Close BackendClient connection
+        try:
+            from services import close_backend_client
+            await close_backend_client()
+            logger.info("✅ Backend client closed")
+        except Exception as e:
+            logger.error(f"❌ Error closing backend client: {e}")
+
         # Close DB connection
         if self.db:
             await self.db.close()
@@ -876,6 +928,9 @@ class ModdyBot(commands.Bot):
         # Close the HTTP client cleanly
         if hasattr(self, 'http') and self.http and hasattr(self.http, '_HTTPClient__session'):
             await self.http._HTTPClient__session.close()
+
+        # Note: Le serveur HTTP interne s'arrête automatiquement car il est daemon=True
+        logger.info("🌐 Internal API server will stop automatically")
 
         # Close the bot
         await super().close()
