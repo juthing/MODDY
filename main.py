@@ -414,6 +414,25 @@ async def main():
                 else:
                     logger.error(f"❌ Failed to connect after {max_retries} attempts")
                     raise
+            except discord.HTTPException as e:
+                # Handle Discord rate limits (429) with longer delay
+                if e.status == 429:
+                    if attempt < max_retries:
+                        # Rate limit: wait longer before retrying
+                        rate_limit_delay = 60  # 1 minute
+                        logger.warning(f"⚠️ Discord rate limit hit (429) - attempt {attempt}/{max_retries}")
+                        logger.info(f"🔄 Waiting {rate_limit_delay} seconds before retry...")
+                        logger.info("💡 Tip: Too many restarts can trigger rate limits. Wait a few minutes.")
+                        await asyncio.sleep(rate_limit_delay)
+                    else:
+                        logger.error(f"❌ Failed to connect after {max_retries} attempts (rate limited)")
+                        logger.error("💡 Discord is blocking the bot due to too many requests.")
+                        logger.error("💡 Wait 5-10 minutes before trying again, or check for multiple instances.")
+                        raise
+                else:
+                    # Other HTTP errors should not be retried
+                    logger.error(f"❌ Discord HTTP error: {e}")
+                    raise
             except Exception as e:
                 # Other exceptions should not be retried
                 logger.error(f"❌ Connection error: {e}")
