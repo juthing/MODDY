@@ -27,9 +27,11 @@ MODERATOR_PERMISSIONS = [
 
 # Permissions specific to Support role
 SUPPORT_PERMISSIONS = [
-    "ticket_view",   # View support tickets
-    "ticket_close",  # Close support tickets
-    "ticket_create", # Create support tickets
+    "ticket_view",         # View support tickets
+    "ticket_close",        # Close support tickets
+    "ticket_create",       # Create support tickets
+    "subscription_view",   # View user subscription information
+    "subscription_manage", # Manage user subscriptions (refunds, modifications)
 ]
 
 # Permissions specific to Communication role
@@ -95,6 +97,8 @@ def get_permission_label(permission: str) -> str:
         "ticket_view": "View Tickets",
         "ticket_close": "Close Tickets",
         "ticket_create": "Create Tickets",
+        "subscription_view": "View User Subscriptions",
+        "subscription_manage": "Manage Subscriptions (Refunds)",
 
         # Communication
         "announce": "Send Announcements",
