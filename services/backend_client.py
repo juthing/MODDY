@@ -189,6 +189,143 @@ class BackendClient:
             logger.error(f"❌ Failed to notify event: {e}", exc_info=True)
             raise BackendClientError(f"Unexpected error: {e}") from e
 
+    async def get_subscription_info(self, discord_id: str) -> Dict[str, Any]:
+        """
+        Récupère les informations d'abonnement Stripe d'un utilisateur.
+
+        Args:
+            discord_id: Discord ID de l'utilisateur
+
+        Returns:
+            Dict avec les informations d'abonnement (has_subscription, subscription, etc.)
+
+        Raises:
+            BackendClientError: Si la requête échoue
+        """
+        try:
+            response = await self.client.post(
+                "/internal/subscription/info",
+                headers=self._get_auth_headers(),
+                json={"discord_id": discord_id}
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("has_subscription"):
+                logger.info(f"✅ Subscription found for user {discord_id}")
+            else:
+                logger.info(f"⚠️ No subscription found for user {discord_id}")
+
+            return data
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Failed to get subscription info: HTTP {e.response.status_code}")
+            raise BackendClientError(f"Failed to get subscription info: {e}") from e
+        except httpx.RequestError as e:
+            logger.error(f"❌ Failed to get subscription info: {e}")
+            raise BackendClientError(f"Failed to connect to backend: {e}") from e
+        except Exception as e:
+            logger.error(f"❌ Failed to get subscription info: {e}", exc_info=True)
+            raise BackendClientError(f"Unexpected error: {e}") from e
+
+    async def get_subscription_invoices(
+        self,
+        discord_id: str,
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Récupère la liste des factures Stripe d'un utilisateur.
+
+        Args:
+            discord_id: Discord ID de l'utilisateur
+            limit: Nombre maximum de factures à récupérer (défaut: 10)
+
+        Returns:
+            Dict avec la liste des factures (invoices, success, message)
+
+        Raises:
+            BackendClientError: Si la requête échoue
+        """
+        try:
+            response = await self.client.post(
+                "/internal/subscription/invoices",
+                headers=self._get_auth_headers(),
+                json={
+                    "discord_id": discord_id,
+                    "limit": limit
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            invoice_count = len(data.get("invoices", []))
+            logger.info(f"✅ Retrieved {invoice_count} invoice(s) for user {discord_id}")
+
+            return data
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Failed to get invoices: HTTP {e.response.status_code}")
+            raise BackendClientError(f"Failed to get invoices: {e}") from e
+        except httpx.RequestError as e:
+            logger.error(f"❌ Failed to get invoices: {e}")
+            raise BackendClientError(f"Failed to connect to backend: {e}") from e
+        except Exception as e:
+            logger.error(f"❌ Failed to get invoices: {e}", exc_info=True)
+            raise BackendClientError(f"Unexpected error: {e}") from e
+
+    async def refund_payment(
+        self,
+        discord_id: str,
+        amount: Optional[int] = None,
+        reason: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Rembourse un paiement Stripe d'un utilisateur.
+
+        Args:
+            discord_id: Discord ID de l'utilisateur
+            amount: Montant à rembourser en centimes (None = remboursement total)
+            reason: Raison du remboursement (optionnel)
+
+        Returns:
+            Dict avec le résultat du remboursement (refunded, refund_id, amount_refunded)
+
+        Raises:
+            BackendClientError: Si la requête échoue
+        """
+        try:
+            payload = {
+                "discord_id": discord_id,
+                "amount": amount,
+                "reason": reason
+            }
+
+            response = await self.client.post(
+                "/internal/subscription/refund",
+                headers=self._get_auth_headers(),
+                json=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("refunded"):
+                amount_euros = data.get("amount_refunded", 0) / 100
+                logger.info(f"✅ Refund processed for user {discord_id}: {amount_euros}€")
+            else:
+                logger.warning(f"⚠️ Refund failed for user {discord_id}: {data.get('message')}")
+
+            return data
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Failed to process refund: HTTP {e.response.status_code}")
+            raise BackendClientError(f"Failed to process refund: {e}") from e
+        except httpx.RequestError as e:
+            logger.error(f"❌ Failed to process refund: {e}")
+            raise BackendClientError(f"Failed to connect to backend: {e}") from e
+        except Exception as e:
+            logger.error(f"❌ Failed to process refund: {e}", exc_info=True)
+            raise BackendClientError(f"Unexpected error: {e}") from e
+
     async def close(self):
         """Ferme le client HTTP."""
         await self.client.aclose()
