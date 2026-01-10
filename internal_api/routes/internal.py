@@ -95,7 +95,8 @@ async def notify_user(payload: InternalNotifyUserRequest):
     Cette fonction:
     1. Récupère l'utilisateur Discord par son ID
     2. Lui envoie un message privé (DM) avec les informations
-    3. Logger l'événement
+    3. Met à jour l'attribut PREMIUM dans la base de données si nécessaire
+    4. Logger l'événement
 
     Args:
         payload: Données de notification (discord_id, action, plan, metadata)
@@ -124,6 +125,9 @@ async def notify_user(payload: InternalNotifyUserRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to fetch user: {str(e)}"
             )
+
+        # Mettre à jour l'attribut PREMIUM dans la base de données
+        await _update_premium_attribute(bot, payload)
 
         # Créer le message de notification basé sur l'action
         message = _create_notification_message(payload)
@@ -261,6 +265,89 @@ async def update_user_role(payload: InternalUpdateRoleRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+
+async def _update_premium_attribute(bot, payload: InternalNotifyUserRequest):
+    """
+    Met à jour l'attribut PREMIUM dans la base de données selon l'action.
+
+    Args:
+        bot: Instance du bot Discord
+        payload: Données de notification
+
+    Returns:
+        None
+    """
+    # Déterminer si l'utilisateur doit avoir l'attribut PREMIUM
+    should_be_premium = False
+    reason = ""
+
+    # Liste des plans premium
+    premium_plans = ["moddy_max", "premium", "moddy_premium"]
+
+    if payload.action == "subscription_created":
+        # Nouvelle souscription créée
+        if payload.plan and payload.plan.lower() in premium_plans:
+            should_be_premium = True
+            reason = f"Subscription created: {payload.plan}"
+
+    elif payload.action == "subscription_updated":
+        # Abonnement mis à jour
+        if payload.plan and payload.plan.lower() in premium_plans:
+            should_be_premium = True
+            reason = f"Subscription updated: {payload.plan}"
+
+    elif payload.action == "subscription_cancelled":
+        # Abonnement annulé - retirer PREMIUM
+        should_be_premium = False
+        reason = "Subscription cancelled"
+
+    elif payload.action == "plan_upgraded":
+        # Plan amélioré
+        if payload.plan and payload.plan.lower() in premium_plans:
+            should_be_premium = True
+            reason = f"Plan upgraded to: {payload.plan}"
+
+    elif payload.action == "plan_downgraded":
+        # Plan rétrogradé - vérifier si toujours premium
+        if payload.plan and payload.plan.lower() in premium_plans:
+            should_be_premium = True
+            reason = f"Plan downgraded to: {payload.plan}"
+        else:
+            should_be_premium = False
+            reason = f"Plan downgraded to: {payload.plan}"
+
+    # Mettre à jour l'attribut dans la base de données
+    try:
+        # ID système pour les changements automatiques
+        SYSTEM_USER_ID = 0
+
+        if should_be_premium:
+            # Ajouter l'attribut PREMIUM
+            await bot.db.set_attribute(
+                'user',
+                int(payload.discord_id),
+                'PREMIUM',
+                True,
+                SYSTEM_USER_ID,
+                reason
+            )
+            logger.info(f"✅ Attribut PREMIUM ajouté pour user {payload.discord_id}: {reason}")
+        else:
+            # Supprimer l'attribut PREMIUM
+            await bot.db.set_attribute(
+                'user',
+                int(payload.discord_id),
+                'PREMIUM',
+                None,
+                SYSTEM_USER_ID,
+                reason
+            )
+            logger.info(f"✅ Attribut PREMIUM retiré pour user {payload.discord_id}: {reason}")
+
+    except Exception as e:
+        # Logger l'erreur mais ne pas faire échouer la notification
+        logger.error(f"❌ Erreur lors de la mise à jour de l'attribut PREMIUM: {e}", exc_info=True)
 
 
 def _create_notification_message(payload: InternalNotifyUserRequest) -> str:
