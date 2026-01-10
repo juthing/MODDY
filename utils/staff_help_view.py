@@ -51,9 +51,12 @@ COMMAND_CATEGORIES = {
     "support": {
         "name": "Support Commands",
         "emoji": "🎧",
-        "description": "Support and ticket management commands",
+        "description": "Support and subscription management commands",
         "commands": [
-            ("Support commands", "In development")
+            ("sup.help", "Show available support commands"),
+            ("sup.subscription @user", "View user's subscription details (requires subscription_view)"),
+            ("sup.invoices @user [limit]", "View user's payment invoices (requires subscription_view)"),
+            ("sup.refund @user [amount] [reason]", "Process payment refund (requires subscription_manage)")
         ],
         "roles": [StaffRole.MANAGER, StaffRole.SUPERVISOR_SUP, StaffRole.SUPPORT]
     },
