@@ -228,6 +228,16 @@ class ModdyBot(commands.Bot):
         logger.info("🌐 Starting internal API server...")
         self.start_internal_api_server()
 
+        # Test backend connection
+        logger.info("🔍 Testing backend connection...")
+        try:
+            from services.backend_client import get_backend_client
+            backend_client = get_backend_client()
+            await backend_client.test_connection()
+        except Exception as e:
+            logger.error(f"⚠️ Backend connection test failed: {e}")
+            logger.error("   The bot will start, but backend-dependent features may not work")
+
         # Load extensions
         await self.load_extensions()
 

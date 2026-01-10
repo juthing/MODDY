@@ -73,6 +73,101 @@ class BackendClient:
             "Authorization": f"Bearer {self.api_secret}"
         }
 
+    async def test_connection(self) -> bool:
+        """
+        Test la connexion au backend avec des logs de diagnostic détaillés.
+
+        Cette méthode est utile pour diagnostiquer les problèmes de connectivité,
+        particulièrement dans un environnement Railway avec Private Networking.
+
+        Returns:
+            True si la connexion est réussie, False sinon
+        """
+        logger.info("=" * 60)
+        logger.info("🔍 BACKEND CONNECTION TEST")
+        logger.info("=" * 60)
+        logger.info(f"Backend URL: {self.backend_url}")
+        logger.info(f"Timeout: {self.client.timeout.read}s")
+        logger.info(f"API Secret configured: {'Yes' if self.api_secret else 'No'}")
+        logger.info(f"API Secret length: {len(self.api_secret) if self.api_secret else 0} chars")
+        logger.info("-" * 60)
+
+        try:
+            logger.info("Testing connection to backend...")
+            response = await self.client.get(
+                "/internal/health",
+                headers=self._get_auth_headers()
+            )
+
+            logger.info(f"HTTP Status Code: {response.status_code}")
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ Backend status: {data.get('status', 'unknown')}")
+                logger.info(f"✅ Backend message: {data.get('message', 'N/A')}")
+                logger.info("=" * 60)
+                logger.info("✅ BACKEND CONNECTION SUCCESSFUL")
+                logger.info("=" * 60)
+                return True
+
+            elif response.status_code == 401 or response.status_code == 403:
+                logger.error(f"❌ Authentication failed (HTTP {response.status_code})")
+                logger.error("   Possible causes:")
+                logger.error("   - INTERNAL_API_SECRET is incorrect")
+                logger.error("   - INTERNAL_API_SECRET differs between bot and backend")
+                logger.error("   - Missing Authorization header")
+                logger.error("=" * 60)
+                return False
+
+            else:
+                logger.error(f"❌ Unexpected HTTP status: {response.status_code}")
+                logger.error(f"   Response: {response.text[:200]}")
+                logger.error("=" * 60)
+                return False
+
+        except httpx.ConnectError as e:
+            logger.error("❌ CONNECTION ERROR - Cannot connect to backend")
+            logger.error(f"   Error: {e}")
+            logger.error("   Possible causes:")
+            logger.error("   - Backend service is not running")
+            logger.error("   - Wrong service name in BACKEND_INTERNAL_URL")
+            logger.error("   - Services not in the same Railway project")
+            logger.error("   - Railway Private Network not enabled")
+            logger.error(f"   Current URL: {self.backend_url}")
+            logger.error("=" * 60)
+            return False
+
+        except httpx.TimeoutException as e:
+            logger.error("❌ TIMEOUT ERROR - Backend did not respond in time")
+            logger.error(f"   Error: {e}")
+            logger.error("   Possible causes:")
+            logger.error("   - Backend is starting up (check backend logs)")
+            logger.error("   - Backend is overloaded")
+            logger.error("   - Network issues between services")
+            logger.error(f"   Timeout configured: {self.client.timeout.read}s")
+            logger.error("=" * 60)
+            return False
+
+        except Exception as e:
+            error_type = type(e).__name__
+            logger.error(f"❌ UNEXPECTED ERROR - {error_type}")
+            logger.error(f"   Error: {e}")
+
+            # Special handling for DNS errors
+            if "Name or service not known" in str(e) or "nodename nor servname provided" in str(e):
+                logger.error("   This is a DNS RESOLUTION error")
+                logger.error("   Possible causes:")
+                logger.error("   - Backend service name is incorrect")
+                logger.error("   - Services are not in the same Railway project")
+                logger.error("   - Railway Private Network DNS not working")
+                logger.error("   Current service name in URL: " + self.backend_url.split("//")[1].split(":")[0])
+                logger.error("   Expected format: <service-name>.railway.internal")
+
+            logger.error("=" * 60)
+            logger.error(f"Full error details:", exc_info=True)
+            logger.error("=" * 60)
+            return False
+
     async def health_check(self) -> Dict[str, Any]:
         """
         Vérifie si le backend est accessible.
